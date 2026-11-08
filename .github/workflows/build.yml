@@ -1,0 +1,33 @@
+name: Build DM Valdorana
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Compila l'installer
+        run: npx electron-builder --win --publish never
+      - name: Allega l'installer alla Release (aggiornamenti automatici)
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DM-Valdorana-installer
+          path: dist/*.exe
