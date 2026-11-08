@@ -53,6 +53,7 @@ th{position:sticky;top:0;background:#1d2125;color:var(--mut);font-weight:500;fon
 tr.done td{color:#5d656d}tr.live td{background:#252b20}tr.wait td{background:#3a3315}
 td.note{color:#ffcc80;font-size:11px}
 td .if{font-size:10px;color:#8b939c}
+.bsel{background:#0e1012;color:#ffd21f;border:1px solid #3a4046;border-radius:3px;font:inherit;font-size:12px;padding:1px 2px}
 .cat{display:inline-block;min-width:30px;text-align:center;border-radius:2px;padding:0 3px;color:#000;font-weight:700;font-size:10px}
 .reqs{padding:6px 10px;font-size:12px;display:flex;flex-direction:column;gap:5px;max-height:220px;overflow:auto}
 .reqs .r{display:flex;gap:6px;align-items:center;justify-content:space-between;border-bottom:1px solid #22262a;padding-bottom:4px}
@@ -116,6 +117,30 @@ body.popup .log{height:calc(100vh - 40px)}
 #startDlg .box{background:#1b1f22;border:1px solid #3a4046;border-radius:8px;padding:22px 26px;max-width:460px}
 #startDlg h3{margin:0 0 10px}
 .chat .mt{align-self:flex-start;background:#3a2a14;border:1px solid #6b4a1e}
+/* orario grafico */
+.tgbox{height:340px;position:relative}
+.tgbox canvas{display:block}
+body.popup .tgbox{height:calc(100vh - 70px)}
+/* tabellone in stile stazione */
+.board{background:#fff;color:#222;font:14px/1.3 Arial,Helvetica,sans-serif}
+.btop{display:flex;align-items:flex-end;justify-content:space-between;padding:8px 8px 0;gap:10px}
+.btop b{font-size:15px;letter-spacing:.02em;padding-bottom:6px}
+.btop #bClock{font-weight:700;padding-bottom:6px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:3px}
+.tabs button{border:0;background:#ececec;color:#333;font:700 17px Arial,Helvetica,sans-serif;padding:8px 16px;cursor:pointer}
+.tabs button.on{background:#f0d84a}
+.bwrap{overflow:auto;max-height:420px}
+body.popup .bwrap{max-height:calc(100vh - 90px)}
+.btab{width:100%;border-collapse:separate;border-spacing:0 3px;font-size:13.5px}
+.btab th{background:#f0d84a;color:#222;font-weight:700;text-align:left;padding:8px 8px;position:sticky;top:0;text-transform:none;letter-spacing:0;font-size:13px}
+.btab td{padding:7px 8px;border:0;white-space:nowrap}
+.btab tr:nth-child(odd) td{background:#f5e394;color:#333}
+.btab tr:nth-child(even) td{background:#575757;color:#fff}
+.btab .vet{font-weight:700;font-style:italic;font-size:12px}
+.btab .catb{font-weight:800;font-style:italic;font-size:15px}
+.btab tr:nth-child(even) .vet{filter:brightness(1.9) saturate(1.2)}
+.btab .rit{color:#c00;font-weight:700}.btab tr:nth-child(even) .rit{color:#ffb3b3}
+.btab .blink{animation:blink .8s steps(2) infinite;font-weight:700}
 label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12px;cursor:pointer}
 </style>
 </head>
@@ -171,8 +196,13 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
     </div>
   </div>
   </div>
-</section>
 
+
+  <div class="card panel" id="pTG" style="margin-top:12px"><h2 class="ph"><span>Orario grafico (Train Graph)</span><span style="display:flex;gap:6px;align-items:center"><select id="tgWin" class="bsel"><option value="2">2 ore</option><option value="3" selected>3 ore</option><option value="6">6 ore</option></select><button class="dt" title="Sgancia in una finestra">⧉</button></span></h2>
+    <div class="tgbox"><canvas id="tg"></canvas></div>
+    <div class="legend" style="padding:4px 10px">tratteggio = orario programmato · linea piena = marcia reale · fascia = stazione di Valdorana · righe tratteggiate = PBI</div>
+  </div>
+</section>
 <aside>
   <div class="card panel" id="pTel"><h2 class="ph"><span>Telefono · AdC, stazioni, manutenzione</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
     <div class="calls" id="calls"></div>
@@ -181,7 +211,11 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
   </div>
   <div class="card panel" id="pReq"><h2 class="ph"><span>Richieste e comunicazioni</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="reqs" id="reqs"></div></div>
   <div class="card panel" id="pTT"><h2 class="ph"><span>Orario di servizio · <span id="ttDay"></span></span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
-    <div class="tt"><table><thead><tr><th>Treno / IF</th><th>Provenienza → Destinazione</th><th>Arr.</th><th>Part.</th><th>Servizio</th><th>Stato</th></tr></thead><tbody id="ttBody"></tbody></table></div>
+    <div class="tt"><table><thead><tr><th>Treno / IF</th><th>Provenienza → Destinazione</th><th>Arr.</th><th>Part.</th><th>Bin.</th><th>Servizio</th><th>Stato</th></tr></thead><tbody id="ttBody"></tbody></table></div>
+  </div>
+  <div class="card panel" id="pBoard"><h2 class="ph"><span>Tabellone arrivi e partenze</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
+    <div class="board"><div class="btop"><span class="tabs"><button type="button" data-bt="A" class="on">Arrivi</button><button type="button" data-bt="P">Partenze</button></span><b>VALDORANA</b><span id="bClock"></span></div>
+    <div class="bwrap"><table class="btab"><thead><tr id="bHead"></tr></thead><tbody id="bBody"></tbody></table></div></div>
   </div>
   <div class="card panel" id="pLog"><h2 class="ph"><span>Registro di stazione</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="log" id="log"></div></div>
   <details open><summary>Come si usa · codici tastiera</summary><div class="help">
@@ -190,7 +224,7 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
       <tr><td><code>3B D</code></td><td>Partenza dal bin. 3 verso P.M. Spada sul dispari. Origini <code>1A</code>…<code>5B</code>, destinazione <code>D</code> o <code>P</code>.</td></tr>
       <tr><td><code>ANN PDA</code></td><td>Annullamento dell'itinerario con origine indicata.</td></tr>
       <tr><td><code>VI PDA 3</code></td><td>Itinerario con segnale mantenuto a via impedita (CdB, deviatoio o segnale guasti): deviatoi elettrici o verificati/manovrati a mano. Il treno entra solo dopo il Mod. M40.</td></tr>
-      <tr><td><code>M40 2229</code> · <code>M40 2229 2 3</code></td><td>Compila il Mod. M40 DL (B.m./B.ca) per il treno, oppure lo trasmette subito con le prescrizioni indicate. Arrivo: 2 e 3. Partenza: 1, 3, 6 (e 4 sul binario di destra). Il treno supera il segnale a via impedita in marcia a vista a 30 km/h fino al termine dell'itinerario.</td></tr>
+      <tr><td><code>M40 2229</code> · <code>M40 2229 2 3</code></td><td>Compila il Mod. M40 DL per il treno (B.m./B.ca lato Monterossi, B.A. lato P.M. Spada), oppure lo trasmette subito con le prescrizioni indicate. Arrivo: 2 e 3. Partenza: 1, 3, 4 (binario di sinistra/destra) e 6 (via libera di blocco elettrico). Il treno supera il segnale a via impedita in marcia a vista a 30 km/h fino al termine dell'itinerario.</td></tr>
       <tr><td><code>ATT 2229</code> · <code>TEL 2229 testo</code> · <code>TEL SPADA testo</code></td><td>Telefono: invita l'AdC ad attendere · messaggio all'AdC · messaggio al DM di Monterossi o di P.M. Spada.</td></tr>
       <tr><td><code>DEV 1</code> · <code>DEV 13 R</code></td><td>Comando individuale. Comunicazioni (rami a/b manovrati insieme): 1, 5, 9, 11 lato Monterossi; 2, 6, 10, 12 lato P.M. Spada. Deviatoi semplici 13 e 14. 9b, 11b, 10b e 12b in normale chiudono i binari 1 e 4 sui tronchini.</td></tr>
       <tr><td><code>CO AD</code></td><td>Cambio orientamento blocco: <code>AD</code> <code>AP</code> <code>BD</code> <code>BP</code>.</td></tr>
@@ -207,7 +241,9 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
       <li>Regionali (R, RV) Trenitalia; Alta Velocità Frecciarossa (Trenitalia) e Italo, in parte con fermata e in parte in transito; merci e invii materiale delle varie IF.</li>
       <li>Corretto tracciato: protezione V/G/GV, avviso V. Deviata 30 km/h: RV/RG/R-GV, avviso GV fisso.</li>
       <li>I viaggiatori sono autoaccettati, salvo degrado o interruzioni presso Monterossi o P.M. Spada (comunicati al telefono). Merci (MRC), invii materiale (MAT) e locomotive isolate (LIS) richiedono sempre il consenso, in arrivo e in partenza.</li>
-      <li>PBI 11 (dispari) e 12 (pari) verso Monterossi; PBI 13-15 (dispari) e 16-14 (pari) verso P.M. Spada. Con il blocco invertito la tratta diventa sezione unica: i PBI restano a via impedita e non vengono considerati.</li>
+      <li>Verso Monterossi: B.C.A., PBI 11 (dispari) e 12 (pari), sezioni di 5 km, 140 km/h. Verso P.M. Spada: blocco automatico a correnti fisse, segnali 101–103 (dispari) e 104–102 (pari), sezioni di 1300 m, 160 km/h. Con il blocco invertito la tratta diventa sezione unica: i segnali di blocco restano a via impedita.</li>
+      <li>Corretto tracciato sui bin. 2 e 3 a 140 km/h; itinerari RG/RV a 30 km/h dal segnale di protezione al segnale di partenza (arrivo) e dal segnale di partenza alla protezione opposta (partenza). Capacità: bin. 1–3 580 m, bin. 4 350 m, bin. 5 300 m.</li>
+      <li>Mod. M40 DL (B.m./B.ca) lato Monterossi, Mod. M40 DL (B.A.) lato P.M. Spada. Con un deviatoio in perdita di controllo il treno non può partire fino alla riparazione.</li>
     </ul>
   </div></details>
 </aside>
@@ -216,7 +252,7 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
 <div class="toast" id="toast"></div>
 <div id="startDlg"><div class="box"><h3>Turno salvato trovato</h3><p id="startTxt"></p><p><button class="hb" id="sdResume">Riprendi il turno</button> <button class="hb" id="sdNew">Nuovo turno</button></p></div></div>
 <div id="m40" class="modal"><div class="mod">
-  <div class="mh"><b>Mod. M. 40 D.L. (B.m./B.ca)</b><span class="n">N. <span id="m40n"></span></span></div>
+  <div class="mh"><b id="m40title">Mod. M. 40 D.L. (B.m./B.ca)</b><span class="n">N. <span id="m40n"></span></span></div>
   <div class="mrow">Località di servizio <b>Valdorana</b> · <span id="m40d"></span> · ora <span id="m40o"></span></div>
   <div class="mrow">Si ordina all'Agente di condotta del treno <b id="m40t"></b> di rispettare le sottoindicate prescrizioni la cui casella è barrata e di ritenere nulle le rimanenti prescrizioni.</div>
   <div id="m40list"></div>
@@ -266,8 +302,8 @@ const SIDES = { A: { dir: 'E', name: 'Monterossi' }, B: { dir: 'W', name: 'P.M. 
 const LINES = {
   LAD: { side: 'A', y: 288, legal: 'in', sig: 'Pd/A', short: 'D', code: 'AD', name: 'dispari lato Monterossi', bx: [250, 135, 20], pbi: { 1: '11' } },
   LAP: { side: 'A', y: 344, legal: 'out', sig: 'Pp/A', short: 'P', code: 'AP', name: 'pari lato Monterossi', bx: [250, 135, 20], pbi: { 1: '12' } },
-  LBD: { side: 'B', y: 288, legal: 'out', sig: 'Pd/B', short: 'D', code: 'BD', name: 'dispari lato P.M. Spada', bx: [1150, 1240, 1310, 1380], pbi: { 1: '13', 2: '15' } },
-  LBP: { side: 'B', y: 344, legal: 'in', sig: 'Pp/B', short: 'P', code: 'BP', name: 'pari lato P.M. Spada', bx: [1150, 1240, 1310, 1380], pbi: { 2: '16', 1: '14' } },
+  LBD: { side: 'B', y: 288, legal: 'out', sig: 'Pd/B', short: 'D', code: 'BD', name: 'dispari lato P.M. Spada', bx: [1150, 1240, 1310, 1380], pbi: { 1: '101', 2: '103' } },
+  LBP: { side: 'B', y: 344, legal: 'in', sig: 'Pp/B', short: 'P', code: 'BP', name: 'pari lato P.M. Spada', bx: [1150, 1240, 1310, 1380], pbi: { 2: '104', 1: '102' } },
 };
 const SECOF = {}, PBI = {};
 for (const L in LINES) {
@@ -282,10 +318,16 @@ for (const L in LINES) {
     PBI[id] = { id, L, x: l.bx[j], y: l.y, dir: legalDir, enters: l.legal === 'in' ? l.secs[j - 1] : l.secs[+j] };
   }
 }
-const PBI_NEXT = { 'PBI 13': 'PBI 15', 'PBI 16': 'PBI 14' };
+const PBI_NEXT = { 'PBI 101': 'PBI 103', 'PBI 104': 'PBI 102' };
 for (const t of TRK) addEdge('T' + t, 'track', [[TX[t][0], TY[t]], [TX[t][1], TY[t]]]);
 const CDBS = [...new Set(EDGES.map(e => e.cdb).concat(Object.keys(SECOF)))];
-const DEC = 1.2, ACC = 0.6;
+// ---------- grandezze reali ----------
+const KMH = v => v / 3.6;
+const TRACKM = { 1: 580, 2: 580, 3: 580, 4: 350, 5: 300 };       // capacità dei binari (m)
+const LINEM = { A: 5000, B: 1300 };                              // sezioni di blocco: BCA 2x5 km, BAcf 3x1300 m
+const LINEV = { A: KMH(140), B: KMH(160) };                      // velocità massima di linea
+const STAZ_CT = KMH(140), DEV = KMH(30);                         // corretto tracciato bin. 2/3 · deviata RG/RV e marcia a vista
+const LINE_TOT = { A: 10000, B: 3900 };
 
 // ======================= SEGNALI =======================
 const SIG = {};
@@ -345,15 +387,18 @@ for (const t of TRK) for (const d of ['A', 'B']) {
 // ======================= CALENDARIO E ORARIO =======================
 const DOW = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const DOWL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+// lunghezze (m), velocità massime (km/h), accelerazione e frenatura di servizio (m/s²)
 const CATS = {
-  R: { len: 45, dwell: 40, pax: true, col: '#4fc3f7', vline: 5, vcap: 11, lead: 140 },
-  RV: { len: 55, dwell: 35, pax: true, col: '#9ccc65', vline: 5.5, vcap: 12, lead: 135 },
-  FR: { len: 70, dwell: 60, pax: true, col: '#ff5252', vline: 7, vcap: 14, lead: 115, name: 'Frecciarossa' },
-  ITA: { len: 70, dwell: 60, pax: true, col: '#ff7aa8', vline: 7, vcap: 14, lead: 115, name: 'Italo' },
-  MRC: { len: 75, dwell: 0, pax: false, col: '#bcaaa4', vline: 3.5, vcap: 8, lead: 175 },
-  MAT: { len: 50, dwell: 0, pax: false, col: '#ce93d8', vline: 5, vcap: 10, lead: 140 },
-  LIS: { len: 22, dwell: 0, pax: false, col: '#90a4ae', vline: 6, vcap: 11, lead: 125, name: 'Locomotiva isolata' },
+  R: { pax: true, col: '#4fc3f7', dwell: 40, vmax: [160], acc: 0.7, dec: 0.7, lens: [50, 75, 105, 135, 160, 200], name: 'Regionale' },
+  RV: { pax: true, col: '#9ccc65', dwell: 40, vmax: [160], acc: 0.6, dec: 0.7, lens: [105, 135, 160, 200], name: 'Regionale Veloce' },
+  IC: { pax: true, col: '#7986cb', dwell: 60, vmax: [160], acc: 0.5, dec: 0.6, lens: [200], name: 'Intercity' },
+  FR: { pax: true, col: '#ff5252', dwell: 60, vmax: [160], acc: 0.5, dec: 0.6, lens: [200, 250, 330], name: 'Frecciarossa' },
+  ITA: { pax: true, col: '#ff7aa8', dwell: 60, vmax: [160], acc: 0.5, dec: 0.6, lens: [200, 250, 330], name: 'Italo' },
+  MRC: { pax: false, col: '#bcaaa4', dwell: 0, vmax: [90, 100, 120], acc: 0.2, dec: 0.35, lens: [50, 570], name: 'Merci' },
+  MAT: { pax: false, col: '#ce93d8', dwell: 0, vmax: [140], acc: 0.4, dec: 0.5, lens: [50, 300], name: 'Invio materiale' },
+  LIS: { pax: false, col: '#90a4ae', dwell: 0, vmax: [120], acc: 0.5, dec: 0.5, lens: [20, 40], name: 'Locomotiva isolata' },
 };
+const TERM = { A: { R: 'MONTEROSSI', RV: 'VENEZIA S.LUCIA', IC: 'MILANO CENTRALE', FR: 'MILANO CENTRALE', ITA: 'TORINO P.NUOVA' }, B: { R: 'BORGO SPADA', RV: 'TRIESTE CENTRALE', IC: 'TRIESTE CENTRALE', FR: 'TRIESTE CENTRALE', ITA: 'TRIESTE CENTRALE' } };
 const nbDegraded = side => S && S.nbEvents.some(e => e.side === side && e.on);
 const accReq = (t, side) => !CATS[t.cat].pax || nbDegraded(side);
 const needsAcc = t => accReq(t, t.from) || accReq(t, t.to);
@@ -361,11 +406,18 @@ const IF_MERCI = ['DB Cargo', 'MIR', 'InRail', 'CFI', 'OceanoGate', 'Altmann', '
 function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 let UID = 1;
 function genDay(d) {
-  const dow = d % 7, base = d * 86400, list = [];
+  const dow = d % 7, base = d * 86400, list = [], rr = rng(d * 31 + 5);
   const add = (from, h, m, cat, num, stopMin, stopType, impresa) => {
     const C = CATS[cat], arr = base + h * 3600 + m * 60, stops = C.pax ? (stopMin > 0) : !!stopType;
     const dwell = C.pax ? C.dwell : (stopType ? stopMin * 60 : 0);
-    list.push({ uid: UID++, num, cat, from, to: from === 'A' ? 'B' : 'A', arr, dep: arr + (C.pax ? stopMin * 60 : (stopType ? stopMin * 60 : 0)), ready: arr - C.lead, stops, dwell, stopType: C.pax ? (stops ? 'fermata' : 'transito') : (stopType || 'transito'), len: C.len, impresa: impresa || (cat === 'ITA' ? 'Italo' : 'Trenitalia'), status: 'programmato', sent: false, done: false, delay: null, track: null });
+    const len = C.lens.length === 2 && !C.pax && cat !== 'LIS' ? Math.round((C.lens[0] + rr() * (C.lens[1] - C.lens[0])) / 10) * 10 : C.lens[Math.floor(rr() * C.lens.length)];
+    const vmax = C.vmax[Math.floor(rr() * C.vmax.length)];
+    const vEff = KMH(Math.min(vmax, from === 'A' ? 140 : 160)) * 0.95;
+    const lead = Math.round(LINE_TOT[from] / vEff + (stops ? 100 : 45));
+    const plan = stops ? (C.pax ? (from === 'A' ? '3' : '2') : (from === 'A' ? (len <= TRACKM[4] ? '4' : '3') : '1')) : null;
+    list.push({ uid: UID++, num, cat, from, to: from === 'A' ? 'B' : 'A', arr, dep: arr + (stops ? stopMin * 60 : 0), ready: arr - lead, stops, dwell, stopType: C.pax ? (stops ? 'fermata' : 'transito') : (stopType || 'transito'), len, vmax, plan,
+      orig: C.pax ? TERM[from][cat] : SIDES[from].name.toUpperCase(), dest: C.pax ? TERM[from === 'A' ? 'B' : 'A'][cat] : SIDES[from === 'A' ? 'B' : 'A'].name.toUpperCase(),
+      impresa: impresa || (cat === 'ITA' ? 'Italo' : 'Trenitalia'), status: 'programmato', sent: false, done: false, delay: null, track: null, hist: [] });
   };
   const R = (from, h, m) => add(from, h, m, 'R', 2200 + (h * 2 + (m >= 30 ? 1 : 0)) * 2 + (from === 'A' ? 1 : 2), 1);
   const RVt = (from, h, m) => add(from, h, m, 'RV', 2300 + h + (from === 'A' ? 1 : 2), 1);
@@ -384,6 +436,9 @@ function genDay(d) {
   for (let h = 6; h <= 20; h += 2) add('B', h, 44, 'FR', 9500 + h, [8, 14, 18].includes(h) ? 2 : 0);
   for (let h = 6; h <= 20; h += 2) add('A', h, 38, 'ITA', 8901 + h, [8, 18].includes(h) ? 2 : 0);
   for (let h = 7; h <= 21; h += 2) add('B', h, 16, 'ITA', 8901 + h, [9, 19].includes(h) ? 2 : 0);
+  // Intercity (Trenitalia), 200 m, con fermata
+  [7, 11, 15, 19].forEach((h, i) => add('A', h, 50, 'IC', 731 + 2 * i, 2));
+  [8, 12, 16, 20].forEach((h, i) => add('B', h, 10, 'IC', 732 + 2 * i, 2));
   // merci e invii materiale casuali (diversi ogni giorno)
   const r = rng(d * 7919 + 101), n = dow <= 4 ? 16 : dow === 5 ? 12 : 8;
   const hw = [3, 3, 3, 3, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3], hs = hw.reduce((a, b) => a + b);
@@ -393,7 +448,7 @@ function genDay(d) {
     const q = r(); let stopType = null, mins = 0;
     if (q < 0.5) stopType = null;
     else if (q < 0.66) { stopType = 'sosta tecnica'; mins = 5 + Math.floor(r() * 6); }
-    else if (q < 0.86) { stopType = 'cambio personale'; mins = 8 + Math.floor(r() * 8); }
+    else if (q < 0.86) { stopType = 'cambio personale'; mins = 5; }
     else { stopType = 'fermata'; mins = 10 + Math.floor(r() * 11); }
     const num = (cat === 'MRC' ? 50000 : 96000) + Math.floor(r() * 450) * 2 + (from === 'A' ? 1 : 2);
     add(from, h, m, cat, num, mins, stopType, IF_MERCI[Math.floor(r() * IF_MERCI.length)]);
@@ -474,9 +529,15 @@ function lineCheck(r) {
   return null;
 }
 // ---------- comandi ----------
+function capCheck(r) {
+  if (r.kind !== 'arr') return null;
+  const tr = S.trains.find(x => x.await === r.sig && !x.track);
+  return tr && tr.len > TRACKM[r.track] ? `${tr.cat} ${tr.num} (${tr.len} m) non entra nel binario ${r.track} (${TRACKM[r.track]} m)` : null;
+}
 function formRoute(rid) {
   const r = ROUTES[rid];
   if (!r) return result(false, 'Itinerario inesistente');
+  { const e = capCheck(r); if (e) return result(false, `${rlabel(r)} rifiutato: ${e}`); }
   if (S.sigActive[r.sig]) return result(false, `Segnale ${r.sig} già impegnato da un itinerario`);
   if (r.line) { const e = lineCheck(r); if (e) return result(false, `${rlabel(r)} rifiutato: ${e}`); }
   for (const s of r.segs) {
@@ -510,6 +571,9 @@ function autRoute(rid) {
     return result(true, `Itinerario ${rlabel(r)} mantenuto con segnale ${r.sig} a via impedita: trasmettere il Mod. M40 DL al treno (M40 <numero>)`, 'warn');
   }
   if (r.line) { const e = lineCheck(r); if (e) return result(false, `VI ${rlabel(r)} rifiutato: ${e}`); }
+  { const e = capCheck(r); if (e) return result(false, `VI ${rlabel(r)} rifiutato: ${e}`); }
+  // con un deviatoio in perdita di controllo il treno non può essere licenziato fino all'intervento della manutenzione
+  if (r.kind === 'dep') { const g = r.segs.find(x => x.pos && (swOf(x.cdb).fault || inConsegna(SW[x.cdb].ctl))); if (g) return result(false, `VI ${rlabel(r)} rifiutato: deviatoio ${CTL[SW[g.cdb].ctl].n} in perdita di controllo — il treno non può essere licenziato fino all'intervento della manutenzione (CEI S${CTL[SW[g.cdb].ctl].n})`); }
   for (const s of r.segs) {
     const c = S.cdb[s.cdb];
     if (inConsegna(s.cdb)) return result(false, `VI rifiutato: ${cname(s.cdb)} in consegna ai tecnici`);
@@ -629,7 +693,7 @@ function doAct(x) {
   if (x.t === 'intend') { const it = S.ints.find(i => i.id === x.id && i.state === 'active'); if (it) intEnd(it, true); }
   if (x.t === 'm40ok' && a) { a.auth = true; log(`Mod. M40 DL n. ${x.n} consegnato al ${x.nm}: superamento del segnale ${x.sig} a via impedita`, 'warn'); }
 }
-const M40TXT = {
+const M40TXT_BCA = {
   1: c => `Partite da Valdorana con segnale di partenza ${c.kind === 'dep' ? c.sig : '…………'} disposto a via impedita.`,
   2: c => `Superate il segnale di protezione ${c.kind === 'arr' ? c.sig : '…………'} di Valdorana disposto a via impedita.`,
   3: c => `Marcia a vista non superando la velocità di 30 km/h sull'itinerario di ${c.kind === 'arr' ? 'arrivo' : 'partenza'} interessato.`,
@@ -640,6 +704,16 @@ const M40TXT = {
   14: c => `Esponete in testa al treno segnale rosso a destra o fanale destro a luce rossa.`,
 };
 function svcText(t) { if (CATS[t.cat].pax) return t.stops ? 'con fermata' : 'in transito'; return t.stopType === 'transito' ? 'in transito' : `con ${t.stopType} di ${Math.round(t.dwell / 60)}'`; }
+const M40TXT_BA = Object.assign({}, M40TXT_BCA, {
+  8: c => `Non esiste via libera. Procedete con marcia a vista non superando la velocità di 30 km/h salvo ricezione codice in linea fino al segnale di blocco N° …… / di protezione della stazione di P.M. Spada, rispettando le relative indicazioni.`,
+  9: c => `Blocco elettrico non funziona da Valdorana a P.M. Spada. Su tale tratta escludete la funzione di ripetizione dei segnali in macchina.`,
+  15: c => `Per interruzione binario ${c.legName} viaggiate da Valdorana a P.M. Spada sul binario illegale.`,
+  18: c => `Esponete in testa al treno segnale rosso a destra o fanale destro a luce rossa.`,
+});
+delete M40TXT_BA[11]; delete M40TXT_BA[14];
+const M40TXT = M40TXT_BCA; // compatibilità
+function m40Txt(c) { return c.model === 'BA' ? M40TXT_BA : M40TXT_BCA; }
+function m40Name(c) { return c.model === 'BA' ? 'Mod. M40 DL (B.A.)' : 'Mod. M40 DL (B.m./B.ca)'; }
 function trainByNum(num) { return S.trains.find(x => String(x.num) === String(num)); }
 function m40Context(num) {
   const tr = trainByNum(num);
@@ -650,21 +724,23 @@ function m40Context(num) {
   const line = kind === 'arr' ? SIG[sig].line : (r && r.line);
   const side = kind === 'arr' ? LINES[SIG[sig].line].side : (r ? r.side : (tr.dir === 'E' ? 'B' : 'A'));
   const legal = line ? LINES[line].legal === (kind === 'arr' ? 'in' : 'out') : true;
-  return { tr, sig, rid, r, a, kind, line, nb: SIDES[side].name, legal, lato: legal ? 'sinistra' : 'destra', legName: line ? (LINES[line].short === 'D' ? 'pari' : 'dispari') : '' };
+  return { tr, sig, rid, r, a, kind, line, side, model: side === 'B' ? 'BA' : 'BCA', nb: SIDES[side].name, legal, lato: legal ? 'sinistra' : 'destra', legName: line ? (LINES[line].short === 'D' ? 'pari' : 'dispari') : '' };
 }
 // prescrizioni necessarie: arrivo 2+3; partenza 1+3+6, più la 4 sul binario di destra
-function m40Required(c) { const req = c.kind === 'arr' ? [2, 3] : [1, 3, 6]; if (!c.legal) req.push(4); return { req, forb: c.kind === 'arr' ? [1, 5, 6] : [2] }; }
+// arrivo: 2 e 3 · partenza: 1, 3, 4 (binario di sinistra/destra) e 6 (via libera di blocco elettrico)
+function m40Required(c) { return c.kind === 'arr' ? { req: [2, 3], forb: [1, 5, 6, 8, 9] } : { req: [1, 3, 4, 6], forb: [2, 8, 9] }; }
 function sendM40(num, list) {
   const c = m40Context(num); if (c.err) return result(false, c.err);
   const { tr, sig, a, r } = c, nm = `${tr.cat} ${tr.num}`;
-  if (!(tr.v < 0.05 && tr.L - tr.head < 20)) return result(false, `${nm} non è ancora fermo al segnale ${sig}`);
+  if (!atSignal(tr)) return result(false, `${nm} non è ancora fermo al segnale ${sig}${tr.track && !tr.served ? ' (servizio in stazione non ultimato)' : ''}`);
   if (!a || !a.deg) return result(false, `Predisporre prima l'itinerario con segnale ${sig} a via impedita (codice VI)`);
   if (a.state !== 'set') return result(false, `Itinerario ${rlabel(r)} non ancora predisposto: attendere la verifica dei deviatoi`);
   if (a.auth || a.m40) return result(false, 'Mod. M40 già trasmesso per questo itinerario');
-  list = [...new Set(list.map(Number))].filter(n => M40TXT[n]).sort((x, y) => x - y);
+  const T = m40Txt(c);
+  list = [...new Set(list.map(Number))].filter(n => T[n]).sort((x, y) => x - y);
   if (!list.length) return result(false, 'Nessuna prescrizione barrata');
-  const n = ++S.m40n, ora = fmtM(S.simT), body = list.map(k => `Prescr. ${k}: ${M40TXT[k](c)}`).join(' ');
-  phone('DM', `Treno ${nm}, trasmetto Mod. M40 DL (B.m./B.ca) n. ${n} delle ore ${ora}, località di servizio Valdorana. ${body}`);
+  const n = ++S.m40n, ora = fmtM(S.simT), body = list.map(k => `Prescr. ${k}: ${T[k](c)}`).join(' ');
+  phone('DM', `Treno ${nm}, trasmetto ${m40Name(c)} n. ${n} delle ore ${ora}, località di servizio Valdorana. ${body}`);
   a.m40 = true; S.presc++; tr.callAck = true;
   const { req, forb } = m40Required(c), miss = req.filter(k => !list.includes(k)), bad = list.filter(k => forb.includes(k));
   if (miss.length || bad.length) {
@@ -672,7 +748,7 @@ function sendM40(num, list) {
     queuePhone(8, `AdC ${nm}`, `DM, il modulo n. ${n} non è corretto: ${[miss.length ? 'manca la prescrizione n. ' + miss.join(', ') : '', bad.length ? 'la prescrizione n. ' + bad.join(', ') + ' non è pertinente' : ''].filter(Boolean).join('; ')}. Resto fermo e attendo un nuovo modulo.`, { t: 'm40fail', rid: c.rid });
     return result(false, `Mod. M40 n. ${n} trasmesso con errori: l'AdC non lo accetta`);
   }
-  queuePhone(8, `AdC ${nm}`, `Ripeto: Mod. M40 DL n. ${n} delle ore ${ora}. ${body}`);
+  queuePhone(8, `AdC ${nm}`, `Ripeto: ${m40Name(c)} n. ${n} delle ore ${ora}. ${body}`);
   queuePhone(13, 'DM', `Esatto.`);
   queuePhone(16, `AdC ${nm}`, `Ricevuto. Supero il segnale ${sig} a via impedita e procedo in marcia a vista a 30 km/h.`, { t: 'm40ok', rid: c.rid, n, nm, sig });
   return result(true, `Mod. M40 DL n. ${n} in trasmissione al ${nm}`, 'warn');
@@ -697,7 +773,7 @@ function updatePhone(dt) {
   for (const tr of S.trains) {
     if (tr.callSig !== tr.await) { tr.callSig = tr.await; tr.stopT = 0; tr.called = false; tr.callAck = false; }
     if (!tr.await) continue;
-    const at = tr.v < 0.02 && tr.L - tr.head < 20 && !routeOf(tr.await);
+    const at = atSignal(tr) && !routeOf(tr.await);
     if (!at) continue;
     tr.stopT += dt;
     const lim = SIG[tr.await].type === 'P' ? 90 : (tr.served ? 240 : Infinity);
@@ -784,11 +860,34 @@ function deserialize(str) {
   return o.extra || {};
 }
 // ---------- simulazione ----------
+// lunghezze reali dei pezzi di percorso: binari = capacità, linea = sezioni di blocco, deviatoi in scala
+function pieceMeters(seg) { if (seg.kind === 'track') return TRACKM[seg.cdb.slice(1)]; if (seg.kind === 'line') return LINEM[LINES[SECOF[seg.cdb]].side]; return Math.round(polyLen(seg.pts) * 1.6); }
 function piece(seg, ct, mav) {
   const isLine = seg.kind === 'line';
-  let vmax = seg.kind === 'track' ? (ct ? 11 : 8) : (ct ? 13 : 6);
-  if (mav && !isLine) vmax = 6; // marcia a vista, max 30 km/h fino a fine itinerario
-  return { cdb: seg.cdb, pts: seg.pts, len: polyLen(seg.pts), vmax, isLine };
+  let vmax = isLine ? LINEV[LINES[SECOF[seg.cdb]].side] : (ct ? STAZ_CT : DEV); // RG/RV: 30 km/h su tutto l'itinerario
+  if (mav && !isLine) vmax = DEV; // marcia a vista con M40, max 30 km/h fino a fine itinerario
+  return { cdb: seg.cdb, pts: seg.pts, px: polyLen(seg.pts), len: pieceMeters(seg), vmax, isLine, kind: seg.kind };
+}
+function ptAlong(pts, d) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (d <= l || i === pts.length - 2) { const f = l ? Math.max(0, Math.min(1, d / l)) : 0; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
+    d -= l;
+  }
+  return pts[pts.length - 1];
+}
+function pointAt(path, s) {
+  let acc = 0;
+  for (let i = 0; i < path.length; i++) { const p = path[i]; if (s <= acc + p.len || i === path.length - 1) return ptAlong(p.pts, Math.max(0, Math.min(1, (s - acc) / p.len)) * p.px); acc += p.len; }
+  return [0, 0];
+}
+// progressiva (km) per l'orario grafico: Monterossi 0 · Valdorana 10–10,7 · P.M. Spada 14,6
+function kmOfX(x) {
+  if (x <= 250) return Math.max(0, (x - 20) / 230 * 10);
+  if (x <= 1150) return 10 + (x - 250) / 900 * 0.7;
+  if (x <= 1240) return 10.7 + (x - 1150) / 90 * 1.3;
+  if (x <= 1310) return 12 + (x - 1240) / 70 * 1.3;
+  return Math.min(14.6, 13.3 + (x - 1310) / 70 * 1.3);
 }
 function linePieces(L, inward) {
   const l = LINES[L], out = [], legal = (l.legal === 'in') === inward;
@@ -816,8 +915,8 @@ function computeOcc() {
   }
 }
 function spawn(t, L) {
-  const l = LINES[L], C = CATS[t.cat], path = linePieces(L, true);
-  const tr = { t, num: t.num, cat: t.cat, dir: SIDES[l.side].dir, len: t.len, path, L: path.reduce((x, p) => x + p.len, 0), head: 1, v: C.vline, await: l.sig, stops: t.stops, dwell: t.dwell, served: !t.stops, stopS: null, dw: 0, vcap: C.vcap, vline: C.vline, track: null, depS: null, rec: false, exit: false, ack: false };
+  const l = LINES[L], C = CATS[t.cat], path = linePieces(L, true), vcap = KMH(t.vmax);
+  const tr = { t, num: t.num, cat: t.cat, dir: SIDES[l.side].dir, len: t.len, path, L: path.reduce((x, p) => x + p.len, 0), head: 1, v: Math.min(vcap, LINEV[l.side]), await: l.sig, stops: t.stops, dwell: t.dwell, served: !t.stops, stopS: null, dw: 0, vcap, acc: C.acc, dec: C.dec, track: null, depS: null, rec: false, exit: false, ack: false };
   S.trains.push(tr); t.sent = true; t.status = 'in linea';
   log(`${SIDES[l.side].name} ha licenziato ${t.cat} ${t.num} sul ${cname(L)}${l.legal === 'in' ? '' : ' (banalizzato)'}`, CATS[t.cat].pax ? '' : 'warn');
   onSound('ring');
@@ -829,12 +928,21 @@ function commit(tr, rid) {
   tr.L = tr.path.reduce((x, p) => x + p.len, 0); a.committed = true;
   if (r.kind === 'arr') {
     tr.await = r.next; tr.track = r.track; tr.t.track = r.track;
-    if (tr.stops) { tr.stopS = tr.L - 12; if (CATS[tr.cat].pax && !PLAT[r.track]) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} ricevuto sul binario ${r.track}, privo di marciapiede`, 'err'); onSound('err'); } }
+    if (tr.stops) {
+      // viaggiatori: fermata con il treno al centro della banchina; merci/LIS/invii: in fondo al binario
+      const tl = tr.path[tr.path.length - 1].len, mid = tr.L - tl / 2;
+      tr.stopS = CATS[tr.cat].pax ? Math.min(tr.L - 12, mid + tr.len / 2) : tr.L - 12;
+    }
+    if (tr.stops) { if (CATS[tr.cat].pax && !PLAT[r.track]) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} ricevuto sul binario ${r.track}, privo di marciapiede`, 'err'); onSound('err'); } }
   } else { tr.await = null; tr.exit = true; tr.depS = oldL; tr.toSide = r.side; tr.outLine = r.line; }
 }
+// treno fermo al segnale: in linea davanti alla protezione, oppure in stazione pronto a partire (anche dal centro della banchina)
+function atSignal(tr) { return tr.v < 0.05 && (tr.track ? tr.served : tr.L - tr.head < 20); }
 function limitOf(tr) {
   let lim = tr.await ? tr.L - 8 : tr.L + tr.len + 40;
   if (tr.stopS != null && !tr.served) lim = Math.min(lim, tr.stopS);
+  // dopo la fermata il treno resta in banchina finché la partenza non è disposta
+  if (tr.stopS != null && tr.track && tr.await) { const rid = S.sigActive[tr.await], a = rid && S.active[rid]; if (!(a && (a.open || a.auth))) lim = Math.min(lim, Math.max(tr.head, tr.stopS)); }
   return lim;
 }
 function moveTrain(tr, dt) {
@@ -842,29 +950,30 @@ function moveTrain(tr, dt) {
     const rid = S.sigActive[tr.await], a = rid && S.active[rid];
     if (a && !a.committed) {
       const d = tr.L - tr.head;
-      if ((a.open && d < tr.v * tr.v / (2 * DEC) + 25) || (a.auth && tr.v < 0.05 && d < 20)) commit(tr, rid);
+      if ((a.open && (d < tr.v * tr.v / (2 * tr.dec) + 40 || atSignal(tr))) || (a.auth && atSignal(tr))) commit(tr, rid);
     }
   }
   let lim = limitOf(tr), vA = tr.vcap, s = 0;
   const tail = tr.head - tr.len;
   for (const p of tr.path) {
-    const a = s, b = s + p.len, pv = p.isLine ? tr.vline : p.vmax; s = b;
+    const a = s, b = s + p.len, pv = p.vmax; s = b;
     if (b > tail && a < tr.head) vA = Math.min(vA, pv);
-    else if (a >= tr.head) vA = Math.min(vA, Math.sqrt(pv * pv + 2 * DEC * (a - tr.head)));
+    else if (a >= tr.head) vA = Math.min(vA, Math.sqrt(pv * pv + 2 * tr.dec * (a - tr.head)));
     if (p.gate && a >= tr.head && pbiAspect(p.gate)[0] === 'R') lim = Math.min(lim, a - 8);
   }
-  vA = Math.min(vA, Math.sqrt(Math.max(0, 2 * DEC * (lim - tr.head))));
-  if (tr.v < vA) tr.v = Math.min(vA, tr.v + ACC * dt); else tr.v = vA;
+  vA = Math.min(vA, Math.sqrt(Math.max(0, 2 * tr.dec * (lim - tr.head))));
+  if (tr.v < vA) tr.v = Math.min(vA, tr.v + tr.acc * dt); else tr.v = vA;
   const prev = tr.head;
   tr.head += tr.v * dt;
   if (tr.head >= lim - 0.05) { tr.head = Math.max(prev, lim); tr.v = 0; }
   if (tr.stops && !tr.served && tr.stopS != null && tr.v < 0.02 && tr.head >= tr.stopS - 1) {
+    if (!tr.t.arrT) tr.t.arrT = S.simT;
     tr.dw += dt;
     const ready = CATS[tr.cat].pax ? (tr.dw >= tr.dwell && S.simT >= tr.t.dep) : tr.dw >= tr.dwell;
     if (ready) { tr.served = true; log(`${tr.cat} ${tr.num}: ${CATS[tr.cat].pax ? 'servizio viaggiatori ultimato' : tr.t.stopType + ' ultimata'}, pronto a partire dal bin. ${tr.track}`); }
   }
   if (tr.depS != null && !tr.rec && tr.head >= tr.depS) {
-    tr.rec = true; const t = tr.t;
+    tr.rec = true; const t = tr.t; t.depT = S.simT;
     const dl = Math.max(0, Math.floor((S.simT - t.dep) / 60)); t.delay = dl; S.served++;
     if (CATS[tr.cat].pax) S.paxDelay += dl;
     log(`${tr.cat} ${tr.num} ${tr.stops ? 'partito' : 'licenziato'} dal bin. ${tr.track} sul ${cname(tr.outLine)} — ${dl ? 'ritardo +' + dl + "'" : 'in orario'}`, dl > 2 && CATS[tr.cat].pax ? 'warn' : 'ok');
@@ -995,6 +1104,7 @@ function tick(dt) {
   updateFaults();
   updatePhone(dt);
   updateInts();
+  if (Math.floor(S.simT / 15) !== Math.floor((S.simT - dt) / 15)) for (const tr of S.trains) { const p = pointAt(tr.path, tr.head); tr.t.hist = tr.t.hist || []; tr.t.hist.push([Math.round(S.simT), +kmOfX(p[0]).toFixed(3)]); }
   if (Math.floor(S.simT) % 60 === 0 && Math.floor(S.simT - dt) % 60 !== 0) ensureDays(false);
 }
 // ---------- aspetti (RS art. 41 e 43) ----------
@@ -1194,7 +1304,7 @@ function buildQL() {
   for (const sig of SIGNALS) {
     const { x, y, dir, type } = SIG[sig];
     const g = el('g', { 'data-btn': 'sig', 'data-id': sig });
-    drawSignal(sig, x, y, dir, 3, { label: sig, shield: true, outer: type === 'P', parent: g });
+    drawSignal(sig, x, y, dir, 3, { label: sig, shield: type === 'P', outer: type === 'P', parent: g });
   }
   for (const k in SW) {
     const s = SW[k], p = s.labPos;
@@ -1274,6 +1384,11 @@ cmdEl.addEventListener('keydown', e => {
 // richieste e orario (azioni)
 $('reqs').addEventListener('click', e => { const b = e.target.closest('button[data-c]'); if (b) show(execCommand(b.dataset.c)); });
 $('ttBody').addEventListener('click', e => { const b = e.target.closest('button[data-c]'); if (b) show(execCommand(b.dataset.c)); });
+$('ttBody').addEventListener('change', e => {
+  const sl = e.target.closest('select[data-plan]'); if (!sl) return;
+  const t = S.TT.find(x => String(x.uid) === sl.dataset.plan); if (!t || !sl.value) return;
+  t.plan = sl.value; log(`Binario di ricevimento programmato per ${t.cat} ${t.num}: ${t.plan}`); sl.blur(); renderTT(); renderBoard();
+});
 const speeds = $('speeds');
 for (const [lab, v] of [['❚❚', 0], ['×1', 1], ['×2', 2], ['×5', 5], ['×10', 10], ['×30', 30]]) {
   const b = document.createElement('button'); b.className = 'hb' + (v === speed ? ' on' : ''); b.textContent = lab; b.title = v ? 'Velocità ' + lab : 'Pausa';
@@ -1302,7 +1417,7 @@ $('telForm').addEventListener('submit', e => {
 });
 $('calls').addEventListener('click', e => { const b = e.target.closest('button[data-c]'); if (b) show(execCommand(b.dataset.c)); });
 let m40num = null;
-const M40GROUPS = [['it', 'ITINERARIO', [1, 2, 3, 4, 5]], ['di', 'DISTANZIAMENTO', [6]], ['bi', 'BINARIO ILLEGALE', [11, 14]]];
+const M40GROUPS = { BCA: [['it', 'ITINERARIO', [1, 2, 3, 4, 5]], ['di', 'DISTANZIAMENTO', [6]], ['bi', 'BINARIO ILLEGALE', [11, 14]]], BA: [['it', 'ITINERARIO', [1, 2, 3, 4, 5]], ['di', 'DISTANZIAMENTO', [6, 8, 9]], ['bi', 'BINARIO ILLEGALE', [15, 18]]] };
 function openM40(num) {
   const c = m40Context(num); if (c.err) { msg(c.err, 'err'); return; }
   m40num = num;
@@ -1310,7 +1425,8 @@ function openM40(num) {
   $('m40d').textContent = DOWL[Math.floor(S.simT / 86400) % 7];
   $('m40o').textContent = fmtM(S.simT);
   $('m40t').textContent = `${c.tr.cat} ${c.tr.num}`;
-  $('m40list').innerHTML = M40GROUPS.map(([cls, lab, ns]) => `<fieldset class="${cls}"><legend>${lab}</legend>${ns.map(n => `<label><input type="checkbox" value="${n}"><b>${n}</b><span>${M40TXT[n](c)}</span></label>`).join('')}</fieldset>`).join('');
+  const T = m40Txt(c); $('m40title').textContent = c.model === 'BA' ? 'Mod. M. 40 D.L. (B.A.)' : 'Mod. M. 40 D.L. (B.m./B.ca)';
+  $('m40list').innerHTML = M40GROUPS[c.model].map(([cls, lab, ns]) => `<fieldset class="${cls}"><legend>${lab}</legend>${ns.map(n => `<label><input type="checkbox" value="${n}"><b>${n}</b><span>${T[n](c)}</span></label>`).join('')}</fieldset>`).join('');
   const ph = $('pTel').ownerDocument; if ($('m40').ownerDocument !== ph) ph.body.appendChild($('m40'));
   $('m40').style.display = 'flex';
 }
@@ -1333,6 +1449,84 @@ function renderPhone() {
   $('calls').innerHTML = h || '<div class="c" style="color:#8b939c">Nessuna chiamata in attesa</div>';
   const sel = $('telTr'), cur = sel.value, opts = ['A', 'B'].concat(S.trains.map(t => String(t.num)));
   if (sel.dataset.k !== opts.join()) { sel.innerHTML = opts.map(n => { if (n === 'A' || n === 'B') return `<option value="${n}">DM ${SIDES[n].name}</option>`; const t = trainByNum(n); return `<option value="${n}">AdC ${t.cat} ${n}</option>`; }).join(''); sel.dataset.k = opts.join(); if (opts.includes(cur)) sel.value = cur; }
+}
+// ---------- orario grafico ----------
+const TG_ROWS = [[0, 'MONTEROSSI', 1], [5, 'PBI 11 / 12', 0], [10, 'VALDORANA', 1], [12, 'PBI 101 / 102', 0], [13.3, 'PBI 103 / 104', 0], [14.6, 'P.M. SPADA', 1]];
+function plannedPts(t) {
+  const vA = KMH(Math.min(t.vmax, 140)), vB = KMH(Math.min(t.vmax, 160)), mid = 10.35;
+  return t.from === 'A' ? [[t.ready, 0], [t.arr, mid], [t.dep, mid], [t.dep + LINE_TOT.B / vB, 14.6]] : [[t.ready, 14.6], [t.arr, mid], [t.dep, mid], [t.dep + LINE_TOT.A / vA, 0]];
+}
+function renderTG() {
+  const cv = $('tg'); if (!cv) return;
+  const box = cv.parentElement, w = Math.max(300, box.clientWidth), h = Math.max(200, box.clientHeight);
+  const dpr = (cv.ownerDocument.defaultView || window).devicePixelRatio || 1;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.width = w + 'px'; cv.style.height = h + 'px'; }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const span = (+$('tgWin').value || 3) * 3600, t0 = S.simT - span * 0.3, t1 = t0 + span;
+  const L = 112, Rm = 14, T = 16, B = 26, X = t => L + (t - t0) / (t1 - t0) * (w - L - Rm), Y = km => T + km / 14.6 * (h - T - B);
+  g.fillStyle = '#0f1213'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#1d2a22'; g.fillRect(L, Y(10), w - L - Rm, Y(10.7) - Y(10));
+  g.font = '10px ui-monospace,Menlo,Consolas,monospace'; g.textBaseline = 'middle';
+  const step = span <= 3 * 3600 ? 600 : 1800;
+  for (let tt = Math.ceil(t0 / step) * step; tt <= t1; tt += step) {
+    const x = X(tt), major = tt % 3600 === 0;
+    g.strokeStyle = major ? '#3a4448' : '#232b2e'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, T); g.lineTo(x, h - B); g.stroke();
+    g.fillStyle = major ? '#c9cfd3' : '#7f8a84'; g.textAlign = 'center'; g.fillText(fmtM(tt), x, h - B + 12);
+  }
+  for (const [km, name, st] of TG_ROWS) {
+    const y = Y(km);
+    g.strokeStyle = st ? '#56635d' : '#3a4448'; g.setLineDash(st ? [] : [4, 4]); g.beginPath(); g.moveTo(L, y); g.lineTo(w - Rm, y); g.stroke(); g.setLineDash([]);
+    g.fillStyle = st ? '#e6ece8' : '#b48cff'; g.textAlign = 'right'; g.font = (st ? 'bold ' : '') + '10px ui-monospace,Menlo,Consolas,monospace'; g.fillText(name, L - 6, km === 10 ? Y(10.35) : y);
+  }
+  g.font = '10px ui-monospace,Menlo,Consolas,monospace';
+  for (const t of S.TT) {
+    const pp = plannedPts(t);
+    if (pp[pp.length - 1][0] < t0 || pp[0][0] > t1) continue;
+    const col = CATS[t.cat].col;
+    g.strokeStyle = col; g.globalAlpha = 0.55; g.lineWidth = 1; g.setLineDash([5, 4]);
+    g.beginPath(); pp.forEach(([tt, km], i) => i ? g.lineTo(X(tt), Y(km)) : g.moveTo(X(tt), Y(km))); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+    const hs = t.hist || [], tr = S.trains.find(x => x.t === t);
+    const act = hs.slice(); if (tr) { const p = pointAt(tr.path, tr.head); act.push([S.simT, kmOfX(p[0])]); }
+    if (act.length > 1) { g.strokeStyle = col; g.lineWidth = 2.2; g.beginPath(); act.forEach(([tt, km], i) => i ? g.lineTo(X(tt), Y(km)) : g.moveTo(X(tt), Y(km))); g.stroke(); }
+    // etichetta: sul primo punto visibile del programmato
+    let lp = pp.find(([tt]) => tt >= t0) || pp[0]; const lx = Math.max(L + 2, X(lp[0])), ly = Y(lp[1]) + (t.from === 'A' ? 9 : -9);
+    if (lx < w - Rm - 20) { g.fillStyle = col; g.textAlign = 'left'; g.fillText(`${t.cat} ${t.num}`, lx + 3, ly); }
+  }
+  const xn = X(S.simT); g.strokeStyle = '#ff3b30'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(xn, T - 4); g.lineTo(xn, h - B); g.stroke();
+  g.fillStyle = '#ff3b30'; g.textAlign = 'center'; g.fillText(fmtM(S.simT), xn, T - 8 < 6 ? 8 : T - 8);
+}
+$('tgWin').addEventListener('change', renderTG);
+// ---------- tabellone arrivi e partenze ----------
+let boardTab = 'A';
+const VET = { R: ['Regionale', '#3f9b2f'], RV: ['Regionale', '#3f9b2f'], IC: ['Intercity', '#1d4f91'], FR: ['Frecciarossa', '#c8102e'], ITA: ['Italo', '#8c1d40'] };
+$('pBoard').addEventListener('click', e => { const b = e.target.closest('button[data-bt]'); if (!b) return; boardTab = b.dataset.bt; $('pBoard').querySelectorAll('button[data-bt]').forEach(x => x.classList.toggle('on', x === b)); renderBoard(); });
+function renderBoard() {
+  const arr = boardTab === 'A', now = S.simT;
+  $('bHead').innerHTML = arr ? '<th>Vettore</th><th>Categoria</th><th>Treno</th><th>Provenienza</th><th>Orario</th><th>Ritardo</th><th>Binario</th><th>In arrivo</th><th>Informazioni</th>'
+    : '<th>Vettore</th><th>Categoria</th><th>Treno</th><th>Destinazione</th><th>Orario</th><th>Ritardo</th><th>Binario</th><th>Informazioni</th>';
+  const list = S.TT.filter(t => CATS[t.cat].pax && t.stops).filter(t => {
+    const tr = S.trains.find(x => x.t === t);
+    if (arr) return (t.arrT ? now - t.arrT < 180 : true) && !t.done && t.arr - now < 4 * 3600 && !(tr && tr.rec);
+    return !(tr && tr.rec && now - (t.depT || now) > 120) && !t.done && t.dep - now < 4 * 3600;
+  }).sort((a, b) => (arr ? a.arr - b.arr : a.dep - b.dep)).slice(0, 12);
+  let h = '';
+  for (const t of list) {
+    const tr = S.trains.find(x => x.t === t), v = VET[t.cat] || ['', '#333'];
+    let rit = 0, info = '', inArr = '';
+    if (arr) {
+      rit = t.arrT ? Math.max(0, Math.floor((t.arrT - t.arr) / 60)) : Math.max(0, Math.ceil((now - t.arr) / 60));
+      if (t.arrT) info = 'Arrivato';
+      else if (tr) { inArr = '<span class="blink">●</span>'; info = tr.track ? 'In arrivo al binario' : 'In arrivo'; }
+    } else {
+      rit = tr && tr.rec ? (t.delay || 0) : Math.max(0, Math.ceil((now - t.dep) / 60));
+      if (tr && tr.rec) info = 'Partito'; else if (t.arrT) info = 'In partenza'; else if (tr) info = 'In arrivo';
+    }
+    const bin = t.track || t.plan || '';
+    h += `<tr><td class="vet" style="color:${v[1]}">${v[0]}</td><td class="catb">${t.cat}</td><td>${t.num}</td><td>${arr ? t.orig : t.dest}</td><td>${fmtM(arr ? t.arr : t.dep)}</td><td class="rit">${rit ? rit + "'" : ''}</td><td style="text-align:center;font-weight:700">${bin}</td>${arr ? `<td style="text-align:center">${inArr}</td>` : ''}<td>${info}</td></tr>`;
+  }
+  for (let i = list.length; i < 8; i++) h += `<tr>${'<td>&nbsp;</td>'.repeat(arr ? 9 : 8)}</tr>`;
+  $('bBody').innerHTML = h;
+  $('bClock').textContent = fmtM(now);
 }
 // ---------- rendering ----------
 const SIGC = { R: COL.R, G: COL.G, Y: COL.Y };
@@ -1357,8 +1551,9 @@ function render() {
   for (const sig of SIGNALS) {
     setLamps(sig, lt ? ['R', 'Y', 'G'] : aspect(sig));
     const a = S.sigActive[sig] && S.active[S.sigActive[sig]];
-    BTN['S' + sig].setAttribute('fill', (pending && pending.sig === sig && blinkOn) || lt ? COL.Y : (a && a.auth ? (blinkOn ? '#ff9f43' : '#f4f4f4') : a ? '#f4f4f4' : '#7a7d78'));
-    SIGLAB[sig].setAttribute('fill', S.faults[sig] ? (blinkOn ? '#ff6b5e' : '#7a2a24') : '#e6ece8');
+    const sel = pending && pending.sig === sig;
+    if (BTN['S' + sig]) BTN['S' + sig].setAttribute('fill', (sel && blinkOn) || lt ? COL.Y : (a && a.auth ? (blinkOn ? '#ff9f43' : '#f4f4f4') : a ? '#f4f4f4' : '#7a7d78'));
+    SIGLAB[sig].setAttribute('fill', S.faults[sig] ? (blinkOn ? '#ff6b5e' : '#7a2a24') : (!BTN['S' + sig] && sel && blinkOn) ? COL.Y : (!BTN['S' + sig] && a) ? (a.auth && blinkOn ? '#ff9f43' : '#ffffff') : '#e6ece8');
   }
   for (const av in AVV) setLamps(av, lt ? ['Y', 'G'] : aspectAvv(av));
   for (const p in PBI) setLamps(p, lt ? ['G'] : pbiAspect(p));
@@ -1381,9 +1576,7 @@ function render() {
   // descrittori treno (numero del treno in testa)
   let h = '';
   for (const tr of S.trains) {
-    const pts = pathPts(tr.path, Math.max(0, tr.head - 1), tr.head);
-    if (!pts.length) continue;
-    const col = CATS[tr.cat].col, hp = pts[pts.length - 1];
+    const hp = pointAt(tr.path, tr.head), col = CATS[tr.cat].col;
     // descrittore sul lato opposto ai segnali, centrato dietro la testa del treno
     const lab = `${tr.cat} ${tr.num}`, wl = lab.length * 6.4 + 8, ds = tr.dir === 'E' ? 1 : -1;
     const sk = [288, 344].includes(Math.round(hp[1])) ? sigSide(tr.dir, Math.round(hp[1])).k : (tr.dir === 'E' ? -1 : 1);
@@ -1412,7 +1605,14 @@ function trainStatus(t) {
 }
 const ttBody = $('ttBody');
 function svcLabel(t) { if (CATS[t.cat].pax) return t.stops ? 'fermata' : 'transito'; return t.stopType === 'transito' ? 'transito' : `${t.stopType} ${Math.round(t.dwell / 60)}'`; }
+function binCell(t) {
+  if (!t.stops) return '<span style="color:#666">—</span>';
+  if (t.track || t.done) return `<b>${t.track || t.plan || '—'}</b>`;
+  const opts = TRK.filter(k => t.len <= TRACKM[k]).map(k => `<option value="${k}" ${t.plan === k ? 'selected' : ''}>${k}${CATS[t.cat].pax && !PLAT[k] ? ' (no marc.)' : ''}</option>`).join('');
+  return `<select class="bsel" data-plan="${t.uid}" title="Binario di ricevimento programmato">${t.plan ? '' : '<option value="">—</option>'}${opts}</select>`;
+}
 function renderTT() {
+  { const ae = ttBody.ownerDocument.activeElement; if (ae && ae.tagName === 'SELECT' && ttBody.contains(ae)) return; }
   let h = '';
   const list = S.TT.filter(t => (!t.done && t.ready - S.simT < 2.5 * 3600) || (t.done && S.simT - t.doneT < 1200)).sort((a, b) => a.arr - b.arr);
   for (const t of list) {
@@ -1424,9 +1624,9 @@ function renderTT() {
       else st += ` <button class="hb sm" data-c="RIC ${t.num}">RIC</button>`;
     }
     const show = !(CATS[t.cat].pax && !t.stops);
-    h += `<tr class="${t.done ? 'done' : live ? 'live' : wait ? 'wait' : ''}"><td><span class="cat" style="background:${CATS[t.cat].col}">${t.cat}</span> ${t.num}<div class="if">${t.impresa}</div></td><td>${SIDES[t.from].name} → ${SIDES[t.to].name}</td><td>${show ? fmtM(t.arr) : '—'}</td><td>${fmtM(t.dep)}</td><td class="note">${svcLabel(t)}</td><td>${st}</td></tr>`;
+    h += `<tr class="${t.done ? 'done' : live ? 'live' : wait ? 'wait' : ''}"><td><span class="cat" style="background:${CATS[t.cat].col}">${t.cat}</span> ${t.num}<div class="if">${t.impresa}</div></td><td>${SIDES[t.from].name} → ${SIDES[t.to].name}<div class="if">${t.len} m · ${t.vmax} km/h</div></td><td>${show ? fmtM(t.arr) : '—'}</td><td>${fmtM(t.dep)}</td><td>${binCell(t)}</td><td class="note">${svcLabel(t)}</td><td>${st}</td></tr>`;
   }
-  ttBody.innerHTML = h || '<tr><td colspan="6" style="color:#8b939c">Nessun treno nelle prossime ore</td></tr>';
+  ttBody.innerHTML = h || '<tr><td colspan="7" style="color:#8b939c">Nessun treno nelle prossime ore</td></tr>';
   const d = Math.floor(S.simT / 86400) % 7;
   $('ttDay').textContent = DOWL[d] + (d <= 4 ? ' · feriale' : d === 5 ? ' · sabato' : ' · festivo');
   // richieste
@@ -1574,7 +1774,7 @@ function loop() {
     if (speed > 0 && (S.trains.some(t => t.called && !t.callAck) || S.TT.some(t => t.req === 'pending' && !t.reqAck) || S.ints.some(x => x.state === 'pending' && !x.ack))) onSound('phone');
     if (speed > 0 && ring) onSound('ring');
   }
-  ttT += dtr; if (ttT > 0.5) { ttT = 0; renderTT(); renderPhone(); }
+  ttT += dtr; if (ttT > 0.5) { ttT = 0; renderTT(); renderPhone(); renderBoard(); renderTG(); }
   render();
   autoT += dtr; if (autoT > 30) { autoT = 0; saveLocal(true); if (NATIVE && ++autoN % 2 === 0) NATIVE.autosave(serialize({ speed })).catch(() => { }); }
   for (const p of PANELS) if (p._win && p._win.closed) dock(p);
