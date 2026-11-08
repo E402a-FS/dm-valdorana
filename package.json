@@ -1,0 +1,55 @@
+{
+  "name": "dm-valdorana",
+  "productName": "DM Valdorana",
+  "version": "1.0.0",
+  "description": "Simulatore della postazione del Dirigente Movimento — ACEI Valdorana",
+  "author": "DM Valdorana",
+  "license": "UNLICENSED",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "it.valdorana.dm",
+    "productName": "DM Valdorana",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DM Valdorana",
+      "artifactName": "DM-Valdorana-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "E402a-FS",
+        "repo": "dm-valdorana"
+      }
+    ]
+  }
+}
