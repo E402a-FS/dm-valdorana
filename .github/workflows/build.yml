@@ -16,7 +16,14 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npm install
+      - name: Installa le dipendenze (fino a 3 tentativi)
+           shell: bash
+           run: |
+             for i in 1 2 3; do
+               npm install && break
+               echo "Tentativo $i non riuscito (rete), nuovo tentativo tra 30 secondi"; sleep 30
+             done
+             test -d node_modules/electron/dist
       - name: Compila l'installer
         run: npx electron-builder --win --publish never
       - name: Allega l'installer alla Release (aggiornamenti automatici)
