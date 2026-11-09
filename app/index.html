@@ -113,6 +113,16 @@ body.popup .chat{height:calc(100vh - 150px)}
 body.popup .tt{height:calc(100vh - 40px)}
 body.popup .log{height:calc(100vh - 40px)}
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1d2b20;border:1px solid #3fbf68;color:#b9ffca;padding:8px 14px;border-radius:4px;z-index:30;display:none}
+#mainMenu{position:fixed;inset:0;z-index:45;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 20%,#1d2622,#090b0c 70%)}
+#mainMenu .mm{background:#15181b;border:1px solid #3a4046;border-radius:10px;padding:22px 26px;width:min(620px,94vw);box-shadow:0 20px 60px #000}
+.mmh{display:flex;gap:14px;align-items:center;margin-bottom:16px}.mmh h2{margin:0;font-size:18px;letter-spacing:.04em}.mmh small{color:var(--mut)}
+.mmlogo{width:54px;height:54px;border-radius:10px;background:#23282a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#e6ece8;border:1px solid #3a4046}
+.mmlist{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.mmst{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:#1d2125;border:1px solid #3a4046;border-radius:6px;padding:10px 12px;color:var(--ink);font:inherit;cursor:pointer}
+.mmst b{font-size:15px;letter-spacing:.06em}.mmst span{font-size:12px;color:var(--mut)}
+.mmst.on{border-color:#ffd21f;box-shadow:inset 3px 0 0 #ffd21f}.mmst:disabled{opacity:.45;cursor:default}
+.mmrow{margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mmrow label{color:var(--mut)}
+#mainMenu small#mmInfo{color:var(--mut)}
 #startDlg{position:fixed;inset:0;background:#000c;z-index:40;display:none;align-items:center;justify-content:center}
 #startDlg .box{background:#1b1f22;border:1px solid #3a4046;border-radius:8px;padding:22px 26px;max-width:460px}
 #startDlg h3{margin:0 0 10px}
@@ -146,10 +156,10 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
 </head>
 <body>
 <header>
-  <h1>Stazione di Valdorana — Posto Centrale ACEI<small>Doppio binario banalizzato, blocco conta assi · Monterossi (A) – P.M. Spada (B) · Dirigente Movimento <span id="appVer"></span></small></h1>
+  <h1>Stazione di Valdorana — Posto Centrale ACEI<small>Doppio binario in BCA/BAcf · Dirigenza Locale · Monterossi (A) – P.M. Spada (B) <span id="appVer"></span></small></h1>
   <div class="clock" id="clock">Lun 05:30:00</div>
   <div class="grp" id="speeds"></div>
-  <div class="grp"><select id="startDay"></select><select id="startHour"></select><button class="hb" id="restart">Nuovo turno</button></div>
+  <div class="grp"><button class="hb" id="bMenu" title="Menu principale">Menu</button><select id="startDay"></select><select id="startHour"></select><button class="hb" id="restart">Nuovo turno</button></div>
   <div class="grp"><button class="hb" id="bSave" title="Salva nel browser">Salva</button><button class="hb" id="bLoad" title="Riprendi l'ultimo salvataggio">Carica</button><button class="hb" id="bExp" title="Scarica il file della partita">Esporta</button><label class="hb" title="Apri un file di partita">Importa<input type="file" id="fImp" accept=".json,application/json" hidden></label></div>
   <label class="chk"><input type="checkbox" id="faults" checked> guasti</label>
   <label class="chk"><input type="checkbox" id="sound" checked> suoni</label>
@@ -207,7 +217,7 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
   <div class="card panel" id="pTel"><h2 class="ph"><span>Telefono · AdC, stazioni, manutenzione</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
     <div class="calls" id="calls"></div>
     <div class="chat" id="chat"></div>
-    <form class="tel" id="telForm" autocomplete="off"><select id="telTr"></select><input id="telTxt" placeholder="messaggio…"><button class="hb sm">Invia</button></form>
+    <form class="tel" id="telForm" autocomplete="off"><select id="telTr"></select><button type="button" class="hb sm" id="telCall" title="Chiama l'AdC del treno selezionato">☎ Chiama</button><input id="telTxt" placeholder="messaggio…"><button class="hb sm">Invia</button></form>
   </div>
   <div class="card panel" id="pReq"><h2 class="ph"><span>Richieste e comunicazioni</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="reqs" id="reqs"></div></div>
   <div class="card panel" id="pTT"><h2 class="ph"><span>Orario di servizio · <span id="ttDay"></span></span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
@@ -225,6 +235,8 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
       <tr><td><code>ANN PDA</code></td><td>Annullamento dell'itinerario con origine indicata.</td></tr>
       <tr><td><code>VI PDA 3</code></td><td>Itinerario con segnale mantenuto a via impedita (CdB, deviatoio o segnale guasti): deviatoi elettrici o verificati/manovrati a mano. Il treno entra solo dopo il Mod. M40.</td></tr>
       <tr><td><code>M40 2229</code> · <code>M40 2229 2 3</code></td><td>Compila il Mod. M40 DL per il treno (B.m./B.ca lato Monterossi, B.A. lato P.M. Spada), oppure lo trasmette subito con le prescrizioni indicate. Arrivo: 2 e 3. Partenza: 1, 3, 4 (binario di sinistra/destra) e 6 (via libera di blocco elettrico). Il treno supera il segnale a via impedita in marcia a vista a 30 km/h fino al termine dell'itinerario.</td></tr>
+      <tr><td><code>M40A 2229</code> · <code>M40A 2229 OSR</code></td><td>Mod. M40a per i segnali di blocco guasti (sempre a via impedita, sezione successiva libera): <code>OSR</code> richiesta di Operazione Supero Rosso (PBI 11 con lettera A accesa), <code>PAR</code> partite dal PBI 11 con tratto libero (lettera A spenta), <code>48</code> PBA 102/104 secondo l'art. 48 c. 4 RS. Il treno prosegue in marcia a vista a 30 km/h fino al segnale successivo.</td></tr>
+      <tr><td><code>CHI 2229</code></td><td>Chiami tu l'AdC del treno (anche col pulsante ☎ Chiama): ti comunica dove è fermo e, ai PBI, lo stato della lettera A.</td></tr>
       <tr><td><code>ATT 2229</code> · <code>TEL 2229 testo</code> · <code>TEL SPADA testo</code></td><td>Telefono: invita l'AdC ad attendere · messaggio all'AdC · messaggio al DM di Monterossi o di P.M. Spada.</td></tr>
       <tr><td><code>DEV 1</code> · <code>DEV 13 R</code></td><td>Comando individuale. Comunicazioni (rami a/b manovrati insieme): 1, 5, 9, 11 lato Monterossi; 2, 6, 10, 12 lato P.M. Spada. Deviatoi semplici 13 e 14. 9b, 11b, 10b e 12b in normale chiudono i binari 1 e 4 sui tronchini.</td></tr>
       <tr><td><code>CO AD</code></td><td>Cambio orientamento blocco: <code>AD</code> <code>AP</code> <code>BD</code> <code>BP</code>.</td></tr>
@@ -241,7 +253,7 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
       <li>Regionali (R, RV) Trenitalia; Alta Velocità Frecciarossa (Trenitalia) e Italo, in parte con fermata e in parte in transito; merci e invii materiale delle varie IF.</li>
       <li>Corretto tracciato: protezione V/G/GV, avviso V. Deviata 30 km/h: RV/RG/R-GV, avviso GV fisso.</li>
       <li>I viaggiatori sono autoaccettati, salvo degrado o interruzioni presso Monterossi o P.M. Spada (comunicati al telefono). Merci (MRC), invii materiale (MAT) e locomotive isolate (LIS) richiedono sempre il consenso, in arrivo e in partenza.</li>
-      <li>Verso Monterossi: B.C.A., PBI 11 (dispari) e 12 (pari), sezioni di 5 km, 140 km/h. Verso P.M. Spada: blocco automatico a correnti fisse, segnali 101–103 (dispari) e 104–102 (pari), sezioni di 1300 m, 160 km/h. Con il blocco invertito la tratta diventa sezione unica: i segnali di blocco restano a via impedita.</li>
+      <li>Verso Monterossi: B.C.A., PBI 11 (dispari) e 12 (pari), sezioni di 5 km, 140 km/h. Verso P.M. Spada: blocco automatico a correnti fisse, PBA 101–103 (dispari) e 104–102 (pari), sezioni di 1300 m, 160 km/h. I segnali si dispongono a via libera 3–7 secondi dopo il comando; l'AdC fermo a un segnale chiama dopo 3 minuti. Con il blocco invertito la tratta diventa sezione unica: i segnali di blocco restano a via impedita.</li>
       <li>Corretto tracciato sui bin. 2 e 3 a 140 km/h; itinerari RG/RV a 30 km/h dal segnale di protezione al segnale di partenza (arrivo) e dal segnale di partenza alla protezione opposta (partenza). Capacità: bin. 1–3 580 m, bin. 4 350 m, bin. 5 300 m.</li>
       <li>Mod. M40 DL (B.m./B.ca) lato Monterossi, Mod. M40 DL (B.A.) lato P.M. Spada. Con un deviatoio in perdita di controllo il treno non può partire fino alla riparazione.</li>
     </ul>
@@ -250,7 +262,24 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
 </main>
 
 <div class="toast" id="toast"></div>
+<div id="mainMenu"><div class="mm">
+  <div class="mmh"><div class="mmlogo">DM</div><div><h2>Simulatore Dirigente Movimento</h2><small>Postazione ACEI · scegli l'impianto da simulare</small></div></div>
+  <div class="mmlist">
+    <button type="button" class="mmst on" data-st="valdorana"><b>VALDORANA</b><span>Doppio binario in BCA/BAcf — Dirigenza Locale · ACEI · 5 binari</span><span>Monterossi (BCA, PBI 11/12) · P.M. Spada (BAcf, PBA 101–104)</span></button>
+    <button type="button" class="mmst" disabled><b>Altri impianti</b><span>in preparazione</span></button>
+  </div>
+  <div class="mmrow"><label>Inizio turno <select id="mmDay"></select> <select id="mmHour"></select></label></div>
+  <div class="mmrow"><button type="button" class="hb on" id="mmNew">Nuovo turno</button> <button type="button" class="hb" id="mmResume" disabled>Riprendi ultimo turno</button> <button type="button" class="hb" id="mmClose">Torna al turno in corso</button></div>
+  <small id="mmInfo"></small>
+</div></div>
 <div id="startDlg"><div class="box"><h3>Turno salvato trovato</h3><p id="startTxt"></p><p><button class="hb" id="sdResume">Riprendi il turno</button> <button class="hb" id="sdNew">Nuovo turno</button></p></div></div>
+<div id="m40a" class="modal"><div class="mod">
+  <div class="mh"><b>Mod. M. 40a</b><span class="n">N. <span id="m40an"></span></span></div>
+  <div class="mrow" style="text-align:right"><i>Treno <b id="m40at"></b> del <span id="m40ad"></span></i></div>
+  <div class="mrow">Si ordina a: <b id="m40aa"></b></div>
+  <div id="m40alist"></div>
+  <div class="mfoot"><small>Trasmissione telefonica con ripetizione dell'AdC</small><span><button class="sec" id="m40acancel" type="button">Annulla</button> <button id="m40asend" type="button">Trasmetti all'AdC</button></span></div>
+</div></div>
 <div id="m40" class="modal"><div class="mod">
   <div class="mh"><b id="m40title">Mod. M. 40 D.L. (B.m./B.ca)</b><span class="n">N. <span id="m40n"></span></span></div>
   <div class="mrow">Località di servizio <b>Valdorana</b> · <span id="m40d"></span> · ora <span id="m40o"></span></div>
@@ -314,11 +343,11 @@ for (const L in LINES) {
   addEdge(l.secs[0], 'line', l.pts);
   const legalDir = (l.side === 'A') === (l.legal === 'in') ? 'E' : 'W';
   for (const j in l.pbi) {
-    const id = 'PBI ' + l.pbi[j];
+    const id = (l.side === 'B' ? 'PBA ' : 'PBI ') + l.pbi[j];
     PBI[id] = { id, L, x: l.bx[j], y: l.y, dir: legalDir, enters: l.legal === 'in' ? l.secs[j - 1] : l.secs[+j] };
   }
 }
-const PBI_NEXT = { 'PBI 101': 'PBI 103', 'PBI 104': 'PBI 102' };
+const PBI_NEXT = { 'PBA 101': 'PBA 103', 'PBA 104': 'PBA 102' };
 for (const t of TRK) addEdge('T' + t, 'track', [[TX[t][0], TY[t]], [TX[t][1], TY[t]]]);
 const CDBS = [...new Set(EDGES.map(e => e.cdb).concat(Object.keys(SECOF)))];
 // ---------- grandezze reali ----------
@@ -472,7 +501,7 @@ function newState(startDay = 0, startHour = 5.5) {
   const line = {}; for (const L in LINES) line[L] = { orient: LINES[L].legal, chg: 0, interr: false };
   S = {
     simT: startDay * 86400 + startHour * 3600, sw, cdb, line, trains: [], TT: [], genDays: new Set(), active: {}, sigActive: {},
-    events: [], faults: {}, sigFault: {}, outReq: [], phone: [], phoneQ: [], m40n: 0, nbEvents: [], disp: 0, ints: [], intN: 0,
+    events: [], faults: {}, sigFault: {}, blkFault: {}, outReq: [], phone: [], phoneQ: [], m40n: 0, nbEvents: [], disp: 0, ints: [], intN: 0,
     libCount: 0, paxDelay: 0, irreg: 0, served: 0, presc: 0, faultsOn: true, nextFault: startDay * 86400 + startHour * 3600 + 1800 + Math.random() * 2400, logs: [],
   };
   ensureDays(true);
@@ -482,7 +511,7 @@ const hms = t => { t = Math.floor(t); const h = Math.floor(t / 3600) % 24, m = M
 const fmt = t => DOW[Math.floor(t / 86400) % 7] + ' ' + hms(t);
 const fmtM = t => hms(t).slice(0, 5);
 function log(m, cls = '') { S.logs.push({ t: S.simT, m, cls }); if (S.logs.length > 400) S.logs.shift(); onLog(m, cls, S.simT); }
-function cname(k) { if (SECOF[k]) return 'sez. ' + k.slice(-1) + ' ' + LINES[SECOF[k]].name; if (LINES[k]) return 'binario ' + LINES[k].name; if (CTL[k]) return 'deviatoio ' + CTL[k].n + (CTL[k].halves.length > 1 ? ` (comunicazione ${CTL[k].n}a/${CTL[k].n}b)` : ''); if (SW[k]) return 'CdB deviatoio ' + SW[k].lab; if (SIG[k]) return 'segnale ' + k; return 'binario ' + k.slice(1); }
+function cname(k) { if (PBI[k]) return 'segnale di blocco ' + k; if (SECOF[k]) return 'sez. ' + k.slice(-1) + ' ' + LINES[SECOF[k]].name; if (LINES[k]) return 'binario ' + LINES[k].name; if (CTL[k]) return 'deviatoio ' + CTL[k].n + (CTL[k].halves.length > 1 ? ` (comunicazione ${CTL[k].n}a/${CTL[k].n}b)` : ''); if (SW[k]) return 'CdB deviatoio ' + SW[k].lab; if (SIG[k]) return 'segnale ' + k; return 'binario ' + k.slice(1); }
 function rlabel(r) { return r.sig + ' → ' + (r.kind === 'arr' ? 'bin. ' + r.track : (LINES[r.line].short === 'D' ? 'dispari' : 'pari') + ' lato ' + r.side); }
 function result(ok, m, cls) { if (m) log(m, cls || (ok ? 'ok' : 'err')); return { ok, m }; }
 function inConsegna(k) { const f = S.faults[k]; return !!(f && f.state === 'intervento') || !!(SW[k] && S.faults[SW[k].ctl] && S.faults[SW[k].ctl].state === 'intervento'); }
@@ -688,6 +717,16 @@ let onPhone = () => { };
 function phone(from, text) { S.phone.push({ t: S.simT, from, text }); if (S.phone.length > 300) S.phone.shift(); onPhone(S.phone[S.phone.length - 1]); }
 function queuePhone(delay, from, text, act) { S.phoneQ.push({ t: S.simT + delay, from, text, act }); }
 function doAct(x) {
+  if (x.t === 'm40afail' || x.t === 'm40aok') {
+    const tr = trainByNum(x.num); if (!tr) return;
+    tr.m40aPend = false;
+    if (x.t === 'm40aok') {
+      const p = tr.path.find(q => q.gate === x.gate);
+      if (p) { p.gate = null; p.vmax = DEV; } // marcia a vista 30 km/h fino al segnale successivo
+      log(`Mod. M40a n. ${x.n} consegnato al ${tr.cat} ${tr.num}: superamento del segnale ${x.gate} a via impedita`, 'warn');
+    }
+    return;
+  }
   const a = x.rid && S.active[x.rid];
   if (x.t === 'm40fail' && a) a.m40 = false;
   if (x.t === 'intend') { const it = S.ints.find(i => i.id === x.id && i.state === 'active'); if (it) intEnd(it, true); }
@@ -756,7 +795,8 @@ function sendM40(num, list) {
 function waitCall(num) {
   const tr = trainByNum(num); if (!tr) return result(false, `Treno ${num} non presente`);
   const nm = `${tr.cat} ${tr.num}`;
-  phone('DM', `Treno ${nm}, attendete al segnale ${tr.await || ''} a via impedita, vi richiamo.`);
+  const g = atGate(tr);
+  phone('DM', `Treno ${nm}, attendete al segnale ${g ? g.id : (tr.await || '')} a via impedita, vi richiamo.`);
   queuePhone(4, `AdC ${nm}`, 'Ricevuto, attendo.'); tr.callAck = true;
   return result(true, `Comunicato al ${nm} di attendere`);
 }
@@ -771,18 +811,71 @@ function updatePhone(dt) {
   for (const q of S.phoneQ.filter(q => S.simT >= q.t)) { phone(q.from, q.text); if (q.act) doAct(q.act); }
   S.phoneQ = S.phoneQ.filter(q => S.simT < q.t);
   for (const tr of S.trains) {
-    if (tr.callSig !== tr.await) { tr.callSig = tr.await; tr.stopT = 0; tr.called = false; tr.callAck = false; }
-    if (!tr.await) continue;
-    const at = atSignal(tr) && !routeOf(tr.await);
-    if (!at) continue;
+    const k = ctxKey(tr);
+    if (tr.callSig !== k) { tr.callSig = k; tr.stopT = 0; tr.called = false; tr.callAck = false; }
+    if (!k) continue;
     tr.stopT += dt;
-    const lim = SIG[tr.await].type === 'P' ? 90 : (tr.served ? 240 : Infinity);
-    if (!tr.called && tr.stopT >= lim) {
-      tr.called = true;
-      phone(`AdC ${tr.cat} ${tr.num}`, `Pronto, DM di Valdorana? Sono l'AdC del treno ${tr.cat} ${tr.num}, fermo al segnale di ${SIG[tr.await].type === 'P' ? 'protezione' : 'partenza'} ${tr.await} disposto a via impedita. Attendo istruzioni.`);
-      onSound('phone');
-    }
+    const lim = k.startsWith('G:') || SIG[k].type === 'P' || tr.served ? 180 : Infinity; // chiamata dopo 3 minuti di fermo
+    if (!tr.called && tr.stopT >= lim) { tr.called = true; phone(`AdC ${tr.cat} ${tr.num}`, 'Pronto, DM di Valdorana? ' + adcStatus(tr)); onSound('phone'); }
   }
+}
+// segnale di blocco (PBI/PBA) davanti al treno
+function gateAhead(tr) { let s = 0; for (const p of tr.path) { if (p.gate && s >= tr.head - 0.01) return { p, a: s, id: p.gate }; s += p.len; } return null; }
+function atGate(tr) { const g = gateAhead(tr); return g && tr.v < 0.05 && g.a - tr.head < 30 && pbiAspect(g.id)[0] === 'R' ? g : null; }
+// contesto di fermo: 'G:<segnale di blocco>' oppure il segnale di stazione a via impedita
+function ctxKey(tr) { const g = atGate(tr); if (g) return 'G:' + g.id; if (tr.await && atSignal(tr) && !routeOf(tr.await)) return tr.await; return null; }
+function adcStatus(tr) {
+  const nm = `${tr.cat} ${tr.num}`, g = atGate(tr);
+  if (g) {
+    const f = S.faults[g.id], lett = g.id.startsWith('PBI') && f && f.type === 'blk' ? (f.letterA ? ' La lettera luminosa A è accesa a luce fissa.' : ' La lettera luminosa A è spenta.') : '';
+    return `Sono l'AdC del treno ${nm}, fermo al segnale di blocco ${g.id.split(' ')[1]} (${g.id}) disposto a via impedita.${lett} Attendo istruzioni.`;
+  }
+  if (tr.await && atSignal(tr) && !routeOf(tr.await)) return `Sono l'AdC del treno ${nm}, fermo al segnale di ${SIG[tr.await].type === 'P' ? 'protezione' : 'partenza'} ${tr.await} disposto a via impedita. Attendo istruzioni.`;
+  return `Sono l'AdC del treno ${nm}, in marcia regolare, nessuna anormalità.`;
+}
+function callTrain(num) {
+  const tr = trainByNum(num); if (!tr) return result(false, `Treno ${num} non presente`);
+  const nm = `${tr.cat} ${tr.num}`, k = ctxKey(tr);
+  phone('DM', `Treno ${nm}, qui DM di Valdorana: mi sentite? Comunicate la vostra posizione.`);
+  queuePhone(5, `AdC ${nm}`, adcStatus(tr));
+  if (k) { tr.callSig = k; tr.called = true; tr.callAck = true; tr.stopT = Math.max(tr.stopT || 0, 180); }
+  return result(true, `Chiamata al treno ${nm}`);
+}
+// Mod. M40a per i segnali di blocco guasti (sempre a via impedita, sezione davanti libera)
+const M40A_TXT = {
+  OSR: c => `Richiesta Operazione Supero Rosso per superamento segnale di blocco n. ${c.isPBA ? '……' : c.n} a via impedita con lettera luminosa A accesa a luce fissa.`,
+  PAR: c => `Partite dal PBI ${c.isPBA ? '……' : c.n} con segnale disposto a via impedita. Tratto da PBI ${c.isPBA ? '……' : c.n} a Valdorana libero da treni.`,
+  A48: c => `Treno ${c.tr.num} fermo al segnale PBA ${c.isPBA ? c.n : '……'}, proseguite la marcia con le modalità dell'articolo 48 comma 4 RS.`,
+};
+function m40aContext(num) {
+  const tr = trainByNum(num); if (!tr) return { err: `Treno ${num} non presente` };
+  const g = atGate(tr), nm = `${tr.cat} ${tr.num}`;
+  if (!g) return { err: `${nm} non è fermo a un segnale di blocco a via impedita` };
+  const f = S.faults[g.id];
+  return { tr, g, id: g.id, n: g.id.split(' ')[1], nm, isPBA: g.id.startsWith('PBA'), fault: !!(S.blkFault && S.blkFault[g.id]), letterA: !!(f && f.letterA), sec: PBI[g.id].enters };
+}
+function m40aCorrect(c) { return c.isPBA ? 'A48' : (c.letterA ? 'OSR' : 'PAR'); }
+function sendM40a(num, code) {
+  const c = m40aContext(num); if (c.err) return result(false, c.err);
+  if (!c.fault) return result(false, `Il segnale ${c.id} è a via impedita per occupazione della sezione successiva: non è un guasto, il treno deve attendere`);
+  if (S.cdb[c.sec].occ) return result(false, `Sezione dopo il segnale ${c.id} occupata dal treno ${S.cdb[c.sec].occ}: prescrizione non consentita, attendere che si liberi`);
+  if (c.tr.m40aPend) return result(false, 'Mod. M40a già in trasmissione per questo treno');
+  code = { '48': 'A48', A48: 'A48', OSR: 'OSR', PAR: 'PAR', PARTITE: 'PAR' }[String(code).toUpperCase()];
+  if (!code) return result(false, 'Prescrizione M40a non valida: OSR, PAR oppure 48');
+  if (code === 'A48' && !c.isPBA || code !== 'A48' && c.isPBA) { /* verificato sotto come irregolarità */ }
+  const n = ++S.m40n, ora = fmtM(S.simT), txt = M40A_TXT[code](c), ad = `AdC ${c.nm}`;
+  phone('DM', `Treno ${c.nm}, trasmetto Mod. M40a n. ${n} delle ore ${ora}. Si ordina all'Agente di condotta del treno ${c.tr.num}: ${txt}`);
+  S.presc++; c.tr.callAck = true; c.tr.m40aPend = true;
+  if (code !== m40aCorrect(c)) {
+    S.irreg++; log(`Irregolarità: Mod. M40a n. ${n} al ${c.nm} non corrispondente alla situazione del segnale ${c.id}`, 'err');
+    const why = c.isPBA ? `per il segnale ${c.id} occorre la prescrizione con le modalità dell'art. 48 comma 4 RS` : c.letterA ? 'la lettera A è accesa: occorre la richiesta di Operazione Supero Rosso' : 'la lettera A è spenta: occorre la prescrizione di partenza dal PBI con tratto libero da treni';
+    queuePhone(8, ad, `DM, il modulo n. ${n} non è corretto: ${why}. Resto fermo e attendo un nuovo modulo.`, { t: 'm40afail', num: c.tr.num });
+    return result(false, `Mod. M40a n. ${n} non corretto: l'AdC non lo accetta`);
+  }
+  queuePhone(8, ad, `Ripeto: Mod. M40a n. ${n} delle ore ${ora}. ${txt}`);
+  queuePhone(13, 'DM', 'Esatto.');
+  queuePhone(16, ad, `Ricevuto. Supero il segnale ${c.id} a via impedita e procedo in marcia a vista, massimo 30 km/h, fino al segnale successivo.`, { t: 'm40aok', num: c.tr.num, gate: c.id, n });
+  return result(true, `Mod. M40a n. ${n} in trasmissione al ${c.nm}`, 'warn');
 }
 // ---------- interruzioni ----------
 const MT = 'Manutenzione RFI';
@@ -902,7 +995,7 @@ function linePieces(L, inward) {
 }
 function pbiAspect(id) {
   const p = PBI[id], st = S.line[p.L];
-  if (st.interr || st.chg || st.orient !== LINES[p.L].legal || S.cdb[p.enters].occ) return ['R', null, null];
+  if (st.interr || st.chg || st.orient !== LINES[p.L].legal || S.cdb[p.enters].occ || (S.blkFault && S.blkFault[id])) return ['R', null, null];
   const nx = PBI_NEXT[id];
   if (nx && pbiAspect(nx)[0] === 'R') return ['Y', null, null];
   return ['G', null, null];
@@ -993,7 +1086,11 @@ function updateRoutes(dt) {
     if (a.state === 'set') {
       if (a.committed && S.cdb[r.segs[0].cdb].occ) { a.state = 'passed'; a.open = false; }
       else if (a.deg) a.open = false;
-      else a.open = !S.sigFault[r.sig] && r.segs.every(s => !S.cdb[s.cdb].occ && !S.cdb[s.cdb].fault && !(s.pos && swOf(s.cdb).fault));
+      else {
+        const ok = !S.sigFault[r.sig] && r.segs.every(s => !S.cdb[s.cdb].occ && !S.cdb[s.cdb].fault && !(s.pos && swOf(s.cdb).fault));
+        if (!ok) { a.open = false; a.openAt = null; }
+        else if (!a.open) { if (a.openAt == null) a.openAt = S.simT + 3 + Math.random() * 4; if (S.simT >= a.openAt) a.open = true; } // apertura reale in 3–7 s
+      }
     }
     if (a.state === 'annulling') { a.annT -= dt; if (a.annT <= 0) { releaseRoute(rid); log(`Annullamento ${rlabel(r)} completato`, 'ok'); continue; } }
     if (a.state === 'passed') {
@@ -1063,15 +1160,17 @@ function updateFaults() {
   if (S.faultsOn && S.simT >= S.nextFault) {
     S.nextFault = S.simT + 2700 + Math.random() * 4500;
     const q = Math.random();
-    let type = q < 0.4 ? 'cdb' : q < 0.75 ? 'sw' : 'sig', cand;
+    let type = q < 0.35 ? 'cdb' : q < 0.65 ? 'sw' : q < 0.85 ? 'sig' : 'blk', cand;
     if (type === 'cdb') cand = Object.keys(SW).concat(TRK.map(t => 'T' + t)).filter(k => !S.cdb[k].occ && !S.cdb[k].lock && !S.faults[k]);
     if (type === 'sw') cand = Object.keys(CTL).filter(k => CTL[k].halves.every(h => !S.cdb[h].lock && !S.cdb[h].occ) && !S.faults[k] && !S.sw[k].mv);
     if (type === 'sig') cand = SIGNALS.filter(k => !S.sigActive[k] && !S.faults[k]);
+    if (type === 'blk') cand = ['PBI 11', 'PBA 102', 'PBA 104'].filter(k => !S.faults[k]);
     if (cand.length) {
       const k = cand[Math.floor(Math.random() * cand.length)];
       S.faults[k] = { type, state: 'guasto', ack: false, since: S.simT };
       if (type === 'cdb') { S.cdb[k].fault = true; log(`Anormalità: ${cname(k)} indica occupazione senza treno (guasto CdB) — CEI ${entCode(k)}`, 'err'); }
       if (type === 'sw') { S.sw[k].fault = true; log(`Anormalità: ${cname(k)} senza controllo — CEI ${entCode(k)}`, 'err'); }
+      if (type === 'blk') { S.blkFault[k] = true; S.faults[k].letterA = k.startsWith('PBI') ? Math.random() < 0.5 : null; log(`Anormalità: segnale di blocco ${k} guasto, disposto a via impedita — CEI ${entCode(k)}`, 'err'); }
       if (type === 'sig') { S.sigFault[k] = true; log(`Anormalità: segnale ${k} spento/guasto, non può disporsi a via libera — CEI ${entCode(k)}`, 'err'); }
       onSound('err');
     }
@@ -1087,6 +1186,7 @@ function updateFaults() {
       if (f.type === 'cdb') S.cdb[k].fault = false;
       if (f.type === 'sw') S.sw[k].fault = false;
       if (f.type === 'sig') delete S.sigFault[k];
+      if (f.type === 'blk') delete S.blkFault[k];
       delete S.faults[k];
       log(`Guasto rimosso: ${cname(k)} riconsegnato al DM`, 'ok');
     }
@@ -1132,12 +1232,13 @@ function pathPts(path, s0, s1) {
 }
 // ---------- codici da tastiera ----------
 const PROT = { PDA: 'Pd/A', PPA: 'Pp/A', PDB: 'Pd/B', PPB: 'Pp/B' };
-function entCode(k) { if (LINES[k]) return LINES[k].code; if (CTL[k]) return 'S' + CTL[k].n; if (SW[k]) return 'C' + SW[k].lab.toUpperCase(); if (k[0] === 'T') return 'B' + k.slice(1); if (SIG[k]) return k.replace('/', '').toUpperCase(); return k; }
+function entCode(k) { if (PBI[k]) return k.replace(' ', ''); if (LINES[k]) return LINES[k].code; if (CTL[k]) return 'S' + CTL[k].n; if (SW[k]) return 'C' + SW[k].lab.toUpperCase(); if (k[0] === 'T') return 'B' + k.slice(1); if (SIG[k]) return k.replace('/', '').toUpperCase(); return k; }
 function parseSig(tok) { tok = tok.toUpperCase().replace(/\//g, ''); if (PROT[tok]) return PROT[tok]; const m = tok.match(/^([1-5])([AB])$/); return m ? m[1] + '/' + m[2] : null; }
 function parseDest(tok, sig) { tok = tok.toUpperCase(); if (/^[1-5]$/.test(tok)) return tok; if ((tok === 'D' || tok === 'P') && SIG[sig].type === 'D') return 'L' + (SIG[sig].dir === 'E' ? 'B' : 'A') + tok; return null; }
 function parseEnte(tok) {
   tok = tok.toUpperCase();
-  let m = tok.match(/^B?([1-5])$/); if (m) return 'T' + m[1];
+  let m = tok.match(/^(PBI|PBA)\s?(\d+)$/); if (m && PBI[m[1] + ' ' + m[2]]) return m[1] + ' ' + m[2];
+  m = tok.match(/^B?([1-5])$/); if (m) return 'T' + m[1];
   m = tok.match(/^(?:S|DEV)(\d{1,2})[AB]?$/); if (m && CTL['c' + m[1]]) return 'c' + m[1];
   m = tok.match(/^C(\d{1,2}[AB]?)$/); if (m) { const h = Object.keys(SW).find(x => SW[x].lab.toUpperCase() === m[1]); if (h) return h; }
   const s = parseSig(tok); if (s) return s;
@@ -1165,6 +1266,13 @@ function execCommand(raw) {
       const k = t[1] && parseEnte(t[1]); return k ? intByDM(k, +t[2] || 30) : result(false, 'Uso: INT SI | INT NO | INT <ente> <minuti>, es. INT B5 30');
     }
     case 'RIP': { const k = t[1] && parseEnte(t[1]); return k ? intRestore(k) : result(false, 'Uso: RIP <ente>, es. RIP B5'); }
+    case 'M40A': {
+      if (!t[1]) return result(false, 'Uso: M40A <treno> [OSR|PAR|48]');
+      if (t[2]) return sendM40a(t[1], t[2]);
+      const c = m40aContext(t[1]); if (c.err) return result(false, c.err);
+      return { ok: true, m: `Compilazione Mod. M40a per ${c.nm}`, openM40a: t[1] };
+    }
+    case 'CHI': return t[1] ? callTrain(t[1]) : result(false, 'Uso: CHI <treno>');
     case 'ATT': return t[1] ? waitCall(t[1]) : result(false, 'Uso: ATT <treno>');
     case 'TEL': { const dst = t[1] === 'MONTEROSSI' ? 'A' : t[1] === 'SPADA' ? 'B' : t[1]; return dst && t[2] ? telMsg(dst, raw.trim().split(/\s+/).slice(2).join(' ')) : result(false, 'Uso: TEL <treno|MONTEROSSI|SPADA> <messaggio>'); }
     case 'VI':
@@ -1246,7 +1354,7 @@ function buildQL() {
   el('path', { d: 'M70 0H0V56', fill: 'none', stroke: '#171b1c', 'stroke-width': 1.6 }, pat);
   el('rect', { width: W, height: 470, fill: 'url(#tile)' });
   txt(700, 34, 'VALDORANA', { fill: '#cfd6d1', 'font-size': 15, 'text-anchor': 'middle', 'letter-spacing': 4, 'font-weight': 700 });
-  txt(700, 52, 'QUADRO LUMINOSO A.C.E.I. · DOPPIO BINARIO BANALIZZATO IN B.C.A.', { fill: '#7f8a84', 'text-anchor': 'middle', 'letter-spacing': 2 });
+  txt(700, 52, 'QUADRO LUMINOSO A.C.E.I. · DOPPIO BINARIO IN BCA/BAcf — DIRIGENZA LOCALE', { fill: '#7f8a84', 'text-anchor': 'middle', 'letter-spacing': 2 });
   el('rect', { x: 560, y: 410, width: 310, height: 12, fill: '#383e3a', stroke: '#141716' });
   el('rect', { x: 530, y: 308, width: 340, height: 16, fill: '#383e3a', stroke: '#141716' });
   el('rect', { x: 690, y: 196, width: 110, height: 16, fill: '#383e3a', stroke: '#141716' });
@@ -1299,7 +1407,7 @@ function buildQL() {
     // la = freccia verso l'esterno (uscita), ra = verso la stazione (ingresso)
     BAEL[L] = { occ, lib, out: la, inn: ra };
   }
-  for (const p in PBI) drawSignal(p, PBI[p].x, PBI[p].y, PBI[p].dir, 1, { label: p.replace('PBI ', ''), outer: true, color: '#b48cff' });
+  for (const p in PBI) drawSignal(p, PBI[p].x, PBI[p].y, PBI[p].dir, 1, { label: p.split(' ')[1], outer: true, color: '#b48cff' });
   for (const av in AVV) drawSignal(av, AVV[av].x, AVV[av].y, AVV[av].dir, 2, { label: 'Avv', outer: true });
   for (const sig of SIGNALS) {
     const { x, y, dir, type } = SIG[sig];
@@ -1333,7 +1441,7 @@ onLog = (m, cls, t) => {
   d.innerHTML = `<span class="ts">${fmt(t != null ? t : S.simT)}</span>`; d.appendChild(document.createTextNode(m));
   logEl.prepend(d); while (logEl.children.length > 200) logEl.lastChild.remove();
 };
-function show(res) { if (!res) return; if (res.openM40) { openM40(res.openM40); } msg(res.m, res.ok ? (/ritardo|registrata|prescrizione|Prescrizione|degrado|consenso|Rifiutato/.test(res.m) ? 'warn' : '') : 'err'); if (res.ok) beep(880, .06); else onSound('err'); }
+function show(res) { if (!res) return; if (res.openM40) { openM40(res.openM40); } if (res.openM40a) { openM40a(res.openM40a); } msg(res.m, res.ok ? (/ritardo|registrata|prescrizione|Prescrizione|degrado|consenso|Rifiutato/.test(res.m) ? 'warn' : '') : 'err'); if (res.ok) beep(880, .06); else onSound('err'); }
 const HINTS = { ANN: 'ANNULLAMENTO: premere il pulsante del segnale di inizio itinerario', DEV: 'COMANDO DEVIATOIO: selezionare il deviatoio sul quadro', LIB: 'LIBERAZIONE ARTIFICIALE: selezionare il CdB', CO: 'CAMBIO ORIENTAMENTO: selezionare il binario di linea (D o P)', AUT: 'ITINERARIO CON SEGNALE A VIA IMPEDITA: premere inizio e fine itinerario, poi trasmettere il Mod. M40', CEI: 'RICHIESTA CEI: selezionare l\'ente guasto (deviatoio, binario o segnale)' };
 function setMode(m) {
   mode = m; pending = null;
@@ -1415,6 +1523,7 @@ $('telForm').addEventListener('submit', e => {
   e.preventDefault(); const num = $('telTr').value, tx = $('telTxt');
   if (!num || !tx.value.trim()) return; show(telMsg(num, tx.value.trim())); tx.value = '';
 });
+$('telCall').addEventListener('click', () => { const v = $('telTr').value; if (!v) return; if (v === 'A' || v === 'B') { msg('Per le stazioni usa il messaggio o i codici ACC/RIF/RIC', 'warn'); return; } show(callTrain(v)); });
 $('calls').addEventListener('click', e => { const b = e.target.closest('button[data-c]'); if (b) show(execCommand(b.dataset.c)); });
 let m40num = null;
 const M40GROUPS = { BCA: [['it', 'ITINERARIO', [1, 2, 3, 4, 5]], ['di', 'DISTANZIAMENTO', [6]], ['bi', 'BINARIO ILLEGALE', [11, 14]]], BA: [['it', 'ITINERARIO', [1, 2, 3, 4, 5]], ['di', 'DISTANZIAMENTO', [6, 8, 9]], ['bi', 'BINARIO ILLEGALE', [15, 18]]] };
@@ -1439,6 +1548,12 @@ $('m40send').onclick = () => {
 function renderPhone() {
   let h = '';
   for (const tr of S.trains) {
+    if (tr.called && tr.callSig && tr.callSig.startsWith('G:')) {
+      if (tr.m40aPend) continue;
+      const gid = tr.callSig.slice(2), fl = S.blkFault && S.blkFault[gid];
+      h += `<div class="c ${tr.callAck ? '' : 'ring'}"><span>☎ ${tr.cat} ${tr.num} fermo al segnale di blocco ${gid}${fl ? ' (guasto)' : ''}</span><span><button class="hb sm" data-c="M40A ${tr.num}">M40a</button> <button class="hb sm" data-c="ATT ${tr.num}">Attendere</button></span></div>`;
+      continue;
+    }
     const rid = tr.await && S.sigActive[tr.await], a = rid && S.active[rid];
     if (!tr.called || (a && (a.auth || a.m40))) continue;
     const deg = a && a.deg && a.state === 'set';
@@ -1450,8 +1565,24 @@ function renderPhone() {
   const sel = $('telTr'), cur = sel.value, opts = ['A', 'B'].concat(S.trains.map(t => String(t.num)));
   if (sel.dataset.k !== opts.join()) { sel.innerHTML = opts.map(n => { if (n === 'A' || n === 'B') return `<option value="${n}">DM ${SIDES[n].name}</option>`; const t = trainByNum(n); return `<option value="${n}">AdC ${t.cat} ${n}</option>`; }).join(''); sel.dataset.k = opts.join(); if (opts.includes(cur)) sel.value = cur; }
 }
+// ---------- Mod. M40a ----------
+let m40anum = null;
+function openM40a(num) {
+  const c = m40aContext(num); if (c.err) { msg(c.err, 'err'); return; }
+  m40anum = num;
+  $('m40an').textContent = S.m40n + 1; $('m40at').textContent = c.tr.num; $('m40ad').textContent = DOWL[Math.floor(S.simT / 86400) % 7] + ' ' + fmtM(S.simT);
+  $('m40aa').textContent = `Agente di condotta del treno ${c.tr.cat} ${c.tr.num}`;
+  $('m40alist').innerHTML = `<fieldset class="it"><legend>PRESCRIZIONE</legend>${Object.keys(M40A_TXT).map(k => `<label><input type="radio" name="m40a" value="${k}"><span>${M40A_TXT[k](c)}</span></label>`).join('')}</fieldset>`;
+  const ph = $('pTel').ownerDocument; if ($('m40a').ownerDocument !== ph) ph.body.appendChild($('m40a'));
+  $('m40a').style.display = 'flex';
+}
+$('m40acancel').onclick = () => { $('m40a').style.display = 'none'; m40anum = null; };
+$('m40asend').onclick = () => {
+  const r = $('m40alist').querySelector('input:checked'); if (!r) { msg('Selezionare la prescrizione del Mod. M40a', 'err'); return; }
+  $('m40a').style.display = 'none'; show(sendM40a(m40anum, r.value)); m40anum = null;
+};
 // ---------- orario grafico ----------
-const TG_ROWS = [[0, 'MONTEROSSI', 1], [5, 'PBI 11 / 12', 0], [10, 'VALDORANA', 1], [12, 'PBI 101 / 102', 0], [13.3, 'PBI 103 / 104', 0], [14.6, 'P.M. SPADA', 1]];
+const TG_ROWS = [[0, 'MONTEROSSI', 1], [5, 'PBI 11 / 12', 0], [10, 'VALDORANA', 1], [12, 'PBA 101 / 102', 0], [13.3, 'PBA 103 / 104', 0], [14.6, 'P.M. SPADA', 1]];
 function plannedPts(t) {
   const vA = KMH(Math.min(t.vmax, 140)), vB = KMH(Math.min(t.vmax, 160)), mid = 10.35;
   return t.from === 'A' ? [[t.ready, 0], [t.arr, mid], [t.dep, mid], [t.dep + LINE_TOT.B / vB, 14.6]] : [[t.ready, 14.6], [t.arr, mid], [t.dep, mid], [t.dep + LINE_TOT.A / vA, 0]];
@@ -1556,7 +1687,7 @@ function render() {
     SIGLAB[sig].setAttribute('fill', S.faults[sig] ? (blinkOn ? '#ff6b5e' : '#7a2a24') : (!BTN['S' + sig] && sel && blinkOn) ? COL.Y : (!BTN['S' + sig] && a) ? (a.auth && blinkOn ? '#ff9f43' : '#ffffff') : '#e6ece8');
   }
   for (const av in AVV) setLamps(av, lt ? ['Y', 'G'] : aspectAvv(av));
-  for (const p in PBI) setLamps(p, lt ? ['G'] : pbiAspect(p));
+  for (const p in PBI) { setLamps(p, lt ? ['G'] : pbiAspect(p)); if (SIGLAB[p]) SIGLAB[p].setAttribute('fill', S.blkFault && S.blkFault[p] ? (blinkOn ? '#ff6b5e' : '#7a2a24') : '#b48cff'); }
   for (const k in SW) {
     const w = swOf(k), e = SWEL[k], c = S.cdb[k];
     // lampada di controllo: bianca = normale, gialla = rovescio, lampeggiante = in manovra, rossa = senza controllo
@@ -1647,7 +1778,7 @@ const STYLE = document.querySelector('style').textContent;
 function bindKeys(doc) {
   doc.addEventListener('keydown', e => {
     if (e.target === cmdEl || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName) || $('m40').style.display === 'flex') return;
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName) || $('m40').style.display === 'flex' || $('m40a').style.display === 'flex' || $('mainMenu').style.display === 'flex') return;
     if (e.key === 'Escape') { bancoKey('ESC'); return; }
     if (e.key.length === 1 && /[\w\/ ?]/.test(e.key)) {
       if (cmdEl.ownerDocument === doc) cmdEl.focus();
@@ -1676,6 +1807,7 @@ function dock(p) {
   if (p._ph) { const w = p._win; p._ph.parentNode.insertBefore(p, p._ph); p._ph.remove(); p._ph = null; p._win = null; try { if (w && !w.closed) w.close(); } catch (e) { } }
   if (p.classList.contains('floating')) { p.classList.remove('floating'); p.style.cssText = p.dataset.css || ''; }
   if ($('m40').ownerDocument !== document) document.body.appendChild($('m40'));
+  if ($('m40a').ownerDocument !== document) document.body.appendChild($('m40a'));
   p.querySelector('.dt').textContent = '⧉'; p.querySelector('.dt').title = 'Sgancia in una finestra';
   if (!closingApp) saveLayout();
 }
@@ -1746,18 +1878,34 @@ start(0, 5.5);
 bindKeys(document);
 (async function () {
   let v = null; try { v = localStorage.getItem(SAVEKEY); } catch (e) { }
+  speed = 0;
   if (NATIVE) {
     try { $('appVer').textContent = '· v' + await NATIVE.version(); } catch (e) { }
     try { const f = await NATIVE.latest(); if (f && (!v || JSON.parse(f).saved > JSON.parse(v).saved)) v = f; } catch (e) { }
     try { const lay = await NATIVE.getLayout(); for (const id of lay || []) { const p = PANELS.find(x => x.id === id); if (p) detach(p); } } catch (e) { }
   }
-  if (!v) return;
-  try { const o = JSON.parse(v); $('startTxt').textContent = `Ultimo salvataggio: ${fmt(o.S.simT)} (salvato il ${new Date(o.saved).toLocaleString('it-IT')}).`; } catch (e) { return; }
-  const prev = speed; speed = 0;
-  $('startDlg').style.display = 'flex';
-  $('sdResume').onclick = () => { $('startDlg').style.display = 'none'; speed = prev; loadFrom(v, 'Turno ripreso'); };
-  $('sdNew').onclick = () => { $('startDlg').style.display = 'none'; speed = prev; };
+  menuSave = v; openMenu(true);
 })();
+// ---------- menu principale ----------
+var menuSave = null, menuPrevSpeed = null;
+DOWL.forEach((d, i) => $('mmDay').add(new Option(d, i)));
+for (let h = 0; h < 24; h++) $('mmHour').add(new Option(String(h).padStart(2, '0') + ':00', h));
+$('mmHour').add(new Option('05:30', 5.5)); $('mmHour').value = 5.5;
+function openMenu(boot) {
+  if (menuPrevSpeed == null) menuPrevSpeed = boot ? 2 : speed;
+  speed = 0;
+  let info = '';
+  if (!menuSave) { try { menuSave = localStorage.getItem(SAVEKEY); } catch (e) { } }
+  if (menuSave) { try { const o = JSON.parse(menuSave); info = `Ultimo turno salvato: ${fmt(o.S.simT)} (salvato il ${new Date(o.saved).toLocaleString('it-IT')}).`; } catch (e) { menuSave = null; } }
+  $('mmResume').disabled = !menuSave; $('mmClose').style.display = boot ? 'none' : '';
+  $('mmInfo').textContent = info;
+  $('mainMenu').style.display = 'flex';
+}
+function closeMenu() { $('mainMenu').style.display = 'none'; speed = menuPrevSpeed != null ? menuPrevSpeed : 2; menuPrevSpeed = null; [...speeds.children].forEach((c, i) => c.classList.toggle('on', [0, 1, 2, 5, 10, 30][i] === speed)); }
+$('mmNew').onclick = () => { closeMenu(); start(+$('mmDay').value, +$('mmHour').value); sd.value = $('mmDay').value; sh.value = $('mmHour').value; };
+$('mmResume').onclick = () => { closeMenu(); if (menuSave) loadFrom(menuSave, 'Turno ripreso'); };
+$('mmClose').onclick = () => closeMenu();
+$('bMenu').onclick = () => { saveLocal(true); menuSave = null; openMenu(false); };
 // PWA: service worker per l'uso offline (ignorato se non disponibile)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { try { navigator.serviceWorker.register('sw.js').catch(() => { }); } catch (e) { } }
 let last = performance.now(), ringT = 0, ttT = 0;
