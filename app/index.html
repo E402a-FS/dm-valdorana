@@ -263,7 +263,7 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
 
 <div class="toast" id="toast"></div>
 <div id="mainMenu"><div class="mm">
-  <div class="mmh"><div class="mmlogo">DM</div><div><h2>Simulatore Dirigente Movimento</h2><small>Postazione ACEI · scegli l'impianto da simulare</small></div></div>
+  <div class="mmh"><div class="mmlogo">DM</div><div><h2>Simulatore Dirigente Movimento</h2><small>Postazione ACEI · scegli l'impianto da simulare · versione simulatore <span id="mmBuild"></span></small></div></div>
   <div class="mmlist">
     <button type="button" class="mmst on" data-st="valdorana"><b>VALDORANA</b><span>Doppio binario in BCA/BAcf — Dirigenza Locale · ACEI · 5 binari</span><span>Monterossi (BCA, PBI 11/12) · P.M. Spada (BAcf, PBA 101–104)</span></button>
     <button type="button" class="mmst" disabled><b>Altri impianti</b><span>in preparazione</span></button>
@@ -287,6 +287,17 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
   <div id="m40list"></div>
   <div class="mfoot"><small>IL DIRIGENTE: DM Valdorana · trasmissione telefonica con ripetizione dell'AdC</small><span><button class="sec" id="m40cancel" type="button">Annulla</button> <button id="m40send" type="button">Trasmetti all'AdC</button></span></div>
 </div></div>
+<div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
+<script>
+// diagnostica: mostra in basso qualunque errore JavaScript (anche se la simulazione non parte)
+window.SIM_BUILD = '1.2.3';
+(function () {
+  function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (sim ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
+  window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
+  window.addEventListener('unhandledrejection', function (e) { show('Promise: ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)); });
+  window.__showErr = show;
+})();
+</script>
 <script>
 //CORE-START
 // ======================= GEOMETRIA =======================
@@ -1328,7 +1339,13 @@ function execCommand(raw) {
 
 // ======================= INTERFACCIA =======================
 const E = {};
-function $(id) { if (E[id]) return E[id]; const e = document.getElementById(id); if (e) E[id] = e; return e; }
+function $(id) {
+  if (E[id]) return E[id];
+  let e = document.getElementById(id);
+  // elementi dentro pannelli sganciati in altre finestre
+  if (!e && typeof PANELS !== 'undefined') for (const p of PANELS) { e = p.querySelector('#' + id); if (e) break; }
+  if (e) E[id] = e; return e;
+}
 document.querySelectorAll('[id]').forEach(e => E[e.id] = e);
 const svg = $('ql');
 const NS = 'http://www.w3.org/2000/svg';
@@ -1457,7 +1474,7 @@ function buildQL() {
     const lamp = el('circle', { cx: p[0] + 11.5, cy: p[1] - 1, r: 1.8, fill: COL.lampOff }, g);
     SWEL[k] = { t, lamp };
   }
-  el('g', { id: 'trains', 'pointer-events': 'none' });
+  E.trains = el('g', { id: 'trains', 'pointer-events': 'none' });
 }
 
 // ---------- interazione ----------
@@ -1924,13 +1941,14 @@ bindKeys(document);
   let v = null; try { v = localStorage.getItem(SAVEKEY); } catch (e) { }
   setSpeed(0);
   if (NATIVE) {
-    try { $('appVer').textContent = '· v' + await NATIVE.version(); } catch (e) { }
+    try { $('appVer').textContent = `· app v${await NATIVE.version()} · sim ${SIM_BUILD}`; } catch (e) { }
     try { const f = await NATIVE.latest(); if (f && (!v || JSON.parse(f).saved > JSON.parse(v).saved)) v = f; } catch (e) { }
     try { const lay = await NATIVE.getLayout(); for (const id of lay || []) { const p = PANELS.find(x => x.id === id); if (p) detach(p); } } catch (e) { }
   }
   menuSave = v; openMenu(true);
 })();
 // ---------- menu principale ----------
+$('mmBuild').textContent = window.SIM_BUILD; if (!$('appVer').textContent) $('appVer').textContent = '· sim ' + window.SIM_BUILD;
 var menuSave = null, menuPrevSpeed = null;
 DOWL.forEach((d, i) => $('mmDay').add(new Option(d, i)));
 for (let h = 0; h < 24; h++) $('mmHour').add(new Option(String(h).padStart(2, '0') + ':00', h));
@@ -1958,7 +1976,7 @@ function loop() {
   const dtr = Math.min(3, (now - last) / 1000); last = now;
   let sim = dtr * speed;
   try { while (sim > 0) { const d = Math.min(0.1, sim); tick(d); sim -= d; } }
-  catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore interno della simulazione: ${e.message}. Usa Menu → Nuovo turno e segnalami il messaggio.`, 'err'); } }
+  catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore interno della simulazione: ${e.message}. Usa Menu → Nuovo turno e segnalami il messaggio.`, 'err'); window.__showErr && window.__showErr('simulazione: ' + (e.stack || e.message).split('\n').slice(0, 4).join('\n')); } }
   if (pending && now - pending.t > 8000) { pending = null; msg('Selezione scaduta (tempo massimo 8 s)', 'err'); }
   ringT += dtr;
   if (ringT > 3) {
@@ -1968,7 +1986,7 @@ function loop() {
     if (speed > 0 && ring) onSound('ring');
   }
   ttT += dtr; if (ttT > 0.5) { ttT = 0; renderTT(); renderPhone(); renderBoard(); renderTG(); }
-  try { render(); } catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore interno di visualizzazione: ${e.message}`, 'err'); } }
+  try { render(); } catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore interno di visualizzazione: ${e.message}`, 'err'); window.__showErr && window.__showErr('visualizzazione: ' + (e.stack || e.message).split('\n').slice(0, 4).join('\n')); } }
   autoT += dtr; if (autoT > 30) { autoT = 0; saveLocal(true); if (NATIVE && ++autoN % 2 === 0) NATIVE.autosave(serialize({ speed })).catch(() => { }); }
   for (const p of PANELS) if (p._win && p._win.closed) dock(p);
 }
