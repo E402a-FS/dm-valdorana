@@ -1498,11 +1498,21 @@ $('ttBody').addEventListener('change', e => {
   t.plan = sl.value; log(`Binario di ricevimento programmato per ${t.cat} ${t.num}: ${t.plan}`); sl.blur(); renderTT(); renderBoard();
 });
 const speeds = $('speeds');
+// primo tasto: ▶ avvia / ❚❚ mette in pausa; gli altri scelgono la velocità
+const SPEEDS = [0, 1, 2, 5, 10, 30];
+let lastSpeed = 2;
+function setSpeed(v) {
+  speed = v; if (v > 0) lastSpeed = v;
+  [...speeds.children].forEach((c, i) => c.classList.toggle('on', i > 0 && SPEEDS[i] === speed));
+  const pb = speeds.children[0];
+  if (pb) { pb.textContent = speed > 0 ? '❚❚' : '▶'; pb.title = speed > 0 ? 'Pausa' : 'Avvia'; pb.classList.toggle('on', speed === 0); pb.style.minWidth = '34px'; }
+}
 for (const [lab, v] of [['❚❚', 0], ['×1', 1], ['×2', 2], ['×5', 5], ['×10', 10], ['×30', 30]]) {
-  const b = document.createElement('button'); b.className = 'hb' + (v === speed ? ' on' : ''); b.textContent = lab; b.title = v ? 'Velocità ' + lab : 'Pausa';
-  b.onclick = () => { speed = v; [...speeds.children].forEach(c => c.classList.remove('on')); b.classList.add('on'); };
+  const b = document.createElement('button'); b.className = 'hb'; b.textContent = lab; b.title = v ? 'Velocità ' + lab : 'Pausa';
+  b.onclick = () => setSpeed(v ? v : (speed > 0 ? 0 : lastSpeed || 2));
   speeds.appendChild(b);
 }
+setSpeed(speed);
 const sd = $('startDay'), sh = $('startHour');
 DOWL.forEach((d, i) => sd.add(new Option(d, i)));
 for (let h = 0; h < 24; h++) sh.add(new Option(String(h).padStart(2, '0') + ':00', h));
@@ -1844,7 +1854,7 @@ function restoreUI(extra) {
   logEl.innerHTML = ''; chatEl.innerHTML = '';
   for (const l of S.logs) onLog(l.m, l.cls, l.t);
   for (const ph of S.phone) onPhone(ph);
-  if (extra && extra.speed != null) { speed = extra.speed; [...speeds.children].forEach((c, i) => c.classList.toggle('on', [0, 1, 2, 5, 10, 30][i] === speed)); }
+  setSpeed(extra && extra.speed > 0 ? extra.speed : lastSpeed || 2); // un turno ripreso riparte sempre in marcia
   $('faults').checked = S.faultsOn; setMode(null); $('m40').style.display = 'none'; renderTT(); renderPhone();
 }
 function loadFrom(str, label) {
@@ -1878,7 +1888,7 @@ start(0, 5.5);
 bindKeys(document);
 (async function () {
   let v = null; try { v = localStorage.getItem(SAVEKEY); } catch (e) { }
-  speed = 0;
+  setSpeed(0);
   if (NATIVE) {
     try { $('appVer').textContent = '· v' + await NATIVE.version(); } catch (e) { }
     try { const f = await NATIVE.latest(); if (f && (!v || JSON.parse(f).saved > JSON.parse(v).saved)) v = f; } catch (e) { }
@@ -1893,7 +1903,7 @@ for (let h = 0; h < 24; h++) $('mmHour').add(new Option(String(h).padStart(2, '0
 $('mmHour').add(new Option('05:30', 5.5)); $('mmHour').value = 5.5;
 function openMenu(boot) {
   if (menuPrevSpeed == null) menuPrevSpeed = boot ? 2 : speed;
-  speed = 0;
+  setSpeed(0);
   let info = '';
   if (!menuSave) { try { menuSave = localStorage.getItem(SAVEKEY); } catch (e) { } }
   if (menuSave) { try { const o = JSON.parse(menuSave); info = `Ultimo turno salvato: ${fmt(o.S.simT)} (salvato il ${new Date(o.saved).toLocaleString('it-IT')}).`; } catch (e) { menuSave = null; } }
@@ -1901,7 +1911,7 @@ function openMenu(boot) {
   $('mmInfo').textContent = info;
   $('mainMenu').style.display = 'flex';
 }
-function closeMenu() { $('mainMenu').style.display = 'none'; speed = menuPrevSpeed != null ? menuPrevSpeed : 2; menuPrevSpeed = null; [...speeds.children].forEach((c, i) => c.classList.toggle('on', [0, 1, 2, 5, 10, 30][i] === speed)); }
+function closeMenu() { $('mainMenu').style.display = 'none'; setSpeed(menuPrevSpeed > 0 ? menuPrevSpeed : lastSpeed || 2); menuPrevSpeed = null; }
 $('mmNew').onclick = () => { closeMenu(); start(+$('mmDay').value, +$('mmHour').value); sd.value = $('mmDay').value; sh.value = $('mmHour').value; };
 $('mmResume').onclick = () => { closeMenu(); if (menuSave) loadFrom(menuSave, 'Turno ripreso'); };
 $('mmClose').onclick = () => closeMenu();
