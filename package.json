@@ -1,9 +1,9 @@
 {
   "name": "dm-valdorana",
-  "productName": "DM Valdorana",
-  "version": "1.2.3",
-  "description": "Simulatore della postazione del Dirigente Movimento — ACEI Valdorana",
-  "author": "DM Valdorana",
+  "productName": "Circolazione Simulatore",
+  "version": "1.3.0",
+  "description": "Circolazione Simulatore — simulatore della postazione del Dirigente Movimento",
+  "author": "Circolazione Simulatore",
   "license": "UNLICENSED",
   "main": "main.js",
   "scripts": {
@@ -41,8 +41,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "DM Valdorana",
-      "artifactName": "DM-Valdorana-Setup-${version}.${ext}"
+      "shortcutName": "Circolazione Simulatore",
+      "artifactName": "Circolazione-Simulatore-Setup-${version}.${ext}"
     },
     "publish": [
       {
