@@ -300,7 +300,7 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '1.4.0';
+window.SIM_BUILD = '1.4.2';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -582,8 +582,8 @@ function genDay(d) {
     list.push(mkTT({ num, cat, dir, arr: stops ? dep - dw * 60 : dep, stops, stopMin: dw, dwell: C.dwell, stopType: stops ? 'fermata' : 'transito', len: pick(C.lens), vmax: C.vmax[0], orig, dest, impresa: cat === 'ITA' ? 'Italo' : 'Trenitalia', note: tr ? 'ferma solo in estate (15/6–14/9)' : '' }));
   }
   // merci (varie IF), invii materiale e locomotive isolate (solo Trenitalia)
-  const r = rng(d * 7919 + 101), n = dow <= 4 ? 16 : dow === 5 ? 11 : 6;
-  const hw = [3, 3, 3, 3, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3], hs = hw.reduce((a, b) => a + b);
+  const r = rng(d * 7919 + 101), n = dow <= 4 ? 24 : dow === 5 ? 12 : 4; // extra oltre a 1 merci per ogni ora
+  const hw = [3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3], hs = hw.reduce((a, b) => a + b);
   const add = (cat, dir, t0, impresa, num) => {
     const C = CATS[cat], q = r();
     let stopType = 'transito', mins = 0;
@@ -595,13 +595,14 @@ function genDay(d) {
     const o = dir === 'R' ? pick(ORIG_E, r) : pick(ORIG_W, r), de = dir === 'R' ? pick(ORIG_W, r) : pick(ORIG_E, r);
     list.push(mkTT({ num, cat, dir, arr: t0, stops, stopMin: mins || prog, dwell: mins * 60, stopType, len, vmax: C.vmax[Math.floor(r() * C.vmax.length)], orig: cat === 'MRC' ? o : dir === 'R' ? 'TRIESTE C.LE' : 'VENEZIA MESTRE', dest: cat === 'MRC' ? de : dir === 'R' ? 'VENEZIA MESTRE' : 'TRIESTE C.LE', impresa }));
   };
-  for (let i = 0; i < n; i++) {
-    let x = r() * hs, h = 0; while (x >= hw[h]) { x -= hw[h]; h++; }
+  for (let i = 0; i < 24 + n; i++) {
+    let h = i;
+    if (i >= 24) { let x = r() * hs; h = 0; while (x >= hw[h]) { x -= hw[h]; h++; } }
     const dir = r() < 0.5 ? 'L' : 'R';
     add('MRC', dir, base + h * 3600 + Math.floor(r() * 60) * 60, pick(IF_MERCI, r), 40000 + Math.floor(r() * 4000) * 2 + (dir === 'L' ? 1 : 0));
   }
-  for (let i = 0; i < (dow <= 4 ? 2 : 1); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('MAT', dir, base + (5 + Math.floor(r() * 17)) * 3600 + Math.floor(r() * 60) * 60, 'Trenitalia', 96000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
-  for (let i = 0; i < (dow <= 4 ? 3 : 2); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('LIS', dir, base + Math.floor(r() * 24) * 3600 + Math.floor(r() * 60) * 60, 'Trenitalia', 69000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
+  for (let i = 0; i < (dow <= 4 ? 4 : 2); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('MAT', dir, base + (5 + Math.floor(r() * 17)) * 3600 + Math.floor(r() * 60) * 60, 'Trenitalia', 96000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
+  for (let i = 0; i < (dow <= 4 ? 6 : 3); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('LIS', dir, base + Math.floor(r() * 24) * 3600 + Math.floor(r() * 60) * 60, 'Trenitalia', 69000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
   // precedenze per orario: il merci con sosta programmata attende un viaggiatori dello stesso senso
   for (const t of list) if (t.stopType === 'sosta programmata') {
     const v = list.filter(p => CATS[p.cat].pax && p.dir === t.dir && p.arr > t.arr + 60 && p.arr < t.arr + 25 * 60).sort((a, b) => a.arr - b.arr)[0];
@@ -1472,11 +1473,10 @@ function aspect(k) {
   const r = routeOpen(k); if (!r) return 'R';
   if (r.kind === 'est') { const p = aspect(r.int); return p === 'R' || p === 'off' ? 'G' : (p === 'RG' || p === 'RV') ? 'GVl' : 'V'; }
   if (r.kind === 'arr') { if (!r.ct) return 'RG'; return aspect(r.next) !== 'R' && aspect(r.next) !== 'off' ? 'V' : 'G'; }
-  const v = pbiAspect(NEXTPBI[r.exit]) === 'V';
   if (k === 'QIE') return 'RV';
-  if (g.tab) return v ? 'V' : 'G';
-  if (!r.ct) return v ? 'RV' : 'RG';
-  return v ? 'V' : 'G';
+  // partenza: nessun avviso accoppiato -> solo R / V (RV se in deviata)
+  if (!g.tab && !r.ct) return 'RV';
+  return 'V';
 }
 
 // ======================= SALVATAGGIO =======================
