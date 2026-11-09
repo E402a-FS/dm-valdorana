@@ -262,7 +262,12 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
       <span><b class="k">Apparato</b> ACEI – Apparato Centrale Elettrico ad Itinerari, comando con tabulatore · 5 binari</span>
       <span><b class="k">Linea</b> doppio binario banalizzato · lato Monterossi BCA (PBI 11/12) · lato P.M. Spada BAcf (PBA 101–104)</span>
       <span><b class="k">Regime</b> DL – Dirigenza Locale (DM di stazione)</span></button>
-    <button type="button" class="mmst" disabled><b>Altri impianti</b><span>in preparazione: ACC, ACC-M, ACE · regimi DC e DCO</span></button>
+    <button type="button" class="mmst" data-st="latisana"><b>LATISANA-LIGNANO-BIBIONE</b>
+      <span class="mmtags"><i title="Apparato Centrale Elettrico ad Itinerari">ACEI</i><i title="Comando degli itinerari da tabulatore">con tabulatore</i><i title="Dirigenza Centrale">DC</i><i>doppio binario banalizzato</i><i>linea Venezia–Trieste</i></span>
+      <span><b class="k">Apparato</b> ACEI con tabulatore · 4 binari + asta di manutenzione · PL comandati e PLA</span>
+      <span><b class="k">Linea</b> doppio binario banalizzato in BCA ambo i lati · S. Giorgio di Nogaro (PBI 30–33) · Portogruaro C. (PBI 26/27)</span>
+      <span><b class="k">Regime</b> DC – Dirigenza Centrale (DC Ve. Mestre) · interruzioni con treno cantiere</span></button>
+    <button type="button" class="mmst" disabled><b>Altri impianti</b><span>in preparazione: ACC, ACC-M, ACE · regime DCO</span></button>
   </div>
   <div class="mmrow"><label>Inizio turno <select id="mmDay"></select> <select id="mmHour"></select></label></div>
   <div class="mmrow"><button type="button" class="hb on" id="mmNew">Nuovo turno</button> <button type="button" class="hb" id="mmResume" disabled>Riprendi ultimo turno</button> <button type="button" class="hb" id="mmClose">Torna al turno in corso</button></div>
@@ -291,7 +296,7 @@ label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12p
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 <script>
 // diagnostica: mostra in basso qualunque errore JavaScript (anche se la simulazione non parte)
-window.SIM_BUILD = '1.3.0';
+window.SIM_BUILD = '1.4.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (sim ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -1965,10 +1970,28 @@ function openMenu(boot) {
   $('mmResume').disabled = !menuSave; $('mmClose').style.display = boot ? 'none' : '';
   $('mmInfo').textContent = info;
   $('mainMenu').style.display = 'flex';
+  if (typeof mmRefresh === 'function') mmRefresh();
 }
 function closeMenu() { $('mainMenu').style.display = 'none'; setSpeed(menuPrevSpeed > 0 ? menuPrevSpeed : lastSpeed || 2); menuPrevSpeed = null; }
-$('mmNew').onclick = () => { closeMenu(); start(+$('mmDay').value, +$('mmHour').value); sd.value = $('mmDay').value; sh.value = $('mmHour').value; };
-$('mmResume').onclick = () => { closeMenu(); if (menuSave) loadFrom(menuSave, 'Turno ripreso'); };
+// scelta dell'impianto: Valdorana gira in questa pagina, Latisana in latisana.html
+var mmStation = 'valdorana';
+var LATKEY = 'cs-latisana-save';
+function latSave() { try { return localStorage.getItem(LATKEY); } catch (e) { return null; } }
+function mmRefresh() {
+  document.querySelectorAll('.mmst[data-st]').forEach(b => b.classList.toggle('on', b.dataset.st === mmStation));
+  if (mmStation === 'latisana') {
+    const v = latSave(); let info = '';
+    if (v) { try { const o = JSON.parse(v); info = `Ultimo turno di Latisana salvato: ${fmt(o.S.simT)} (salvato il ${new Date(o.saved).toLocaleString('it-IT')}).`; } catch (e) { } }
+    $('mmResume').disabled = !v; $('mmInfo').textContent = info;
+  } else {
+    let info = ''; if (menuSave) { try { const o = JSON.parse(menuSave); info = `Ultimo turno salvato: ${fmt(o.S.simT)} (salvato il ${new Date(o.saved).toLocaleString('it-IT')}).`; } catch (e) { } }
+    $('mmResume').disabled = !menuSave; $('mmInfo').textContent = info;
+  }
+}
+document.querySelectorAll('.mmst[data-st]').forEach(b => b.addEventListener('click', () => { mmStation = b.dataset.st; mmRefresh(); }));
+function goLatisana(q) { saveLocal(true); location.href = 'latisana.html' + q; }
+$('mmNew').onclick = () => { if (mmStation === 'latisana') return goLatisana(`?day=${$('mmDay').value}&hour=${$('mmHour').value}`); closeMenu(); start(+$('mmDay').value, +$('mmHour').value); sd.value = $('mmDay').value; sh.value = $('mmHour').value; };
+$('mmResume').onclick = () => { if (mmStation === 'latisana') return goLatisana('?resume=1'); closeMenu(); if (menuSave) loadFrom(menuSave, 'Turno ripreso'); };
 $('mmClose').onclick = () => closeMenu();
 $('bMenu').onclick = () => { saveLocal(true); menuSave = null; openMenu(false); };
 // PWA: service worker per l'uso offline (ignorato se non disponibile)

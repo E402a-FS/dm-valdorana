@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circolazione Simulatore — Latisana-Lignano-Bibione</title>
+<style>
+:root{--bg:#0e1012;--panel:#181b1e;--line:#2a2f34;--ink:#d9dee4;--mut:#8b939c;--acc:#ffd21f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#15181b;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:14px;margin:0;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+h1 small{display:block;color:var(--mut);font-weight:400;letter-spacing:.04em;text-transform:none;font-size:11px}
+.clock{font-size:22px;color:var(--acc);background:#000;padding:2px 12px;border:1px solid #333;border-radius:3px;letter-spacing:.08em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.grp{display:flex;gap:4px;align-items:center}
+.hb,select{background:#22262a;color:var(--ink);border:1px solid #3a4046;border-radius:3px;padding:5px 8px;font:inherit;cursor:pointer}
+.hb:hover{border-color:#6a737c}.hb.on{background:var(--acc);color:#000;border-color:var(--acc)}
+.hb.sm{padding:1px 6px;font-size:11px}
+.stats{display:flex;gap:14px;margin-left:auto;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;align-items:flex-end}
+.stat b{font-size:17px;font-variant-numeric:tabular-nums}.stat span{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+main{display:grid;grid-template-columns:minmax(0,1fr) 500px;gap:12px;padding:12px}
+@media(max-width:1350px){main{grid-template-columns:1fr}}
+.ql-wrap{background:#1b1f1d;border:6px solid #2c312e;border-radius:6px;box-shadow:inset 0 0 0 1px #000,0 6px 24px #0008;overflow-x:auto}
+#ql{display:block;width:100%;min-width:980px;height:auto;user-select:none;touch-action:manipulation}
+#ql [data-btn]{cursor:pointer}
+.banco{margin-top:12px;background:linear-gradient(#3d4a44,#33403a);border:1px solid #1f2723;border-radius:6px;padding:12px 14px;display:grid;grid-template-columns:1fr;gap:12px;box-shadow:inset 0 1px 0 #ffffff14}
+@media(max-width:900px){.banco{grid-template-columns:1fr}}
+.keys{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+.key{display:flex;flex-direction:column;align-items:center;gap:5px;width:66px;text-align:center;font-size:10px;color:#e8efe9;letter-spacing:.02em}
+.key button{width:42px;height:42px;border-radius:50%;border:3px solid #1b211e;background:radial-gradient(circle at 35% 30%,#fff8,transparent 45%),var(--c,#c9cfd3);box-shadow:0 3px 0 #111,inset 0 -3px 6px #0005;cursor:pointer;font:700 10px/1 inherit;color:#111;padding:0}
+.key button:active{transform:translateY(2px);box-shadow:0 1px 0 #111,inset 0 -2px 4px #0006}
+.key.on button{outline:3px solid var(--acc);outline-offset:2px}
+.counter{font:700 13px/1 inherit;background:#000;color:#eee;padding:3px 5px;border-radius:2px;letter-spacing:.15em;border:1px solid #555}
+.sep{width:1px;align-self:stretch;background:#0003;box-shadow:1px 0 0 #fff1}
+.lcd{background:#0b1a0f;color:#7dff9b;border:2px solid #1b2a20;border-radius:3px;padding:8px 10px;font-size:12px;box-shadow:inset 0 0 12px #000;display:flex;flex-direction:column;gap:6px}
+.lcd .t{color:#4fbf6a;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.lcd #msg{min-height:34px}.lcd #msg.err{color:#ff7a6e}.lcd #msg.warn{color:#ffd21f}
+.lcd #sel{color:#fff;min-height:16px}
+.cmd{display:flex;align-items:center;gap:6px;background:#000;border:1px solid #2f5a3a;border-radius:2px;padding:4px 6px}
+.cmd span{color:#4fbf6a}
+.cmd input{flex:1;background:transparent;border:0;outline:0;color:#b9ffca;font:inherit;font-size:14px;text-transform:uppercase;letter-spacing:.06em}
+aside{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.card h2{margin:0;padding:8px 12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.tt{max-height:360px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:4px 6px;text-align:left;white-space:nowrap;border-bottom:1px solid #22262a}
+th{position:sticky;top:0;background:#1d2125;color:var(--mut);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+tr.done td{color:#5d656d}tr.live td{background:#252b20}tr.wait td{background:#3a3315}
+td.note{color:#ffcc80;font-size:11px}
+td .if{font-size:10px;color:#8b939c}
+.bsel{background:#0e1012;color:#ffd21f;border:1px solid #3a4046;border-radius:3px;font:inherit;font-size:12px;padding:1px 2px}
+.cat{display:inline-block;min-width:30px;text-align:center;border-radius:2px;padding:0 3px;color:#000;font-weight:700;font-size:10px}
+.reqs{padding:6px 10px;font-size:12px;display:flex;flex-direction:column;gap:5px;max-height:220px;overflow:auto}
+.reqs .r{display:flex;gap:6px;align-items:center;justify-content:space-between;border-bottom:1px solid #22262a;padding-bottom:4px}
+.reqs .r.hot{color:#ffd54f}.reqs .r.bad{color:#ff8a80}.reqs .empty{color:var(--mut)}
+.log{max-height:280px;overflow:auto;padding:6px 0;font-size:12px}
+.log div{padding:2px 12px;border-bottom:1px solid #1f2327}.log .ts{color:var(--mut);margin-right:6px}
+.log .err{color:#ff8a80}.log .warn{color:#ffd54f}.log .ok{color:#9be7a8}
+details{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+summary{cursor:pointer;padding:8px 12px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.help{padding:0 14px 12px;font-size:12px;color:#c3c9cf}
+.help b{color:#fff}.help li{margin:3px 0}.help code{background:#000;padding:0 4px;border-radius:2px;color:var(--acc)}
+.help table td{white-space:normal;vertical-align:top}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:8px 12px;font-size:11px;color:var(--mut)}
+.legend i{display:inline-block;width:22px;height:5px;vertical-align:middle;margin-right:5px;border-radius:1px}
+/* telefono */
+.calls{display:flex;flex-direction:column;gap:4px;padding:6px 10px;border-bottom:1px solid var(--line)}
+.calls .c{display:flex;justify-content:space-between;align-items:center;gap:6px;color:#ffd54f;font-size:12px}
+.calls .c.ring span{animation:blink .7s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+.chat{height:220px;overflow:auto;padding:8px 10px;display:flex;flex-direction:column;gap:6px;background:#121416}
+.chat .m{max-width:88%;padding:5px 8px;border-radius:8px;font-size:12px;line-height:1.35}
+.chat .m small{display:block;color:#8b939c;font-size:10px;margin-bottom:1px}
+.chat .adc{align-self:flex-start;background:#22303a;border:1px solid #2f4554}
+.chat .dm{align-self:flex-end;background:#2b2a1c;border:1px solid #4a4626}
+.chat .st{align-self:flex-start;background:#1f3326;border:1px solid #2f5a3a}
+.tel{display:flex;gap:6px;padding:6px 10px;border-top:1px solid var(--line)}
+.tel select,.tel input{background:#0e1012;color:var(--ink);border:1px solid #3a4046;border-radius:3px;padding:4px 6px;font:inherit;font-size:12px}
+.tel input{flex:1;min-width:0}
+/* Mod. M40 */
+.modal{position:fixed;inset:0;background:#000a;display:none;align-items:flex-start;justify-content:center;z-index:20;overflow:auto;padding:30px 10px}
+.mod{background:#f7f6f1;color:#111;font:12.5px/1.4 Arial,Helvetica,sans-serif;width:min(760px,100%);border-radius:4px;padding:16px 18px;box-shadow:0 10px 40px #000}
+.mod .mh{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px}
+.mod .mh b{font-size:15px}.mod .mh .n{font-size:20px;font-weight:700}
+.mod .mrow{margin:4px 0}
+.mod fieldset{border:2px solid;margin:8px 0;padding:4px 8px}
+.mod legend{font-weight:700;font-size:11px;letter-spacing:.08em;padding:0 4px}
+.mod .it{border-color:#c62828}.mod .di{border-color:#c62828}.mod .bi{border-color:#1e4fd8}
+.mod label{display:flex;gap:8px;align-items:flex-start;padding:3px 0;border-bottom:1px dotted #bbb;cursor:pointer}
+.mod label:last-child{border-bottom:0}
+.mod label b{display:inline-block;min-width:22px;text-align:center;border:1px solid #111;font-size:11px}
+.mod .mfoot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap}
+.mod .mfoot small{color:#555}
+.mod button{background:#1d2125;color:#fff;border:0;border-radius:3px;padding:7px 14px;font:inherit;cursor:pointer}
+.mod button.sec{background:#bbb;color:#111}
+/* pannelli sganciabili */
+.ph{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.dt{background:transparent;border:1px solid #3a4046;color:#aab;border-radius:3px;padding:0 6px;font:inherit;font-size:12px;cursor:pointer;line-height:18px}
+.dt:hover{color:#fff;border-color:#888}
+.panel.floating{position:fixed;z-index:15;box-shadow:0 10px 40px #000c;resize:both;overflow:auto;background:var(--panel);border:1px solid #555;border-radius:6px;min-width:280px;min-height:120px}
+.panel.floating>.ph{cursor:move;user-select:none;position:sticky;top:0;z-index:2;background:#1d2125}
+.qlpanel>.ph,.bancopanel>.ph{padding:6px 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);background:#15181b;border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0}
+body.popup{padding:0;margin:0;background:var(--bg)}
+body.popup>.panel{border-radius:0;min-height:100vh;margin:0}
+body.popup .ql-wrap #ql{min-width:0}
+body.popup .tt,body.popup .log,body.popup .chat,body.popup .reqs{max-height:none;height:auto}
+body.popup .chat{height:calc(100vh - 150px)}
+body.popup .tt{height:calc(100vh - 40px)}
+body.popup .log{height:calc(100vh - 40px)}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1d2b20;border:1px solid #3fbf68;color:#b9ffca;padding:8px 14px;border-radius:4px;z-index:30;display:none}
+#mainMenu{position:fixed;inset:0;z-index:45;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 20%,#1d2622,#090b0c 70%)}
+#mainMenu .mm{background:#15181b;border:1px solid #3a4046;border-radius:10px;padding:22px 26px;width:min(620px,94vw);box-shadow:0 20px 60px #000}
+.mmh{display:flex;gap:14px;align-items:center;margin-bottom:16px}.mmh h2{margin:0;font-size:18px;letter-spacing:.04em}.mmh small{color:var(--mut)}
+.mmlogo{width:54px;height:54px;border-radius:10px;background:#23282a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#e6ece8;border:1px solid #3a4046}
+.mmlist{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.mmst{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:#1d2125;border:1px solid #3a4046;border-radius:6px;padding:10px 12px;color:var(--ink);font:inherit;cursor:pointer}
+.mmst b{font-size:15px;letter-spacing:.06em}.mmst span{font-size:12px;color:var(--mut)}
+.mmst.on{border-color:#ffd21f;box-shadow:inset 3px 0 0 #ffd21f}.mmst:disabled{opacity:.45;cursor:default}
+.mmtags{display:flex;gap:5px;flex-wrap:wrap;margin:3px 0 4px}.mmtags i{font-style:normal;font-size:11px;border:1px solid #4a5157;border-radius:3px;padding:0 6px;color:#e6ece8;background:#262b30}
+.mmst .k{display:inline-block;min-width:70px;color:#c9cfd3;font-size:11px;letter-spacing:.02em}
+.mmgl{margin-top:10px;background:transparent;border:0}.mmgl summary{padding:4px 0}.mmgl div{font-size:11.5px;color:var(--mut);margin:3px 0}
+.mmrow{margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mmrow label{color:var(--mut)}
+#mainMenu small#mmInfo{color:var(--mut)}
+#startDlg{position:fixed;inset:0;background:#000c;z-index:40;display:none;align-items:center;justify-content:center}
+#startDlg .box{background:#1b1f22;border:1px solid #3a4046;border-radius:8px;padding:22px 26px;max-width:460px}
+#startDlg h3{margin:0 0 10px}
+.chat .mt{align-self:flex-start;background:#3a2a14;border:1px solid #6b4a1e}
+/* orario grafico */
+.tgbox{height:340px;position:relative}
+.tgbox canvas{display:block}
+body.popup .tgbox{height:calc(100vh - 70px)}
+/* tabellone in stile stazione */
+.board{background:#fff;color:#222;font:14px/1.3 Arial,Helvetica,sans-serif}
+.btop{display:flex;align-items:flex-end;justify-content:space-between;padding:8px 8px 0;gap:10px}
+.btop b{font-size:15px;letter-spacing:.02em;padding-bottom:6px}
+.btop #bClock{font-weight:700;padding-bottom:6px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:3px}
+.tabs button{border:0;background:#ececec;color:#333;font:700 17px Arial,Helvetica,sans-serif;padding:8px 16px;cursor:pointer}
+.tabs button.on{background:#f0d84a}
+.bwrap{overflow:auto;max-height:420px}
+body.popup .bwrap{max-height:calc(100vh - 90px)}
+.btab{width:100%;border-collapse:separate;border-spacing:0 3px;font-size:13.5px}
+.btab th{background:#f0d84a;color:#222;font-weight:700;text-align:left;padding:8px 8px;position:sticky;top:0;text-transform:none;letter-spacing:0;font-size:13px}
+.btab td{padding:7px 8px;border:0;white-space:nowrap}
+.btab tr:nth-child(odd) td{background:#f5e394;color:#333}
+.btab tr:nth-child(even) td{background:#575757;color:#fff}
+.btab .vet{font-weight:700;font-style:italic;font-size:12px}
+.btab .catb{font-weight:800;font-style:italic;font-size:15px}
+.btab tr:nth-child(even) .vet{filter:brightness(1.9) saturate(1.2)}
+.btab .rit{color:#c00;font-weight:700}.btab tr:nth-child(even) .rit{color:#ffb3b3}
+.btab .blink{animation:blink .8s steps(2) infinite;font-weight:700}
+label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:12px;cursor:pointer}
+.banco{margin-top:0;background:linear-gradient(#3d4a44,#33403a);border:1px solid #1f2723;border-radius:6px;padding:12px;display:flex;gap:12px;flex-wrap:wrap;box-shadow:inset 0 1px 0 #ffffff14}
+.tab{background:#c4c7c3;border:2px solid #222;display:grid;grid-template-columns:repeat(12,82px);grid-auto-rows:74px;color:#111;font-family:Calibri,Arial,sans-serif}
+.cell{border:1px solid #2b2b2b;position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.cell.empty{cursor:default}
+.cell.lblc{grid-column:span 2;flex-direction:column;font:700 14px Calibri,Arial,sans-serif;text-align:center;background:#b3bec7}.cell.lblc small{font-weight:400;font-size:10.5px;margin-top:3px}
+.cell .nm{position:absolute;left:4px;bottom:2px;font-size:11px;font-weight:700;letter-spacing:.01em}
+.cell .nm.r{font-weight:400}
+.cell .lp{position:absolute;width:13px;height:13px;border-radius:50%;background:#8a8a8a;border:1px solid #555;top:5px}
+.cell .lp.l{left:7px}.cell .lp.r{right:7px}
+.lp.y{background:#ffe23a;box-shadow:0 0 6px #ffe23a}.lp.w{background:#fff;box-shadow:0 0 6px #fff}.lp.g{background:#34e05a;box-shadow:0 0 6px #34e05a}
+.lp.rd{background:#ff3b30;box-shadow:0 0 6px #ff3b30}.lp.b{background:#2196f3;box-shadow:0 0 6px #2196f3}
+.cell.title{grid-column:span 5;font:900 40px Calibri,Arial,sans-serif;letter-spacing:.02em;cursor:default}
+.cell:hover:not(.empty):not(.title){background:#d3d8da}
+.ring{margin-top:-12px;width:40px;height:40px;border-radius:50%;border:6px solid #9d9d9d;box-shadow:0 0 0 2px #333;display:flex;align-items:center;justify-content:center;background:#fff}
+.ring i{width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid #333}
+.ring.on i{background:#fff;box-shadow:0 0 10px 3px #fff;border-color:#888}.ring.on{border-color:#ffd21f}
+.ring.mv{animation:bl .5s steps(1) infinite;border-color:#ffd21f}
+.cell.pressed .ring{transform:scale(.93)}
+.lev{width:48px;height:48px;margin-top:-12px;transition:transform .25s}
+.cell .nm small{font-size:9.5px;font-weight:400;color:#444}
+.side{display:flex;flex-direction:column;gap:10px;min-width:260px;flex:1}
+.plbox{background:#c4c7c3;color:#111;border:2px solid #222;padding:8px 10px;font-family:Calibri,Arial,sans-serif;display:flex;flex-direction:column;gap:8px}
+.plbox h3{margin:0;font-size:15px;letter-spacing:.02em}
+.pl{display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;font-size:13px}
+.pl .lp{position:static;width:14px;height:14px;border-radius:50%;background:#8a8a8a;border:1px solid #555;display:inline-block}
+.pl .lp.w{background:#fff;box-shadow:0 0 6px #fff}.pl .lp.v{background:#c26bff;box-shadow:0 0 7px #c26bff}.pl .lp.rd{background:#ff3b30;box-shadow:0 0 6px #ff3b30}
+.pb{width:30px;height:30px;border-radius:50%;border:3px solid #333;cursor:pointer;font:700 10px Arial;color:#111}
+.pb.c{background:#e9e9e9}.pb.a{background:#e9e9e9}
+.pb:active{transform:translateY(1px)}
+.ring.deg{border-color:#ff9f43}.ring.deg i{background:#ffd8b0}
+.cell.title{grid-column:span 8}
+.cell.lblc{grid-column:span 2}
+.cell.virt .nm{color:#555}
+#ql{min-width:1900px}
+.lcd #sel{color:#fff;min-height:16px}
+.chat .cc{align-self:flex-start;background:#2c2338;border:1px solid #4b3a63}
+.chat .ce{align-self:flex-start;background:#20323a;border:1px solid #2d5260}
+.mod .va{border-color:#e0b000}
+.mod input[type=text],.mod select{font:inherit;font-size:12px;border:1px solid #999;padding:2px 4px;background:#fff;color:#111}
+.mod .sub{display:flex;flex-wrap:wrap;gap:8px;margin-left:30px;padding:2px 0 4px}
+.mod .sub label{border:0;padding:0}
+.mod label.dis{opacity:.45;cursor:not-allowed}
+
+</style>
+</head>
+<body>
+<header>
+  <h1>Circolazione Simulatore · Latisana-Lignano-Bibione<small>ACEI con tabulatore · Doppio binario banalizzato in BCA · DC – Dirigenza Centrale (DC Ve. Mestre) · S. Giorgio di Nogaro – Portogruaro C. <span id="appVer"></span></small></h1>
+  <div class="clock" id="clock">Lun 05:30:00</div>
+  <div class="grp" id="speeds"></div>
+  <div class="grp"><button class="hb" id="bMenu" title="Menu principale: scelta dell'impianto">Menu</button><select id="startDay"></select><select id="startHour"></select><button class="hb" id="restart">Nuovo turno</button></div>
+  <div class="grp"><button class="hb" id="bSave" title="Salva nel browser">Salva</button><button class="hb" id="bLoad" title="Riprendi l'ultimo salvataggio">Carica</button><button class="hb" id="bExp" title="Scarica il file della partita">Esporta</button><label class="hb" title="Apri un file di partita">Importa<input type="file" id="fImp" accept=".json,application/json" hidden></label></div>
+  <label class="chk"><input type="checkbox" id="faults" checked> guasti</label>
+  <label class="chk"><input type="checkbox" id="sound" checked> suoni</label>
+  <div class="stats">
+    <div class="stat"><b id="sDelay">0'</b><span>ritardo viagg.</span></div>
+    <div class="stat"><b id="sServed">0</b><span>treni licenziati</span></div>
+    <div class="stat"><b id="sIrr">0</b><span>irregolarità</span></div>
+    <div class="stat"><b id="sPresc">0</b><span>prescrizioni</span></div>
+  </div>
+</header>
+<main>
+<section>
+  <div class="panel qlpanel" id="pQL"><div class="ph"><span>Quadro luminoso</span><button class="dt" title="Sgancia in una finestra">⧉</button></div>
+  <div class="ql-wrap"><svg id="ql" viewBox="0 0 2840 430" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div class="legend">
+    <span><i style="background:#ffb21f"></i>itinerario bloccato (lampeggia in formazione)</span>
+    <span><i style="background:#ff3b30"></i>CdB / sezione occupata</span>
+    <span><i style="background:#e08a30"></i>ente in consegna ai tecnici</span>
+    <span><i style="background:#6a2420"></i>tratteggio = interrotto per lavori</span>
+    <span>PL: barra parallela = chiuso, perpendicolare = aperto · PLA: viola chiuso, bianco aperto, rosso lampeggiante allarme</span>
+    <span>BCA: OCC / LIB e frecce di orientamento (bianco legale, giallo illegale) — clic sul riquadro per il cambio di orientamento</span>
+  </div>
+  </div>
+  <div class="panel bancopanel" id="pBanco" style="margin-top:12px"><div class="ph"><span>Banco ACEI · tabulatore, passaggi a livello, display di servizio</span><button class="dt" title="Sgancia in una finestra">⧉</button></div>
+  <div class="banco">
+    <div class="tab" id="tab"></div>
+    <div class="side">
+      <div class="plbox"><h3>Passaggi a livello</h3><div id="pls"></div></div>
+      <div class="lcd"><div class="t" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>Display di servizio</span><span>Contatore <span class="counter" id="libc">00000</span></span></div>
+        <div id="msg">Buon turno. Forma gli itinerari dal tabulatore; i codici (M40, M40A, CEI, INT…) si scrivono qui sotto. HELP per l'elenco.</div>
+        <div id="sel"></div>
+        <form class="cmd" id="cmdForm" autocomplete="off"><span>&gt;</span><input id="cmd" placeholder="es. M40 3455 · M40A 41233 · CHI 3455 · CEI B3 · DC 2" spellcheck="false"></form>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div class="card panel" id="pTG" style="margin-top:12px"><h2 class="ph"><span>Orario grafico (Train Graph)</span><span style="display:flex;gap:6px;align-items:center"><select id="tgWin" class="bsel"><option value="2">2 ore</option><option value="3" selected>3 ore</option><option value="6">6 ore</option></select><button class="dt" title="Sgancia in una finestra">⧉</button></span></h2>
+    <div class="tgbox"><canvas id="tg"></canvas></div>
+    <div class="legend" style="padding:4px 10px">tratteggio = orario programmato · linea piena = marcia reale · fascia = stazione di Latisana · righe tratteggiate = PBI</div>
+  </div>
+</section>
+<aside>
+  <div class="card panel" id="pTel"><h2 class="ph"><span>Telefono · AdC, DC, manutenzione</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
+    <div class="calls" id="calls"></div>
+    <div class="chat" id="chat"></div>
+    <form class="tel" id="telForm" autocomplete="off"><select id="telTr"></select><button type="button" class="hb sm" id="telCall" title="Chiama l'AdC del treno selezionato">☎ Chiama</button><input id="telTxt" placeholder="messaggio…"><button class="hb sm">Invia</button></form>
+  </div>
+  <div class="card panel" id="pReq"><h2 class="ph"><span>Richieste, ordini DC e anormalità</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="reqs" id="reqs"></div></div>
+  <div class="card panel" id="pTT"><h2 class="ph"><span>Orario di servizio · <span id="ttDay"></span></span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
+    <div class="tt"><table><thead><tr><th>Treno / IF</th><th>Provenienza → Destinazione</th><th>Arr.</th><th>Part.</th><th>Bin.</th><th>Servizio</th><th>Stato</th></tr></thead><tbody id="ttBody"></tbody></table></div>
+  </div>
+  <div class="card panel" id="pBoard"><h2 class="ph"><span>Tabellone arrivi e partenze</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
+    <div class="board"><div class="btop"><span class="tabs"><button type="button" data-bt="A" class="on">Arrivi</button><button type="button" data-bt="P">Partenze</button></span><b>LATISANA-LIGNANO-BIBIONE</b><span id="bClock"></span></div>
+    <div class="bwrap"><table class="btab"><thead><tr id="bHead"></tr></thead><tbody id="bBody"></tbody></table></div></div>
+  </div>
+  <div class="card panel" id="pLog"><h2 class="ph"><span>Registro di stazione</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="log" id="log"></div></div>
+  <details><summary>Come si usa · codici</summary><div class="help">
+    <table>
+      <tr><td>Tabulatore</td><td>Pulsante tondo <b>origine → fine</b> = forma l'itinerario. Leva <b>Tl/Tm</b>: clic = posizione treno (il segnale si apre dopo 3–7 s se le condizioni ci sono), di nuovo clic = normale; tasto destro = manovra. Leva <b>TB/S</b> = annullamento (60 s se c'è un treno in avvicinamento). Dopo il passaggio del treno la leva va <b>normalizzata</b>.</td></tr>
+      <tr><td>Tasto <code>VI</code></td><td>Riga SERVIZIO: premuto prima del pulsante di itinerario forma l'itinerario con segnale a via impedita (CdB guasto, deviatoio senza controllo, segnale spento). I deviatoi senza controllo vengono verificati/manovrati a mano. Poi il Mod. M40 DL.</td></tr>
+      <tr><td><code>M40 3455</code></td><td>Apre il Mod. M. 40 D.L. (B.m./B.ca) con tutte le 16 voci. Le voci non sono vincolate: basta barrarle. Contano la <b>3</b> (marcia a vista 30 km/h fino al termine dell'itinerario) e la <b>15</b> (marcia a vista ai PL indicati: 4 km/h con la testa in prossimità del PL). Partenza da binario sprovvisto di segnale di partenza: voce <b>16</b> (testo già proposto) più la <b>4</b> «Viaggiate da … a … sul binario di …».</td></tr>
+      <tr><td><code>M40A 41233</code></td><td>Mod. M40a per un treno fermo a un PBI guasto: nulla osta al supero rosso (solo con lettera A accesa), partite dal PBI, tratto libero da treni, marcia a vista specifica ai PLA (solo PBI 27 e 26d). Il treno prosegue in marcia a vista a 30 km/h fino al segnale successivo.</td></tr>
+      <tr><td><code>AUT 99016</code></td><td>Treno cantiere: nell'interruzione già concordata non serve il Mod. M40 (non è un treno), il movimento verso l'asta o in uscita si autorizza verbalmente (pulsante Autorizza).</td></tr>
+      <tr><td><code>CHI 3455</code> · <code>ATT 3455</code></td><td>Chiami l'AdC (anche col pulsante ☎) senza aspettare i 3 minuti · lo inviti ad attendere.</td></tr>
+      <tr><td><code>TEL DC testo</code> · <code>TEL 3455 testo</code></td><td>Messaggio al DC Ve. Mestre, alla manutenzione (<code>TEL MT</code>) o a un treno.</td></tr>
+      <tr><td><code>INT SI</code> · <code>INT NO</code> · <code>DC 2</code></td><td>Concede/nega l'interruzione chiesta dalla manutenzione · la comunica al DC (obbligatorio: senza comunicazione non inizia).</td></tr>
+      <tr><td><code>INT LU 30</code> · <code>RIP LU</code></td><td>Interruzione disposta dal DM (LU pari, LL dispari lato S. Giorgio; RU, RL lato Portogruaro; B1–B4) · restituzione anticipata.</td></tr>
+      <tr><td><code>CO LU</code></td><td>Cambio di orientamento del blocco (LU, LL, RU, RL), con nulla osta del DC. Linea libera.</td></tr>
+      <tr><td><code>CEI B3</code> · <code>LIB B3</code></td><td>Intervento tecnici (o dal riquadro Richieste) · liberazione artificiale di un bloccaggio residuo.</td></tr>
+    </table>
+    <ul style="padding-left:18px;margin:8px 0">
+      <li>Dirigenza Centrale: il DC Ve. Mestre ordina precedenze e, a binario unico, quali treni trattenere o inoltrare. Partire contro l'ordine del DC è un'irregolarità.</li>
+      <li>Interruzioni tra S. Giorgio e Latisana di notte (00–04) e a metà mattina (10:30–12) su binario pari o dispari, con il treno cantiere: esce dall'asta di manutenzione verso S. Giorgio o arriva per il ricovero. È l'unico treno ammesso sul binario interrotto. L'asta (250 m) si raggiunge con il deviatoio 101, manovrato dal personale dopo la liberazione della chiave FD101.</li>
+      <li>Binari I–IV da 600 m. Corretto tracciato su II e III; deviata 60 km/h (avviso GV lampeggiante, protezione RG). Partenze I←, IV←, IV→ solo con il treno già sul binario; I→ solo RV. Binari III (verso S. Giorgio) e II (verso Portogruaro) senza segnale di partenza: itinerari solo a via impedita.</li>
+      <li>Merci con sosta programmata o in precedenza possono ripartire appena i segnali sono disposti; cambio personale e sosta tecnica rispettano la durata della sosta.</li>
+    </ul>
+  </div></details>
+</aside>
+</main>
+<div class="toast" id="toast"></div>
+<div id="m40a" class="modal"><div class="mod">
+  <div class="mh"><b>Mod. M. 40a</b><span class="n">N. <span id="m40an"></span></span></div>
+  <div class="mrow" style="text-align:right"><i>Treno <b id="m40at"></b> del <span id="m40ad"></span></i></div>
+  <div class="mrow">Si ordina a: <b id="m40aa"></b></div>
+  <div id="m40alist"></div>
+  <div class="mfoot"><small>Trasmissione telefonica con ripetizione dell'AdC</small><span><button class="sec" id="m40acancel" type="button">Annulla</button> <button id="m40asend" type="button">Trasmetti all'AdC</button></span></div>
+</div></div>
+<div id="m40" class="modal"><div class="mod">
+  <div class="mh"><b>Mod. M. 40 D.L. (B.m./B.ca)</b><span class="n">N. <span id="m40n"></span></span></div>
+  <div class="mrow">Località di servizio <b>Latisana-Lignano-Bibione</b> · <span id="m40d"></span> · ora <span id="m40o"></span></div>
+  <div class="mrow">Si ordina all'Agente di condotta del treno <b id="m40t"></b> di rispettare le sottoindicate prescrizioni la cui casella è barrata e di ritenere nulle le rimanenti prescrizioni.</div>
+  <div id="m40list"></div>
+  <div class="mfoot"><small>IL DIRIGENTE: DM Latisana · trasmissione telefonica con ripetizione dell'AdC</small><span><button class="sec" id="m40cancel" type="button">Annulla</button> <button id="m40send" type="button">Trasmetti all'AdC</button></span></div>
+</div></div>
+<div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
+
+<script>
+window.SIM_BUILD = '1.4.0';
+(function () {
+  function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
+  window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
+  window.__showErr = show;
+})();
+
+</script>
+<script>
+'use strict';
+const Y = { 4: 130, 3: 190, 2: 250, 1: 310 };
+// segmenti: [cdb, punti, ramo-deviatoio opzionale {sw, pos}]
+const SEG = [
+  // linea lato S. Giorgio di Nogaro (binario pari = sopra, dispari = sotto)
+  ['LU3', [[30, 190], [200, 190]]], ['LU2', [[200, 190], [420, 190]]], ['LU1', [[420, 190], [700, 190]]],
+  ['LL3', [[30, 250], [200, 250]]], ['LL2', [[200, 250], [420, 250]]], ['LL1', [[420, 250], [700, 250]]],
+  // zona deviatoi lato S. Giorgio — binario III
+  ['Z3W', [[700, 190], [785, 190]]], ['Z3W', [[785, 190], [810, 190]], { sw: 'D2', pos: 'N' }], ['Z3W', [[810, 190], [840, 190]]],
+  ['Z3W', [[840, 190], [865, 190]], { sw: 'D3', pos: 'N' }], ['Z3W', [[865, 190], [1110, 190]]],
+  // binario II
+  ['Z2W', [[700, 250], [760, 250]]], ['Z2W', [[760, 250], [785, 250]], { sw: 'D2', pos: 'N' }], ['Z2W', [[785, 250], [865, 250]]],
+  ['Z2W', [[865, 250], [890, 250]], { sw: 'D3', pos: 'N' }], ['Z2W', [[890, 250], [920, 250]]], ['Z2W', [[920, 250], [945, 250]], { sw: 'D101', pos: 'N' }], ['Z2W', [[945, 250], [1110, 250]]],
+  // comunicazioni e deviatoio 101
+  ['Z2W', [[760, 250], [810, 190]], { sw: 'D2', pos: 'R', x: 1 }], ['Z3W', [[840, 190], [890, 250]], { sw: 'D3', pos: 'R', x: 1 }],
+  ['ZM', [[920, 250], [950, 290], [1060, 290]], { sw: 'D101', pos: 'R' }],
+  // deviatoi di accesso ai binari IV e I lato S. Giorgio (con tronchino)
+  ['D8', [[1110, 190], [1120, 190]]], ['D8', [[1120, 190], [1145, 190]], { sw: 'D8', pos: 'N' }], ['D8', [[1145, 190], [1180, 190]]],
+  ['D8', [[1120, 190], [1170, 130]], { sw: 'D8', pos: 'R' }], ['D8', [[1145, 130], [1170, 130]], { sw: 'D8', pos: 'N' }], ['T4W', [[1100, 130], [1145, 130]]],
+  ['D1', [[1110, 250], [1120, 250]]], ['D1', [[1120, 250], [1145, 250]], { sw: 'D1', pos: 'N' }], ['D1', [[1145, 250], [1180, 250]]],
+  ['D1', [[1120, 250], [1170, 310]], { sw: 'D1', pos: 'R' }], ['D1', [[1145, 310], [1170, 310]], { sw: 'D1', pos: 'N' }], ['T1W', [[1100, 310], [1145, 310]]],
+  // binari di stazione
+  ['B4', [[1170, 130], [1720, 130]]], ['B3', [[1180, 190], [1710, 190]]], ['B2', [[1180, 250], [1710, 250]]], ['B1', [[1170, 310], [1720, 310]]],
+  // deviatoi di accesso lato Portogruaro
+  ['D7', [[1710, 190], [1745, 190]]], ['D7', [[1745, 190], [1770, 190]], { sw: 'D7', pos: 'N' }], ['D7', [[1770, 190], [1785, 190]]],
+  ['D7', [[1720, 130], [1770, 190]], { sw: 'D7', pos: 'R' }], ['D7', [[1720, 130], [1745, 130]], { sw: 'D7', pos: 'N' }], ['T4E', [[1745, 130], [1790, 130]]],
+  ['D4', [[1710, 250], [1745, 250]]], ['D4', [[1745, 250], [1770, 250]], { sw: 'D4', pos: 'N' }], ['D4', [[1770, 250], [1785, 250]]],
+  ['D4', [[1720, 310], [1770, 250]], { sw: 'D4', pos: 'R' }], ['D4', [[1720, 310], [1745, 310]], { sw: 'D4', pos: 'N' }], ['T1E', [[1745, 310], [1790, 310]]],
+  // zona comunicazioni lato Portogruaro
+  ['Z3E', [[1785, 190], [1875, 190]]], ['Z3E', [[1875, 190], [1900, 190]], { sw: 'D5', pos: 'N' }], ['Z3E', [[1900, 190], [1930, 190]]],
+  ['Z3E', [[1930, 190], [1955, 190]], { sw: 'D6', pos: 'N' }], ['Z3E', [[1955, 190], [2040, 190]]],
+  ['Z2E', [[1785, 250], [1850, 250]]], ['Z2E', [[1850, 250], [1875, 250]], { sw: 'D5', pos: 'N' }], ['Z2E', [[1875, 250], [1955, 250]]],
+  ['Z2E', [[1955, 250], [1980, 250]], { sw: 'D6', pos: 'N' }], ['Z2E', [[1980, 250], [2040, 250]]],
+  ['Z2E', [[1850, 250], [1900, 190]], { sw: 'D5', pos: 'R', x: 1 }], ['Z3E', [[1930, 190], [1980, 250]], { sw: 'D6', pos: 'R', x: 1 }],
+  // tra protezione interna ed esterna
+  ['E3', [[2040, 190], [2250, 190]]], ['E2', [[2040, 250], [2250, 250]]],
+  // linea lato Portogruaro
+  ['RU1', [[2250, 190], [2650, 190]]], ['RU2', [[2650, 190], [2810, 190]]],
+  ['RL1', [[2250, 250], [2650, 250]]], ['RL2', [[2650, 250], [2810, 250]]],
+];
+const TRONCHINI = [[1100, 130, -1], [1100, 310, -1], [1790, 130, 1], [1790, 310, 1], [1060, 290, 1]];
+// comunicazioni: due metà A e B (etichetta, x, y)
+const SWLAB = {
+  D2: [['2A', 760, 269], ['2B', 792, 177]], D3: [['3A', 862, 177], ['3B', 890, 269]], D101: [['101', 935, 237]],
+  D8: [['8A', 1112, 209], ['8B', 1170, 117]], D1: [['1A', 1112, 237], ['1B', 1158, 329]],
+  D7: [['7A', 1780, 209], ['7B', 1730, 117]], D4: [['4A', 1780, 237], ['4B', 1730, 329]],
+  D5: [['5A', 1850, 269], ['5B', 1882, 177]], D6: [['6A', 1952, 177], ['6B', 1980, 269]],
+};
+const SWN = { D1: '1A/1B', D2: '2A/2B', D3: '3A/3B', D4: '4A/4B', D5: '5A/5B', D6: '6A/6B', D7: '7A/7B', D8: '8A/8B', D101: '101' };
+const CDBS = [...new Set(SEG.map(s => s[0]))];
+const LINE_CDB = ['LU1', 'LU2', 'LU3', 'LL1', 'LL2', 'LL3', 'RU1', 'RU2', 'RL1', 'RL2'];
+// deviatoi: leva sul banco, CdB, descrizione
+const SWS = {
+  D1: { cdb: 'D1', d: 'comunicazione 1A/1B II ↔ I lato S. Giorgio (1B chiude il I sul tronchino)' },
+  D2: { cdb: 'Z2W', d: 'comunicazione 2A/2B II ↔ III lato S. Giorgio' },
+  D3: { cdb: 'Z3W', d: 'comunicazione 3A/3B III ↔ II lato S. Giorgio' },
+  D8: { cdb: 'D8', d: 'comunicazione 8A/8B III ↔ IV lato S. Giorgio (leva aggiunta, numero da confermare)' },
+  D4: { cdb: 'D4', d: 'comunicazione 4A/4B II ↔ I lato Portogruaro' },
+  D5: { cdb: 'Z2E', d: 'comunicazione 5A/5B II ↔ III lato Portogruaro' },
+  D6: { cdb: 'Z3E', d: 'comunicazione 6A/6B III ↔ II lato Portogruaro' },
+  D7: { cdb: 'D7', d: 'comunicazione 7A/7B III ↔ IV lato Portogruaro' },
+  D101: { cdb: 'Z2W', d: 'deviatoio 101 zona manutenzione (manovrato dal personale a terra)' },
+};
+const SIGS = {
+  // lato S. Giorgio — linea
+  AV32: { x: 95, y: 190, s: 'u', dir: 'R', h: 1, t: 'avl', lab: 'Avv', of: 'PBI32' },
+  PBI32: { x: 200, y: 190, s: 'u', dir: 'R', h: 1, t: 'pbi', lab: '32' },
+  AV30: { x: 300, y: 190, s: 'u', dir: 'R', h: 1, t: 'avl', lab: 'Avv', of: 'PBI30' },
+  PBI30: { x: 420, y: 190, s: 'u', dir: 'R', h: 1, t: 'pbi', lab: '30' },
+  PBI33: { x: 200, y: 250, s: 'd', dir: 'L', h: 1, t: 'pbi', lab: '33' },
+  AV33: { x: 300, y: 250, s: 'd', dir: 'L', h: 1, t: 'avl', lab: 'Avv', of: 'PBI33' },
+  PBI31: { x: 420, y: 250, s: 'd', dir: 'L', h: 1, t: 'pbi', lab: '31' },
+  AV31: { x: 520, y: 250, s: 'd', dir: 'L', h: 1, t: 'avl', lab: 'Avv', of: 'PBI31' },
+  // PBI senso illegale (FL 63: 30d-33d)
+  PBI32d: { x: 216, y: 190, s: 'u', dir: 'L', h: 1, t: 'pbid', lab: '32d' }, PBI30d: { x: 436, y: 190, s: 'u', dir: 'L', h: 1, t: 'pbid', lab: '30d' },
+  PBI33d: { x: 184, y: 250, s: 'd', dir: 'R', h: 1, t: 'pbid', lab: '33d' }, PBI31d: { x: 404, y: 250, s: 'd', dir: 'R', h: 1, t: 'pbid', lab: '31d' },
+  // protezione lato S. Giorgio
+  A2: { x: 590, y: 190, s: 'u', dir: 'R', h: 2, t: 'avv', lab: 'Avv', of: 'P2' },
+  P2: { x: 700, y: 190, s: 'u', dir: 'R', h: 2, t: 'prot', lab: '2', n: 2 },
+  A1d: { x: 590, y: 250, s: 'd', dir: 'R', h: 2, t: 'avv', lab: 'Avv', of: 'P1d', ill: 1 },
+  P1d: { x: 700, y: 250, s: 'd', dir: 'R', h: 2, t: 'prot', lab: '1', ill: 1, n: 2 },
+  // partenze
+  QIVW: { x: 1195, y: 130, s: 'd', dir: 'L', h: 1, t: 'part', lab: 'IV←', tab: 1 },
+  QIVE: { x: 1695, y: 130, s: 'u', dir: 'R', h: 1, t: 'part', lab: 'IV→', tab: 1 },
+  QIIIE: { x: 1695, y: 190, s: 'u', dir: 'R', h: 2, t: 'part', lab: 'III→', n: 2 },
+  QIIW: { x: 1195, y: 250, s: 'd', dir: 'L', h: 2, t: 'part', lab: 'II←', n: 2 },
+  QIW: { x: 1195, y: 310, s: 'd', dir: 'L', h: 1, t: 'part', lab: 'I←', tab: 1 },
+  QIE: { x: 1695, y: 310, s: 'u', dir: 'R', h: 2, t: 'part', lab: 'I→', n: 2, ind: 1 },
+  // binari senza segnale di partenza nel senso di marcia e zona manutenzione (itinerari solo a via impedita)
+  QIIIW: { x: 1195, y: 190, t: 'virt', dir: 'L', lab: 'III←' }, QIIE: { x: 1695, y: 250, t: 'virt', dir: 'R', lab: 'II→' }, QM: { x: 1050, y: 290, t: 'virt', dir: 'L', lab: 'asta' },
+  // protezioni lato Portogruaro (segnalamento plurimo: Est + Int)
+  P4: { x: 2040, y: 250, s: 'd', dir: 'L', h: 2, t: 'prot', lab: '4' },
+  P4E: { x: 2250, y: 250, s: 'd', dir: 'L', h: 2, t: 'prote', lab: '4E', n: 2 },
+  A4: { x: 2350, y: 250, s: 'd', dir: 'L', h: 1, t: 'avv1', lab: 'Avv', of: 'P4E', n: 1 },
+  P3d: { x: 2040, y: 190, s: 'u', dir: 'L', h: 2, t: 'prot', lab: '3', ill: 1 },
+  P3Ed: { x: 2250, y: 190, s: 'u', dir: 'L', h: 2, t: 'prote', lab: '3E', ill: 1, n: 2 },
+  A3d: { x: 2350, y: 190, s: 'u', dir: 'L', h: 1, t: 'avv1', lab: 'Avv', of: 'P3Ed', ill: 1, n: 1 },
+  AV26: { x: 2590, y: 190, s: 'u', dir: 'R', h: 1, t: 'avl', lab: 'Avv', of: 'PBI26' },
+  PBI26: { x: 2650, y: 190, s: 'u', dir: 'R', h: 1, t: 'pbi', lab: '26' },
+  PBI26d: { x: 2666, y: 190, s: 'u', dir: 'L', h: 1, t: 'pbid', lab: '26d' },
+  PBI27: { x: 2650, y: 250, s: 'd', dir: 'L', h: 1, t: 'pbi', lab: '27' },
+  PBI27d: { x: 2634, y: 250, s: 'd', dir: 'R', h: 1, t: 'pbid', lab: '27d' },
+  AV27: { x: 2760, y: 250, s: 'd', dir: 'L', h: 1, t: 'avl', lab: 'Avv', of: 'PBI27' },
+};
+const PBI_PROT = { PBI30: ['LU1'], PBI32: ['LU2'], PBI31: ['LL2'], PBI33: ['LL3'], PBI26: ['RU2'], PBI27: ['RL1'] };
+const PLS = {
+  PL1: { x: 2110, km: '71+583', lab: 'PL km 71+583', cmd: true },
+  PL2: { x: 2180, km: '70+877', lab: 'PL km 70+877', cmd: true },
+  PLA1: { x: 2420, km: '69+548', lab: 'PLA km 69+548' },
+  PLA2: { x: 2475, km: '69+274', lab: 'PLA km 69+274' },
+  PLA3: { x: 2545, km: '68+274', lab: 'PLA km 68+274' },
+};const SIG_LEVER = { P2: '2', P1d: '1', P4: '4', P4E: '4E', P3d: '3', P3Ed: '3E', QIVW: 'IV←', QIIW: 'II←', QIW: 'I←', QIVE: 'IV→', QIIIE: 'III→', QIE: 'I→' };
+
+// ======================= COSTANTI =======================
+const STATION = 'Latisana-Lignano-Bibione', STN = 'Latisana L.B.';
+const KMH = v => v / 3.6;
+const VLINE = KMH(140), VCT = KMH(80), VDEV = KMH(60), VMAV = KMH(30), VPL = KMH(4), VCAN = KMH(50);
+const DOW = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+const DOWL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+const SWCDB = { D1: ['D1'], D2: ['Z2W', 'Z3W'], D3: ['Z3W', 'Z2W'], D8: ['D8'], D4: ['D4'], D5: ['Z2E', 'Z3E'], D6: ['Z3E', 'Z2E'], D7: ['D7'], D101: ['Z2W', 'ZM'] };
+const TRACK_CDB = { I: 'B1', II: 'B2', III: 'B3', IV: 'B4', M: 'ZM' };
+const TRACKM = { I: 600, II: 600, III: 600, IV: 600, M: 250 };
+const PLAT = { I: 1, II: 1, III: 1, IV: 1, M: 0 };
+// lunghezze reali (m): sezioni di blocco dai fascicoli linea, binari 600 m, asta di manutenzione 250 m
+const SECM = { LU1: 4900, LU2: 5700, LU3: 5900, LL1: 4900, LL2: 5700, LL3: 5900, RU1: 5300, RU2: 5600, RL1: 5300, RL2: 5600, E2: 1400, E3: 1400, B1: 600, B2: 600, B3: 600, B4: 600, ZM: 250 };
+const PLAS = ['PLA1', 'PLA2', 'PLA3'];
+function polyLen(g) { let l = 0; for (let i = 0; i < g.length - 1; i++) l += Math.hypot(g[i + 1][0] - g[i][0], g[i + 1][1] - g[i][1]); return l; }
+const key = p => p[0] + ',' + p[1];
+
+// ======================= LINEE E BLOCCO =======================
+const LINES = {
+  LU: { y: 190, side: 'SG', legal: 'in', secs: ['LU1', 'LU2', 'LU3'], xs: [700, 420, 200, 30], name: 'binario pari S. Giorgio–Latisana', short: 'pari', box: 'LU' },
+  LL: { y: 250, side: 'SG', legal: 'out', secs: ['LL1', 'LL2', 'LL3'], xs: [700, 420, 200, 30], name: 'binario dispari Latisana–S. Giorgio', short: 'dispari', box: 'LL' },
+  RU: { y: 190, side: 'PG', legal: 'out', secs: ['RU1', 'RU2'], xs: [2250, 2650, 2810], name: 'binario pari Latisana–Portogruaro', short: 'pari', box: 'RU' },
+  RL: { y: 250, side: 'PG', legal: 'in', secs: ['RL1', 'RL2'], xs: [2250, 2650, 2810], name: 'binario dispari Portogruaro–Latisana', short: 'dispari', box: 'RL' },
+};
+const SIDES = { SG: { name: 'S. Giorgio di Nogaro', lines: ['LU', 'LL'], dir: 'R' }, PG: { name: 'Portogruaro C.', lines: ['RL', 'RU'], dir: 'L' } };
+// segnali di blocco: si incontrano entrando nella sezione indicata (in = verso Latisana, out = in uscita)
+const GATE = { LU: { in: { LU2: 'PBI32', LU1: 'PBI30' }, out: { LU2: 'PBI30d', LU3: 'PBI32d' } }, LL: { out: { LL2: 'PBI31', LL3: 'PBI33' }, in: { LL2: 'PBI33d', LL1: 'PBI31d' } }, RU: { out: { RU2: 'PBI26' }, in: { RU1: 'PBI26d' } }, RL: { in: { RL1: 'PBI27' }, out: { RL2: 'PBI27d' } } };
+const PBI = {};
+for (const L in GATE) for (const d in GATE[L]) for (const sec in GATE[L][d]) PBI[GATE[L][d][sec]] = { id: GATE[L][d][sec], L, dir: d, enters: sec, pla: ['PBI27', 'PBI26d'].includes(GATE[L][d][sec]) };
+const SECOF = {}; for (const L in LINES) LINES[L].secs.forEach(s => SECOF[s] = L);
+const LPROT = { LU: 'P2', LL: 'P1d', RU: 'P3Ed', RL: 'P4E' };
+const EXIT = { 1: [700, 250], 2: [700, 190], 3: [2250, 190], 4: [2250, 250] };
+const EXLINE = { 1: 'LL', 2: 'LU', 3: 'RU', 4: 'RL' };
+const NEXTPBI = { 1: 'PBI31', 2: 'PBI30d', 3: 'PBI26', 4: 'PBI27d' };
+const APPROACH = { P2: 'LU1', P1d: 'LL1', P4: 'E2', P3d: 'E3', P4E: 'RL1', P3Ed: 'RU1', QIVW: 'B4', QIVE: 'B4', QIIIE: 'B3', QIIIW: 'B3', QIIW: 'B2', QIIE: 'B2', QIW: 'B1', QIE: 'B1', QM: 'ZM' };
+
+// ======================= ITINERARI =======================
+const SNODE = { P2: [700, 190], P1d: [700, 250], P4: [2040, 250], P3d: [2040, 190], P4E: [2250, 250], P3Ed: [2250, 190] };
+const TEND = { R: { IV: [1720, 130], III: [1710, 190], II: [1710, 250], I: [1720, 310], M: [1060, 290] }, L: { IV: [1170, 130], III: [1180, 190], II: [1180, 250], I: [1170, 310] } };
+const DEPSIG = { L: { IV: 'QIVW', III: 'QIIIW', II: 'QIIW', I: 'QIW', M: 'QM' }, R: { IV: 'QIVE', III: 'QIIIE', II: 'QIIE', I: 'QIE' } };
+const VIRT = { QIIIW: 1, QIIE: 1, QM: 1 };
+const SIGDIR = { P2: 'R', P1d: 'R', P4: 'L', P3d: 'L', P4E: 'L', P3Ed: 'L', QIVW: 'L', QIIIW: 'L', QIIW: 'L', QIW: 'L', QM: 'L', QIVE: 'R', QIIIE: 'R', QIIE: 'R', QIE: 'R' };
+const SIGTRK = { QIVW: 'IV', QIIIW: 'III', QIIW: 'II', QIW: 'I', QM: 'M', QIVE: 'IV', QIIIE: 'III', QIIE: 'II', QIE: 'I' };
+const RDEF = [
+  ['2-IV', 'P2', 'IV', { D2: 'N', D3: 'N', D8: 'R' }], ['2-III', 'P2', 'III', { D2: 'N', D3: 'N', D8: 'N' }], ['2-I', 'P2', 'I', { D3: 'R', D2: 'N', D101: 'N', D1: 'R' }], ['2-M', 'P2', 'M', { D3: 'R', D2: 'N', D101: 'R' }],
+  ['1-IV', 'P1d', 'IV', { D2: 'R', D3: 'N', D8: 'R' }], ['1-III', 'P1d', 'III', { D2: 'R', D3: 'N', D8: 'N' }], ['1-II', 'P1d', 'II', { D2: 'N', D3: 'N', D101: 'N', D1: 'N' }], ['1-I', 'P1d', 'I', { D2: 'N', D3: 'N', D101: 'N', D1: 'R' }], ['1-M', 'P1d', 'M', { D2: 'N', D3: 'N', D101: 'R' }],
+  ['4-IV', 'P4', 'IV', { D6: 'R', D5: 'N', D7: 'R' }], ['4-II', 'P4', 'II', { D6: 'N', D5: 'N', D4: 'N' }], ['4-I', 'P4', 'I', { D6: 'N', D5: 'N', D4: 'R' }],
+  ['3-IV', 'P3d', 'IV', { D6: 'N', D5: 'N', D7: 'R' }], ['3-III', 'P3d', 'III', { D6: 'N', D5: 'N', D7: 'N' }], ['3-II', 'P3d', 'II', { D6: 'N', D5: 'R', D4: 'N' }], ['3-I', 'P3d', 'I', { D6: 'N', D5: 'R', D4: 'R' }],
+  ['4E-4', 'P4E', 'E', {}], ['3E-3', 'P3Ed', 'E', {}],
+  ['IV-1', 'QIVW', '1', { D8: 'R', D3: 'N', D2: 'R', D101: 'N' }], ['IV-2', 'QIVW', '2', { D8: 'R', D3: 'N', D2: 'N' }],
+  ['III-1', 'QIIIW', '1', { D8: 'N', D3: 'N', D2: 'R', D101: 'N' }], ['III-2', 'QIIIW', '2', { D8: 'N', D3: 'N', D2: 'N' }],
+  ['II-1', 'QIIW', '1', { D1: 'N', D101: 'N', D2: 'N', D3: 'N' }], ['II-2', 'QIIW', '2', { D1: 'N', D101: 'N', D3: 'R', D2: 'N' }],
+  ['I-1', 'QIW', '1', { D1: 'R', D101: 'N', D2: 'N', D3: 'N' }], ['I-2', 'QIW', '2', { D1: 'R', D101: 'N', D3: 'R', D2: 'N' }],
+  ['M-1', 'QM', '1', { D101: 'R', D2: 'N', D3: 'N' }], ['M-2', 'QM', '2', { D101: 'R', D3: 'R', D2: 'N' }],
+  ['IV-3', 'QIVE', '3', { D7: 'R', D6: 'N', D5: 'N' }], ['IV-4', 'QIVE', '4', { D7: 'R', D5: 'N', D6: 'R' }],
+  ['III-3', 'QIIIE', '3', { D7: 'N', D6: 'N', D5: 'N' }], ['III-4', 'QIIIE', '4', { D7: 'N', D5: 'N', D6: 'R' }],
+  ['II-3', 'QIIE', '3', { D4: 'N', D5: 'R', D6: 'N' }], ['II-4', 'QIIE', '4', { D4: 'N', D5: 'N', D6: 'N' }],
+  ['I-3', 'QIE', '3', { D4: 'R', D5: 'R', D6: 'N' }], ['I-4', 'QIE', '4', { D4: 'R', D5: 'N', D6: 'N' }],
+];
+const ADJ = {};
+SEG.forEach((s, i) => { const a = key(s[1][0]), b = key(s[1][s[1].length - 1]); (ADJ[a] = ADJ[a] || []).push({ i, rev: false }); (ADJ[b] = ADJ[b] || []).push({ i, rev: true }); });
+function findPath(start, end, dir, sw) {
+  let best = null; const goal = key(end), sg = dir === 'R' ? 1 : -1;
+  (function dfs(n, acc, used) {
+    if (best) return;
+    if (n === goal) { best = acc.slice(); return; }
+    for (const e of ADJ[n] || []) {
+      if (used.has(e.i)) continue;
+      const [c, pts, br] = SEG[e.i];
+      if (LINE_CDB.includes(c)) continue;
+      const P = e.rev ? pts.slice().reverse() : pts, o = P[P.length - 1];
+      if (Math.sign(o[0] - P[0][0]) !== sg) continue;
+      if (br && (sw[br.sw] || 'N') !== br.pos) continue;
+      used.add(e.i); acc.push({ cdb: c, pts: P, br }); dfs(key(o), acc, used); acc.pop(); used.delete(e.i);
+    }
+  })(key(start), [], new Set());
+  return best;
+}
+const ROUTES = {};
+for (const [id, sig, dest, sw] of RDEF) {
+  const dir = SIGDIR[sig];
+  let kind, start, end, trk = null, exit = null;
+  if (dest === 'E') { kind = 'est'; start = SNODE[sig]; end = sig === 'P4E' ? [2040, 250] : [2040, 190]; }
+  else if (SNODE[sig]) { kind = 'arr'; trk = dest; start = SNODE[sig]; end = TEND[dir][dest]; }
+  else { kind = 'dep'; exit = dest; start = sig === 'QM' ? [1060, 290] : TEND[dir === 'R' ? 'R' : 'L'][SIGTRK[sig]]; end = EXIT[dest]; }
+  const segs = findPath(start, end, dir, sw);
+  if (!segs) throw new Error('Percorso non trovato per ' + id);
+  const sw2 = Object.assign({}, sw); segs.forEach(s => { if (s.br && !sw2[s.br.sw]) sw2[s.br.sw] = s.br.pos; });
+  const cdb = [...new Set(segs.map(s => s.cdb))];
+  const ct = segs.every(s => !s.br || s.br.pos === 'N') && (kind === 'est' || (kind === 'arr' ? ['II', 'III'].includes(trk) : ['IIIE', 'IIW', 'IIIW', 'IIE'].some(x => sig === 'Q' + x)));
+  const r = { id, sig, dir, kind, trk, exit, sw: sw2, segs, cdb, ct, line: exit ? EXLINE[exit] : null, blk: exit ? LINES[EXLINE[exit]].secs[0] : null, pl: exit === '3' || exit === '4' };
+  if (kind === 'est') r.int = sig === 'P4E' ? 'P4' : 'P3d';
+  r.next = kind === 'arr' ? DEPSIG[dir][trk] : null;
+  r.vi = (kind === 'arr' && (trk === 'M' || VIRT[r.next])) || (kind === 'dep' && !!VIRT[sig]);
+  ROUTES[id] = r;
+}
+const SIGNALS = Object.keys(SIGDIR);
+const SIGNAME = { P2: 'protezione 2', P1d: 'protezione 1', P4: 'protezione interno 4', P3d: 'protezione interno 3', P4E: 'protezione esterno 4E', P3Ed: 'protezione esterno 3E', QIVW: 'partenza IV→1', QIIIW: 'binario III (senza segnale)', QIIW: 'partenza II→1', QIW: 'partenza I→1', QM: 'asta di manutenzione', QIVE: 'partenza IV→3', QIIIE: 'partenza III→3', QIIE: 'binario II (senza segnale)', QIE: 'partenza I→3' };
+
+// ======================= TRENI E ORARIO =======================
+const CATS = {
+  R: { pax: true, col: '#4fc3f7', dwell: 40, vmax: [160], acc: 0.7, dec: 0.7, lens: [75, 105, 135, 160], name: 'Regionale' },
+  RV: { pax: true, col: '#9ccc65', dwell: 40, vmax: [160], acc: 0.6, dec: 0.7, lens: [105, 135, 160, 200], name: 'Regionale Veloce' },
+  IC: { pax: true, col: '#7986cb', dwell: 60, vmax: [160], acc: 0.5, dec: 0.6, lens: [200], name: 'Intercity' },
+  FR: { pax: true, col: '#ff5252', dwell: 60, vmax: [160], acc: 0.5, dec: 0.6, lens: [200, 250, 330], name: 'Frecciarossa' },
+  ITA: { pax: true, col: '#ff7aa8', dwell: 60, vmax: [160], acc: 0.5, dec: 0.6, lens: [200, 250, 330], name: 'Italo' },
+  MRC: { pax: false, col: '#bcaaa4', dwell: 0, vmax: [90, 100, 120], acc: 0.2, dec: 0.35, lens: [200, 570], name: 'Merci' },
+  MAT: { pax: false, col: '#ce93d8', dwell: 0, vmax: [140], acc: 0.4, dec: 0.5, lens: [100, 300], name: 'Invio materiale' },
+  LIS: { pax: false, col: '#90a4ae', dwell: 0, vmax: [120], acc: 0.5, dec: 0.5, lens: [20, 40], name: 'Locomotiva isolata' },
+  CAN: { pax: false, col: '#ffb74d', dwell: 0, vmax: [60], acc: 0.25, dec: 0.4, lens: [120, 240], name: 'Treno cantiere' },
+};
+const IF_MERCI = ['DB Cargo', 'MIR', 'InRail', 'CFI', 'OceanoGate', 'Altmann', 'Rail Cargo Italia (ÖBB)', 'Adriafer', 'Medway', 'GTS', 'SBB Cargo', 'RTC', 'EVM Rail', 'Captrain'];
+const IMP_CAN = ['RFI Manutenzione', 'GCF', 'Salcef', 'CLF'];
+const ORIG_E = ['TRIESTE C.M.', 'CERVIGNANO SMIST.', 'VILLA OPICINA', 'MONFALCONE'], ORIG_W = ['PADOVA INTERPORTO', 'VERONA Q.E.', 'VENEZIA MARGHERA SC.', 'MELZO SCALO', 'MILANO SMIST.', 'BRESCIA SC.'];
+const ALL = [0, 1, 2, 3, 4, 5, 6], LV = [0, 1, 2, 3, 4], LS = [0, 1, 2, 3, 4, 5], SD = [5, 6], DOM = [6];
+// partenze da Latisana dal quadro orario (in orario invernale i FR con fermata estiva transitano)
+const PAX = [
+  ['01:28', 'R', 22446, 'PORTOGRUARO-CAORLE', DOM], ['05:25', 'RV', 3552, 'VENEZIA S.LUCIA', LS], ['05:38', 'R', 16045, 'TRIESTE CENTRALE', LS],
+  ['06:14', 'RV', 3432, 'VENEZIA S.LUCIA', ALL], ['06:16', 'R', 16047, 'TRIESTE CENTRALE', LS], ['06:46', 'RV', 3455, 'TRIESTE CENTRALE', ALL],
+  ['06:53', 'FR', 9712, 'TORINO PORTA NUOVA', ALL], ['07:14', 'R', 16053, 'TRIESTE CENTRALE', LV], ['07:14', 'RV', 3434, 'VENEZIA S.LUCIA', ALL],
+  ['07:25', 'FR', 9466, 'ROMA TERMINI', ALL, 1], ['07:43', 'R', 23002, 'PORTOGRUARO-CAORLE', LS], ['07:46', 'RV', 3431, 'TRIESTE CENTRALE', ALL],
+  ['07:58', 'FR', 9718, 'MILANO CENTRALE', ALL, 1], ['08:14', 'RV', 3558, 'VENEZIA S.LUCIA', ALL], ['08:20', 'R', 23039, 'TRIESTE CENTRALE', LS],
+  ['08:21', 'IC', 584, 'ROMA TERMINI', SD], ['08:39', 'R', 23036, 'PORTOGRUARO-CAORLE', DOM], ['08:46', 'RV', 3433, 'TRIESTE CENTRALE', ALL],
+  ['09:00', 'ITA', 8902, 'NAPOLI CENTRALE', ALL], ['09:14', 'RV', 3460, 'VENEZIA S.LUCIA', ALL], ['09:20', 'R', 23035, 'TRIESTE CENTRALE', DOM],
+  ['09:43', 'IC', 584, 'ROMA TERMINI', LV], ['09:46', 'RV', 3579, 'TRIESTE CENTRALE', SD], ['10:14', 'RV', 3414, 'VENEZIA S.LUCIA', ALL],
+  ['10:46', 'RV', 3435, 'TRIESTE CENTRALE', ALL], ['11:08', 'FR', 9707, 'TRIESTE CENTRALE', ALL], ['11:14', 'RV', 3570, 'VENEZIA S.LUCIA', SD],
+  ['11:46', 'RV', 3437, 'TRIESTE CENTRALE', ALL], ['12:39', 'R', 23040, 'PORTOGRUARO-CAORLE', LS], ['13:14', 'RV', 3440, 'VENEZIA S.LUCIA', ALL],
+  ['13:39', 'R', 23038, 'PORTOGRUARO-CAORLE', DOM], ['13:46', 'RV', 3567, 'TRIESTE CENTRALE', ALL], ['14:14', 'RV', 3560, 'VENEZIA S.LUCIA', ALL],
+  ['14:20', 'R', 23041, 'TRIESTE CENTRALE', ALL], ['14:22', 'IC', 594, 'ROMA TERMINI', ALL], ['14:46', 'RV', 3439, 'TRIESTE CENTRALE', ALL],
+  ['15:14', 'RV', 3442, 'VENEZIA S.LUCIA', ALL], ['15:46', 'RV', 3569, 'TRIESTE CENTRALE', ALL], ['16:14', 'RV', 3406, 'VENEZIA S.LUCIA', ALL],
+  ['16:46', 'RV', 3441, 'TRIESTE CENTRALE', ALL], ['17:14', 'RV', 3426, 'VENEZIA S.LUCIA', ALL], ['17:41', 'IC', 588, 'TRIESTE CENTRALE', ALL],
+  ['17:46', 'RV', 3571, 'TRIESTE CENTRALE', ALL], ['17:59', 'FR', 9758, 'MILANO CENTRALE', ALL], ['18:14', 'RV', 3564, 'VENEZIA S.LUCIA', ALL],
+  ['18:39', 'R', 23042, 'PORTOGRUARO-CAORLE', ALL], ['18:46', 'RV', 3443, 'TRIESTE CENTRALE', ALL], ['19:14', 'RV', 3446, 'VENEZIA S.LUCIA', ALL],
+  ['19:20', 'R', 23043, 'TRIESTE CENTRALE', ALL], ['19:46', 'RV', 3581, 'TRIESTE CENTRALE', ALL], ['19:58', 'ITA', 8918, 'TRIESTE CENTRALE', ALL],
+  ['20:14', 'RV', 3448, 'VENEZIA S.LUCIA', ALL], ['20:37', 'FR', 9749, 'TRIESTE CENTRALE', ALL, 1], ['20:46', 'RV', 3445, 'TRIESTE CENTRALE', ALL],
+  ['20:58', 'FR', 9480, 'TRIESTE CENTRALE', ALL, 1], ['21:16', 'R', 16042, 'PORTOGRUARO-CAORLE', LV], ['21:54', 'RV', 3861, 'TRIESTE CENTRALE', [0, 1, 2, 3, 4, 6]],
+  ['22:16', 'R', 16044, 'PORTOGRUARO-CAORLE', LS], ['22:41', 'IC', 592, 'TRIESTE CENTRALE', ALL], ['22:48', 'FR', 9759, 'TRIESTE CENTRALE', ALL],
+  ['23:00', 'RV', 3536, 'VENEZIA MESTRE', ALL], ['23:46', 'RV', 3447, 'TRIESTE CENTRALE', ALL],
+];
+const LINE_TOT = { SG: SECM.LU1 + SECM.LU2 + SECM.LU3, PG: SECM.RL1 + SECM.RL2 + SECM.E2 };
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let UID = 1;
+function mkTT(o) {
+  // o: dir ('R' pari da S. Giorgio, 'L' dispari da Portogruaro), arr (s), stops, dwell, stopType, cat, num, ...
+  const C = CATS[o.cat], from = o.dir === 'R' ? 'SG' : 'PG';
+  const vEff = KMH(Math.min(o.vmax, 140)) * 0.92;
+  const lead = Math.round(LINE_TOT[from] / vEff + (o.stops ? 110 : 50));
+  const plan = o.plan || (o.stops ? (C.pax ? (o.dir === 'R' ? 'III' : 'II') : (o.dir === 'R' ? 'IV' : 'I')) : null);
+  return Object.assign({ uid: UID++, from, to: from === 'SG' ? 'PG' : 'SG', dep: o.arr + (o.stops ? o.stopMin * 60 : 0), ready: o.arr - lead, plan, status: 'programmato', sent: false, done: false, delay: null, track: null, hist: [] }, o);
+}
+function genDay(d) {
+  const dow = d % 7, base = d * 86400, list = [], rr = rng(d * 31 + 5);
+  const pick = (a, r) => a[Math.floor((r || rr)() * a.length)];
+  for (const [tm, cat, num, dest, days, tr] of PAX) {
+    if (!days.includes(dow)) continue;
+    const [h, m] = tm.split(':').map(Number), C = CATS[cat], dep = base + h * 3600 + m * 60;
+    const dir = /TRIESTE/.test(dest) ? 'L' : 'R', stops = !tr, dw = cat === 'R' || cat === 'RV' ? 1 : 2;
+    const orig = dir === 'L' ? (cat === 'R' ? 'PORTOGRUARO-CAORLE' : cat === 'RV' ? 'VENEZIA S.LUCIA' : cat === 'ITA' ? 'NAPOLI CENTRALE' : (num === 9480 || cat === 'IC') ? 'ROMA TERMINI' : 'MILANO CENTRALE') : 'TRIESTE CENTRALE';
+    list.push(mkTT({ num, cat, dir, arr: stops ? dep - dw * 60 : dep, stops, stopMin: dw, dwell: C.dwell, stopType: stops ? 'fermata' : 'transito', len: pick(C.lens), vmax: C.vmax[0], orig, dest, impresa: cat === 'ITA' ? 'Italo' : 'Trenitalia', note: tr ? 'ferma solo in estate (15/6–14/9)' : '' }));
+  }
+  // merci (varie IF), invii materiale e locomotive isolate (solo Trenitalia)
+  const r = rng(d * 7919 + 101), n = dow <= 4 ? 16 : dow === 5 ? 11 : 6;
+  const hw = [3, 3, 3, 3, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3], hs = hw.reduce((a, b) => a + b);
+  const add = (cat, dir, t0, impresa, num) => {
+    const C = CATS[cat], q = r();
+    let stopType = 'transito', mins = 0;
+    if (cat === 'MRC') { if (q < 0.52) stopType = 'transito'; else if (q < 0.68) stopType = 'sosta programmata'; else if (q < 0.88) { stopType = 'cambio personale'; mins = 5; } else { stopType = 'sosta tecnica'; mins = 5 + Math.floor(r() * 6); } }
+    else if (cat === 'MAT') { if (q < 0.55) stopType = 'transito'; else if (q < 0.8) { stopType = 'cambio personale'; mins = 5; } else stopType = 'sosta programmata'; }
+    else { if (q < 0.75) stopType = 'transito'; else { stopType = 'cambio personale'; mins = 5; } }
+    const stops = stopType !== 'transito', len = C.lens.length === 2 ? Math.round((C.lens[0] + r() * (C.lens[1] - C.lens[0])) / 10) * 10 : C.lens[0];
+    const prog = stopType === 'sosta programmata' ? 4 + Math.floor(r() * 9) : 0;
+    const o = dir === 'R' ? pick(ORIG_E, r) : pick(ORIG_W, r), de = dir === 'R' ? pick(ORIG_W, r) : pick(ORIG_E, r);
+    list.push(mkTT({ num, cat, dir, arr: t0, stops, stopMin: mins || prog, dwell: mins * 60, stopType, len, vmax: C.vmax[Math.floor(r() * C.vmax.length)], orig: cat === 'MRC' ? o : dir === 'R' ? 'TRIESTE C.LE' : 'VENEZIA MESTRE', dest: cat === 'MRC' ? de : dir === 'R' ? 'VENEZIA MESTRE' : 'TRIESTE C.LE', impresa }));
+  };
+  for (let i = 0; i < n; i++) {
+    let x = r() * hs, h = 0; while (x >= hw[h]) { x -= hw[h]; h++; }
+    const dir = r() < 0.5 ? 'L' : 'R';
+    add('MRC', dir, base + h * 3600 + Math.floor(r() * 60) * 60, pick(IF_MERCI, r), 40000 + Math.floor(r() * 4000) * 2 + (dir === 'L' ? 1 : 0));
+  }
+  for (let i = 0; i < (dow <= 4 ? 2 : 1); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('MAT', dir, base + (5 + Math.floor(r() * 17)) * 3600 + Math.floor(r() * 60) * 60, 'Trenitalia', 96000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
+  for (let i = 0; i < (dow <= 4 ? 3 : 2); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('LIS', dir, base + Math.floor(r() * 24) * 3600 + Math.floor(r() * 60) * 60, 'Trenitalia', 69000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
+  // precedenze per orario: il merci con sosta programmata attende un viaggiatori dello stesso senso
+  for (const t of list) if (t.stopType === 'sosta programmata') {
+    const v = list.filter(p => CATS[p.cat].pax && p.dir === t.dir && p.arr > t.arr + 60 && p.arr < t.arr + 25 * 60).sort((a, b) => a.arr - b.arr)[0];
+    if (v) { t.precFor = v.num; t.precCat = v.cat; t.dep = Math.max(t.dep, v.dep + 120); t.note = `precedenza al ${v.cat} ${v.num}`; }
+  }
+  return list;
+}
+
+// ======================= STATO =======================
+let S;
+function newState(startDay = 0, startHour = 5.5) {
+  const sw = {}; for (const k in SWS) sw[k] = { pos: 'N', target: 'N', mv: 0, fault: false };
+  const cdb = {}; CDBS.forEach(k => cdb[k] = { lock: null, fault: false, occ: null });
+  const line = {}; for (const L in LINES) line[L] = { orient: LINES[L].legal, chg: 0, interr: false };
+  const sig = {}; for (const k of SIGNALS) sig[k] = { lev: 'C', norm: false };
+  const pl = {}; for (const k in PLS) pl[k] = { st: 'A', t: 0 };
+  S = {
+    simT: startDay * 86400 + startHour * 3600, sw, cdb, line, sig, pl, key: 'N', trains: [], TT: [], genDays: [], active: {}, sigActive: {},
+    faults: {}, sigFault: {}, blkFault: {}, phone: [], phoneQ: [], m40n: 0, ints: [], intN: 0, dcN: 0,
+    libCount: 0, bcaCount: 0, paxDelay: 0, irreg: 0, served: 0, presc: 0, faultsOn: true, nextFault: startDay * 86400 + startHour * 3600 + 1500 + Math.random() * 2400, logs: [], viMode: false,
+  };
+  ensureDays(true);
+  stableCantiere();
+}
+function stableCantiere() {
+  // all'inizio del turno un treno cantiere è ricoverato nell'asta della zona manutenzione
+  const r = rng(Math.floor(S.simT / 86400) * 17 + 3);
+  const t = mkTT({ num: 99000 + Math.floor(r() * 400) * 2 + 1, cat: 'CAN', dir: 'L', arr: S.simT, stops: false, stopMin: 0, dwell: 0, stopType: 'ricoverato', len: 150 + Math.floor(r() * 9) * 10, vmax: 60, orig: 'ZONA MANUT. LATISANA', dest: 'S. GIORGIO DI NOGARO', impresa: IMP_CAN[Math.floor(r() * IMP_CAN.length)] });
+  t.sent = true; t.status = 'ricoverato'; t.track = 'M'; t.can = true; t.ready = t.arr = t.dep = S.simT;
+  S.TT.push(t); S.trains.push(stabledTrain(t));
+}
+let onLog = () => { }, onSound = () => { }, onPhone = () => { };
+const hms = t => { t = Math.floor(t); const h = Math.floor(t / 3600) % 24, m = Math.floor(t / 60) % 60, s = t % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0'); };
+const fmt = t => DOW[Math.floor(t / 86400) % 7] + ' ' + hms(t);
+const fmtM = t => hms(t).slice(0, 5);
+function log(m, cls = '') { S.logs.push({ t: S.simT, m, cls }); if (S.logs.length > 400) S.logs.shift(); onLog(m, cls, S.simT); }
+function result(ok, m, cls) { if (m) log(m, cls || (ok ? 'ok' : 'err')); return { ok, m }; }
+function cname(k) {
+  if (PBI[k]) return 'segnale di blocco ' + k.replace('PBI', 'PBI ');
+  if (SECOF[k]) return 'sez. ' + k.slice(-1) + ' del ' + LINES[SECOF[k]].name;
+  if (LINES[k]) return LINES[k].name;
+  if (SWS[k]) return (k === 'D101' ? 'deviatoio ' : 'comunicazione ') + SWN[k];
+  if (SIGNAME[k]) return 'segnale di ' + SIGNAME[k];
+  if (PLS[k]) return PLS[k].lab;
+  const n = { B1: 'binario I', B2: 'binario II', B3: 'binario III', B4: 'binario IV', ZM: 'asta di manutenzione', E2: 'tratto Est–Int binario dispari', E3: 'tratto Est–Int binario pari', Z3W: 'CdB deviatoi bin. III lato S. Giorgio', Z2W: 'CdB deviatoi bin. II lato S. Giorgio', Z3E: 'CdB deviatoi bin. III lato Portogruaro', Z2E: 'CdB deviatoi bin. II lato Portogruaro', D1: 'CdB comunicazione 1A/1B', D8: 'CdB comunicazione 8A/8B', D4: 'CdB comunicazione 4A/4B', D7: 'CdB comunicazione 7A/7B' };
+  return n[k] || k;
+}
+function rlabel(r) { return r.id.replace('-', ' → ').replace('M', 'asta') + (r.kind === 'arr' ? ` (bin. ${r.trk === 'M' ? 'asta manutenzione' : r.trk})` : ''); }
+const sigLab = k => SIG_LEVER[k] || SIGS[k].lab;
+function inConsegna(k) { const f = S.faults[k]; return !!(f && f.state === 'intervento'); }
+function swBusy(k) { return SWCDB[k].some(c => S.cdb[c].lock || S.cdb[c].occ || S.cdb[c].fault); }
+function lineAllFree(L) { return LINES[L].secs.every(s => !S.cdb[s].occ && !S.cdb[s].lock && !S.cdb[s].fault); }
+function ensureDays(initial) {
+  const d = Math.floor(S.simT / 86400);
+  for (const dd of [d - 1, d, d + 1]) {
+    if (dd < 0 || S.genDays.includes(dd)) continue;
+    if (dd === d + 1 && S.simT < dd * 86400 - 4 * 3600) continue;
+    S.genDays.push(dd);
+    S.TT.push(...genDay(dd).filter(t => t.ready > S.simT + (initial ? 30 : -1e9)));
+    // interruzioni della manutenzione tra S. Giorgio e Latisana (binario pari o dispari): notte 00–04, mattina 10:30–12
+    const ri = rng(dd * 977 + 3), dow = dd % 7;
+    const mk = (st, en, ask) => { if (ask > S.simT + (initial ? 60 : -1e9)) S.ints.push({ id: ++S.intN, ente: ri() < 0.5 ? 'LU' : 'LL', from: st, to: en, dur: en - st, ask, state: 'sched', tries: 0, by: 'manutenzione', dc: false, ack: false }); };
+    if (dow !== 6 || ri() < 0.5) mk(dd * 86400, dd * 86400 + (3.5 + (ri() < 0.5 ? 0.5 : 0)) * 3600, dd * 86400 - 20 * 60);
+    if (dow <= 4 && ri() < 0.75) mk(dd * 86400 + 10.5 * 3600, dd * 86400 + 12 * 3600, dd * 86400 + 10.25 * 3600);
+  }
+  S.TT.sort((a, b) => a.ready - b.ready);
+  S.TT = S.TT.filter(t => !(t.done && S.simT - t.doneT > 3600));
+}
+
+// ======================= COMANDI DI APPARATO =======================
+function lineCheck(r, tr) {
+  const L = r.line, st = S.line[L];
+  const can = tr && tr.t.can;
+  if (st.interr && !can) return `${cname(L)} interrotto`;
+  if (!st.interr && can) return `il treno cantiere circola solo sul binario interrotto`;
+  if (st.interr && can) return null;
+  if (st.orient !== 'out' || st.chg) return `blocco del ${cname(L)} non orientato in uscita (cambio orientamento CO ${L})`;
+  return null;
+}
+function trainAt(sig) { return S.trains.find(x => x.await === sig && !x.gone); }
+function capCheck(r) {
+  if (r.kind !== 'arr') return null;
+  const tr = S.trains.find(x => x.await === r.sig && !x.track);
+  if (tr && tr.len > TRACKM[r.trk]) return `${tr.cat} ${tr.num} (${tr.len} m) non entra nel ${r.trk === 'M' ? "l'asta" : 'binario ' + r.trk} (${TRACKM[r.trk]} m)`;
+  if (r.trk === 'M' && tr && !tr.t.can) return 'nell\'asta di manutenzione si ricoverano solo i treni cantiere';
+  return null;
+}
+function keyCheck(r, aut) {
+  const d = r.sw.D101; if (!d) return null;
+  if (d === 'R' && S.key !== 'R') return 'liberare prima la chiave del deviatoio 101 al personale (leva FD101)';
+  if (d === 'N' && S.key !== 'N') return 'chiave del deviatoio 101 estratta (FD101): deviatoio non controllato';
+  return null;
+}
+function formRoute(rid) {
+  const r = ROUTES[rid];
+  if (!r) return result(false, 'Itinerario inesistente');
+  if (r.vi || S.viMode) { S.viMode = false; return autRoute(rid); }
+  if (S.sigActive[r.sig]) return result(false, `Segnale ${sigLab(r.sig)} già impegnato dall'itinerario ${S.sigActive[r.sig].replace('-', ' → ')}`);
+  { const e = capCheck(r); if (e) return result(false, `${rlabel(r)} rifiutato: ${e}`); }
+  { const e = keyCheck(r); if (e) return result(false, `${rlabel(r)} rifiutato: ${e}`); }
+  if (r.line) { const e = lineCheck(r, trainAt(r.sig)); if (e) return result(false, `${rlabel(r)} rifiutato: ${e}`); }
+  for (const c of r.cdb) {
+    const s = S.cdb[c];
+    if (inConsegna(c)) return result(false, `${rlabel(r)} rifiutato: ${cname(c)} in consegna ai tecnici`);
+    if (s.occ || s.fault) return result(false, `${rlabel(r)} rifiutato: ${cname(c)} occupato`);
+    if (s.lock === 'INT') return result(false, `${rlabel(r)} rifiutato: ${cname(c)} interrotto per lavori`);
+    if (s.lock) return result(false, `${rlabel(r)} incompatibile con l'itinerario ${s.lock.replace('-', ' → ')} (${cname(c)} bloccato)`);
+  }
+  for (const [k, p] of Object.entries(r.sw)) {
+    const w = S.sw[k], o = swLockedBy(k);
+    if (o && o !== rid && ROUTES[o].sw[k] !== p) return result(false, `${rlabel(r)} incompatibile con ${o.replace('-', ' → ')} (${SWN[k]} bloccato)`);
+    if (w.fault || inConsegna(k)) { if (w.pos !== p || w.fault) return result(false, `${rlabel(r)} rifiutato: ${cname(k)} senza controllo (usare VI e richiedere il CEI)`); }
+    if (w.pos !== p && !o && SWCDB[k].some(c => !r.cdb.includes(c) && (S.cdb[c].lock || S.cdb[c].occ))) return result(false, `${rlabel(r)} rifiutato: ${cname(k)} non manovrabile, altro ramo impegnato`);
+  }
+  for (const c of r.cdb) S.cdb[c].lock = rid;
+  for (const [k, p] of Object.entries(r.sw)) { const w = S.sw[k]; if (w.pos !== p || (w.mv > 0 && w.target !== p)) { w.target = p; w.mv = 4 + Math.random() * 2; } }
+  S.active[rid] = { state: 'forming', open: false, committed: false, seen: [], rel: [], relN: 0, annT: 0 };
+  S.sigActive[r.sig] = rid;
+  return result(true, `Itinerario ${rlabel(r)} comandato`, 'ok');
+}
+function swLockedBy(k) { for (const rid in S.active) if (ROUTES[rid].sw[k] !== undefined && (S.active[rid].state !== 'passed' || SWCDB[k].some(c => S.cdb[c].lock === rid))) return rid; return null; }
+// itinerario con segnale mantenuto a via impedita (degrado, binari senza segnale di partenza, asta di manutenzione)
+function autRoute(rid) {
+  const r = ROUTES[rid];
+  const ex = S.sigActive[r.sig];
+  if (ex) {
+    if (ex !== rid) return result(false, `Segnale ${sigLab(r.sig)} impegnato da altro itinerario`);
+    const a = S.active[ex];
+    if (a.committed || a.state === 'passed') return result(false, 'Itinerario già impegnato dal treno');
+    if (a.deg) return result(false, 'Itinerario già predisposto con segnale a via impedita');
+    if (a.state !== 'set') return result(false, 'Attendere il controllo dei deviatoi');
+    a.deg = true; a.open = false;
+    return result(true, `Itinerario ${rlabel(r)} mantenuto con segnale ${sigLab(r.sig)} a via impedita: trasmettere il Mod. M40 DL al treno`, 'warn');
+  }
+  { const e = capCheck(r); if (e) return result(false, `VI ${rlabel(r)} rifiutato: ${e}`); }
+  { const e = keyCheck(r, true); if (e) return result(false, `VI ${rlabel(r)} rifiutato: ${e}`); }
+  if (r.line) { const e = lineCheck(r, trainAt(r.sig)); if (e) return result(false, `VI ${rlabel(r)} rifiutato: ${e}`); }
+  if (r.kind === 'dep') { const g = Object.keys(r.sw).find(k => k !== 'D101' && (S.sw[k].fault || inConsegna(k))); if (g) return result(false, `VI ${rlabel(r)} rifiutato: ${cname(g)} in perdita di controllo — il treno non può essere licenziato fino all'intervento della manutenzione (CEI)`); }
+  for (const c of r.cdb) {
+    const s = S.cdb[c];
+    if (r.sig === 'QM' && c === 'ZM') continue; // l'asta è occupata dal treno cantiere che deve uscire
+    if (inConsegna(c)) return result(false, `VI rifiutato: ${cname(c)} in consegna ai tecnici`);
+    if (s.lock === 'INT') return result(false, `VI rifiutato: ${cname(c)} interrotto per lavori`);
+    if (s.lock) return result(false, `VI rifiutato: ${cname(c)} bloccato da altro itinerario`);
+    if (s.occ) return result(false, `VI rifiutato: dalla verifica ${cname(c)} risulta occupato da treno`);
+  }
+  for (const [k, p] of Object.entries(r.sw)) { const o = swLockedBy(k); if (o && ROUTES[o].sw[k] !== p) return result(false, `VI rifiutato: ${cname(k)} bloccato da ${o.replace('-', ' → ')}`); }
+  let prep = 0; const manual = [];
+  for (const c of r.cdb) S.cdb[c].lock = rid;
+  for (const [k, p] of Object.entries(r.sw)) {
+    const w = S.sw[k];
+    if (k === 'D101') { if (w.pos !== p) { prep = Math.max(prep, 60); manual.push(k); } continue; }
+    if (!w.fault && !inConsegna(k) && !SWCDB[k].some(c => S.cdb[c].fault)) { if (w.pos !== p || (w.mv > 0 && w.target !== p)) { w.target = p; w.mv = 4 + Math.random() * 2; } }
+    else { prep = Math.max(prep, w.pos === p ? 90 : 180); manual.push(k); }
+  }
+  S.active[rid] = { state: 'prep', prepT: prep, manual, deg: true, auth: false, open: false, committed: false, seen: [], rel: [], relN: 0, annT: 0 };
+  S.sigActive[r.sig] = rid;
+  const why = r.vi ? (r.trk === 'M' || r.sig === 'QM' ? 'asta di manutenzione' : 'binario sprovvisto di segnale di partenza') : 'degrado';
+  return result(true, `Itinerario ${rlabel(r)} con segnale a via impedita (${why}): ${manual.length ? manual.map(k => k === 'D101' ? 'deviatoio 101 manovrato dal personale di manutenzione' : cname(k) + ' verificata/manovrata a mano').join(', ') : 'verifica della libertà del percorso'} (${Math.max(prep, 5)} s), poi Mod. M40 DL`, 'warn');
+}
+function releaseRoute(rid) {
+  const r = ROUTES[rid];
+  for (const c of r.cdb) if (S.cdb[c].lock === rid) S.cdb[c].lock = null;
+  delete S.active[rid]; delete S.sigActive[r.sig];
+}
+function annul(sig) {
+  const rid = S.sigActive[sig];
+  if (!rid) return result(false, `TB/S ${sigLab(sig)}: nessun itinerario da annullare`);
+  const a = S.active[rid], r = ROUTES[rid];
+  if (a.committed || a.state === 'passed') return result(false, `Itinerario ${rlabel(r)} impegnato dal treno: annullamento non consentito`);
+  if (a.state === 'annulling') return result(false, 'Annullamento già in corso');
+  if (S.sig[sig].lev === 'T' && !VIRT[sig]) return result(false, `TB/S ${sigLab(sig)}: riportare prima la leva di segnale in posizione normale`);
+  if ((a.wasOpen || a.auth) && APPROACH[sig] && S.cdb[APPROACH[sig]].occ) { a.state = 'annulling'; a.open = false; a.auth = false; a.annT = 60; S.libCount++; return result(true, `Annullamento ${rlabel(r)}: treno in avvicinamento, ritardo di 60 s`, 'warn'); }
+  releaseRoute(rid);
+  return result(true, `Itinerario ${rlabel(r)} annullato`, 'ok');
+}
+function sigLever(sg, pos) {
+  const s = S.sig[sg];
+  if (pos === 'C') { s.lev = 'C'; s.norm = false; const rid = S.sigActive[sg]; if (rid && S.active[rid].open) { S.active[rid].open = false; S.active[rid].openAt = null; log(`Leva ${sigLab(sg)} in posizione normale: segnale a via impedita`); } return { ok: true }; }
+  if (pos === 'M') { s.lev = 'M'; return result(false, `Leva ${sigLab(sg)} in posizione manovra (Tm): movimenti di manovra non simulati`, 'warn'); }
+  s.lev = 'T';
+  const rid = S.sigActive[sg];
+  if (!rid) return result(false, `Leva ${sigLab(sg)}: nessun itinerario formato`);
+  const why = openBlock(sg, rid, false, true);
+  if (why) return result(false, `Segnale ${sigLab(sg)}: ${why}`, 'warn');
+  return result(true, `Leva ${sigLab(sg)} in posizione treno: apertura in corso`);
+}
+// condizioni per la via libera (null = consentita)
+function openBlock(sg, rid, running, info) {
+  const r = ROUTES[rid], a = S.active[rid];
+  if (r.vi || a.deg) return 'itinerario a via impedita: il segnale resta obbligatoriamente a via impedita (Mod. M40 DL)';
+  if (S.sigFault[sg]) return 'segnale guasto (spento): itinerario a via impedita e Mod. M40 DL';
+  if (S.sig[sg].norm) return 'normalizzare la leva (riportarla in posizione normale) dopo il passaggio del treno precedente';
+  if (!running && a.state !== 'set') return info ? null : 'deviatoi in manovra';
+  for (const c of r.cdb) if (S.cdb[c].occ || S.cdb[c].fault) return `${cname(c)} occupato`;
+  for (const k in r.sw) if (S.sw[k].fault) return `${cname(k)} senza controllo`;
+  if (r.kind === 'dep') {
+    const st = S.line[r.line];
+    if (st.interr) return `${cname(r.line)} interrotto`;
+    if (st.orient !== 'out' || st.chg) return `blocco non orientato in uscita sul ${cname(r.line)}`;
+    if (S.cdb[r.blk].occ || S.cdb[r.blk].fault) return `sezione di blocco ${r.blk} occupata`;
+    if (sg === 'QIE' && pbiAspect(NEXTPBI[r.exit]) !== 'V') return "ammesso solo l'aspetto RV: sezione oltre il segnale di blocco successivo occupata";
+    const TRKC = { QIW: 'B1', QIVW: 'B4', QIVE: 'B4' };
+    if (!running && TRKC[sg] && !S.cdb[TRKC[sg]].occ) return `si dispone a via libera solo con il treno ricevuto sul binario ${SIGTRK[sg]}`;
+  }
+  if (r.kind === 'est' || r.pl) { const nc = ['PL1', 'PL2'].filter(k => S.pl[k].st !== 'C'); if (nc.length) return 'PL non chiusi: km ' + nc.map(k => PLS[k].km).join(', '); }
+  if (r.pl) { const al = PLAS.filter(k => S.pl[k].st === 'allarme'); if (al.length) return 'PLA in allarme: km ' + al.map(k => PLS[k].km).join(', ') + ' (Mod. M40 DL con marcia a vista ai PL)'; if (!running && PLAS.some(k => S.pl[k].st !== 'C')) return info ? null : 'PLA in chiusura'; }
+  return null;
+}
+function devCmd(k) {
+  const w = S.sw[k];
+  if (!w) return result(false, 'Deviatoio inesistente');
+  if (k === 'D101') return result(false, 'Il deviatoio 101 è manovrato dal personale a terra, previa liberazione della chiave (FD101)', 'warn');
+  if (w.fault) return result(false, `${cname(k)} senza controllo: comando non eseguibile (CEI)`);
+  if (inConsegna(k)) return result(false, `${cname(k)} in consegna ai tecnici`);
+  if (swLockedBy(k)) return result(false, `${cname(k)} bloccata dall'itinerario ${swLockedBy(k).replace('-', ' → ')}`);
+  if (SWCDB[k].some(c => S.cdb[c].occ || S.cdb[c].fault)) return result(false, `${cname(k)}: CdB occupato, manovra non consentita`);
+  if (w.mv > 0) return result(false, `${cname(k)} già in manovra`);
+  w.target = w.pos === 'N' ? 'R' : 'N'; w.mv = 4 + Math.random() * 2;
+  return result(true, `Leva ${SWN[k]} → ${w.target === 'N' ? 'normale' : 'rovescio'}`, 'ok');
+}
+function keyLever() {
+  if (S.key === 'N') {
+    const rid = Object.keys(S.active).find(id => ROUTES[id].sw.D101 === 'N' && SWCDB.D101.some(c => S.cdb[c].lock === id));
+    if (rid) return result(false, `FD101: chiave non estraibile, itinerario ${rid.replace('-', ' → ')} bloccato sul deviatoio 101`);
+    S.key = 'R'; return result(true, 'FD101: chiave del deviatoio 101 liberata al personale di manutenzione', 'warn');
+  }
+  if (S.sw.D101.pos !== 'N' || S.sw.D101.mv) return result(false, 'FD101: chiave non reinseribile, deviatoio 101 non in normale');
+  if (Object.keys(S.active).some(id => ROUTES[id].sw.D101 === 'R')) return result(false, 'FD101: itinerario per l\'asta ancora attivo');
+  S.key = 'N'; return result(true, 'FD101: chiave reinserita, deviatoio 101 controllato in normale', 'ok');
+}
+function plButton(k, close) {
+  const p = S.pl[k];
+  if (close) { if (p.st === 'C' || p.st === 'chiudendo') return { ok: true }; p.st = 'chiudendo'; p.t = S.simT + 15; return result(true, `${PLS[k].lab}: comando di chiusura`); }
+  if (p.st === 'A' || p.st === 'aprendo') return { ok: true };
+  const prot = Object.keys(S.active).find(id => { const r = ROUTES[id], a = S.active[id]; return (r.kind === 'est' || r.pl) && (a.open || (a.committed && a.state !== 'passed')); });
+  if (prot) return result(false, `${PLS[k].lab}: riapertura impedita, itinerario ${prot.replace('-', ' → ')} con segnale aperto`);
+  if (S.trains.some(tr => ['E2', 'E3'].some(c => tr.occ && tr.occ.includes(c)))) return result(false, `${PLS[k].lab}: riapertura impedita, treno in transito sul PL`);
+  p.st = 'aprendo'; p.t = S.simT + 8; return result(true, `${PLS[k].lab}: comando di apertura`);
+}
+function changeOrient(L) {
+  const st = S.line[L];
+  if (!st) return result(false, 'Binario di linea non valido (LU, LL, RU, RL)');
+  if (st.interr) return result(false, `${cname(L)} interrotto: cambio orientamento non consentito`);
+  if (st.chg) return result(false, 'Cambio orientamento già in corso');
+  if (!lineAllFree(L)) return result(false, `Cambio orientamento del ${cname(L)} rifiutato: linea non libera`);
+  if (Object.keys(S.active).some(id => ROUTES[id].line === L)) return result(false, `Cambio orientamento rifiutato: itinerario di partenza sul ${cname(L)} attivo`);
+  st.chg = 10;
+  phone('DM', `DC Ve. Mestre, qui ${STN}: chiedo il cambio di orientamento del blocco sul ${cname(L)}, ${st.orient === 'in' ? 'in uscita da Latisana' : 'verso Latisana'}.`);
+  queuePhone(6, 'DC', `Latisana, nulla osta al cambio di orientamento sul ${cname(L)}.`);
+  return result(true, `Richiesto cambio orientamento del ${cname(L)}`, 'warn');
+}
+function ceiRequest(k) {
+  const f = S.faults[k];
+  if (!f) return result(false, `Nessun guasto registrato su ${cname(k)}`);
+  if (f.state !== 'guasto') return result(false, `Intervento già richiesto per ${cname(k)} (${f.state === 'attesa' ? 'squadra in arrivo alle ' + fmtM(f.t1) : 'in corso'})`);
+  f.state = 'attesa'; f.t1 = S.simT + 600 + Math.random() * 900;
+  phone('DM', `CEI, qui ${STN}: guasto al ${cname(k)}, chiedo l'intervento della squadra.`);
+  queuePhone(5, 'CEI', `Ricevuto ${STN}, squadra in arrivo alle ${fmtM(f.t1)}.`);
+  return result(true, `Richiesta al CEI per ${cname(k)}: squadra in arrivo alle ${fmtM(f.t1)}`, 'ok');
+}
+function libArt(k) {
+  const c = S.cdb[k]; if (!c) return result(false, 'Ente inesistente');
+  S.libCount++;
+  if (c.occ) return result(false, `Lib. art. ${cname(k)}: CdB realmente occupato da treno — inefficace`);
+  if (c.lock === 'INT') return result(false, `Lib. art. ${cname(k)}: ente interrotto per lavori`);
+  if (c.lock) {
+    const rid = c.lock, a = S.active[rid];
+    if (a && a.state === 'passed') { c.lock = null; const i = ROUTES[rid].cdb.indexOf(k); if (i >= 0 && !a.rel[i]) { a.rel[i] = true; a.relN++; } if (ROUTES[rid].cdb.every(x => S.cdb[x].lock !== rid)) releaseRoute(rid); return result(true, `Lib. art. ${cname(k)}: bloccaggio residuo liberato`, 'warn'); }
+    return result(false, `Lib. art. ${cname(k)}: CdB bloccato da itinerario non percorso, usare TB/S`);
+  }
+  if (c.fault) return result(false, `Lib. art. ${cname(k)}: guasto del circuito di binario — richiedere il CEI`);
+  return result(false, `Lib. art. ${cname(k)}: CdB libero, nessun bloccaggio`, 'warn');
+}
+function bcaReset(side) {
+  const secs = side === 'SG' ? ['LU1', 'LL1', 'LU2', 'LL2', 'LU3', 'LL3'] : ['RU1', 'RL1', 'RU2', 'RL2'];
+  const f = secs.filter(c => S.cdb[c].fault && !S.cdb[c].occ);
+  if (!f.length) return result(false, `TlBca lato ${side === 'SG' ? 'S. Giorgio' : 'Portogruaro'}: nessun conta assi da ripristinare`, 'warn');
+  for (const c of f) { S.cdb[c].fault = false; delete S.faults[c]; }
+  S.bcaCount++; S.libCount++;
+  return result(true, `TlBca: ripristino del conta assi (${f.map(cname).join(', ')}) previo accertamento della libertà della sezione`, 'warn');
+}
+
+// ======================= TELEFONO, DC, M40 =======================
+function phone(from, text) { S.phone.push({ t: S.simT, from, text }); if (S.phone.length > 300) S.phone.shift(); onPhone(S.phone[S.phone.length - 1]); }
+function queuePhone(delay, from, text, act) { S.phoneQ.push({ t: S.simT + delay, from, text, act }); }
+function trainByNum(num) { return S.trains.find(x => String(x.num) === String(num) && !x.gone); }
+function doAct(x) {
+  const tr = x.num && trainByNum(x.num);
+  if (x.t === 'm40aok' && tr) {
+    tr.m40aPend = false;
+    const p = tr.path.find(q => q.gate === x.gate);
+    if (p) { p.gate = null; p.vmax = Math.min(p.vmax, VMAV); p.mav = true; }
+    (x.pls || []).forEach(k => tr.plMav.push(k));
+    log(`Mod. M40a n. ${x.n} consegnato al ${tr.cat} ${tr.num}: superamento del segnale ${x.gate.replace('PBI', 'PBI ')} a via impedita, marcia a vista fino al segnale successivo`, 'warn');
+  }
+  if (x.t === 'm40ok') {
+    const a = S.active[x.rid]; if (!a) return;
+    a.auth = true; a.mav = x.mav; if (tr) { (x.pls || []).forEach(k => tr.plMav.push(k)); tr.m40Pend = false; }
+    log(x.verbal ? `Movimento del treno cantiere ${x.num} autorizzato verbalmente (interruzione in atto)` : `Mod. M40 DL n. ${x.n} consegnato al ${x.nm}: superamento del segnale ${sigLab(x.sig)} a via impedita${x.mav ? ', marcia a vista 30 km/h sull\'itinerario' : ''}`, 'warn');
+  }
+  if (x.t === 'intend') { const it = S.ints.find(i => i.id === x.id && i.state === 'active'); if (it) intEnd(it, true); }
+  if (x.t === 'orient') { const st = S.line[x.L]; if (st) st.chg = Math.min(st.chg, 3); }
+}
+// contesto del Mod. M40 DL (B.m./B.ca): treno fermo a un segnale di stazione a via impedita con itinerario formato
+function m40Context(num) {
+  const tr = trainByNum(num);
+  if (!tr) return { err: `Treno ${num} non presente` };
+  if (!tr.await) return { err: `${tr.cat} ${tr.num} non è in attesa a un segnale di stazione` };
+  const sig = tr.await, rid = S.sigActive[sig], r = rid && ROUTES[rid], a = rid && S.active[rid];
+  const kind = r ? r.kind : (SNODE[sig] ? 'arr' : 'dep');
+  const L = kind === 'dep' ? (r && r.line) : null;
+  const dirIn = tr.dir === 'R' ? 'SG' : 'PG';
+  const lineIn = !tr.track ? tr.lineIn : null;
+  const legalIn = lineIn ? LINES[lineIn].legal === 'in' : true;
+  const legal = L ? LINES[L].legal === 'out' : legalIn;
+  const nbOut = L ? SIDES[LINES[L].side].name : '';
+  return { tr, sig, rid, r, a, kind, L, legal, lato: legal ? 'sinistra' : 'destra', nbIn: SIDES[dirIn].name, nbOut, lineIn, virt: !!VIRT[sig] };
+}
+const PROTTYPE = { P2: 'protezione', P1d: 'protezione', P4: 'protezione interno', P3d: 'protezione interno', P4E: 'protezione esterno', P3Ed: 'protezione esterno' };
+const M40TXT = {
+  1: c => c.kind === 'dep' && !c.virt ? `Partite da ${STATION} con segnale di partenza ${sigLab(c.sig)} disposto a via impedita.` : `Partite da ……………… con segnale ……………… disposto a via impedita.`,
+  2: c => c.kind !== 'dep' ? `Superate il segnale di ${PROTTYPE[c.sig]} ${sigLab(c.sig)} di ${STATION} disposto a via impedita.` : `Superate il segnale di ……………… di ……………… disposto a via impedita.`,
+  3: c => `Marcia a vista non superando la velocità di 30 km/h sull'itinerario di ${c.kind === 'dep' ? 'partenza' : 'arrivo'} interessato.`,
+  4: c => c.kind === 'dep' ? `Viaggiate da ${STATION} a ${c.nbOut || '………'} sul binario di ${c.lato}.` : `Viaggiate da ${c.nbIn} a ${STATION} sul binario di ${c.lato}.`,
+  5: c => `Siete autorizzati a superare il segnale imperativo di blocco in uscita dalla stazione di ${STATION} disposto a via impedita.`,
+  6: c => `Esiste via libera di blocco elettrico.`,
+  7: c => `Esiste via libera telefonica di ……………… (dispaccio N° ……… / ………).`,
+  8: c => `Esiste via libera come da Mod. M. 40 D.L. (B.m./B.ca) in vostro possesso.`,
+  9: c => `Blocco elettrico non funziona da ${STATION} a ${c.nbOut || '………'}. Su tale tratta rispettate ugualmente tutti i segnali.`,
+  10: c => `Siete autorizzati a riprendere la corsa dai segnali di PBI N° ……… disposti a via impedita e con lettera "A" spenta.`,
+  11: c => `Per interruzione binario ${c.L ? (LINES[c.L].short === 'pari' ? 'dispari' : 'pari') : '………'} viaggiate da ${c.kind === 'dep' ? STATION : c.nbIn} a ${c.kind === 'dep' ? (c.nbOut || '………') : STATION} sul binario illegale.`,
+  12: c => `Marcia a vista non superando la velocità di 30 km/h in arrivo e fermata a ………………`,
+  13: c => `Fermatevi in precedenza del primo deviatoio di ………………`,
+  14: c => `Esponete in testa al treno segnale rosso a destra o fanale destro a luce rossa.`,
+  15: c => `Marcia a vista in corrispondenza del (dei) P.L. km`,
+  16: c => ``,
+};
+function sendM40(num, list, pls, free) {
+  const c = m40Context(num); if (c.err) return result(false, c.err);
+  const { tr, sig, a, r } = c, nm = `${tr.cat} ${tr.num}`;
+  if (tr.t.can) return result(false, `${nm} è un treno cantiere in interruzione: non serve il Mod. M40, autorizzare il movimento verbalmente (AUT ${tr.num})`);
+  if (!atSignal(tr)) return result(false, `${nm} non è ancora fermo al segnale ${sigLab(sig)}${tr.track && !tr.served ? ' (servizio in stazione non ultimato)' : ''}`);
+  if (!a) return result(false, `Formare prima l'itinerario dal segnale ${sigLab(sig)} (anche a via impedita con il tasto VI)`);
+  if (a.state !== 'set') return result(false, `Itinerario ${rlabel(r)} non ancora predisposto: attendere la verifica dei deviatoi`);
+  if (a.open) return result(false, `Il segnale ${sigLab(sig)} è a via libera: il Mod. M40 non serve`);
+  if (a.auth || a.m40) return result(false, 'Mod. M40 già trasmesso per questo itinerario');
+  list = [...new Set(list.map(Number))].filter(n => M40TXT[n]).sort((x, y) => x - y);
+  if (!list.length) return result(false, 'Nessuna prescrizione barrata');
+  if (r.kind === 'dep') { const e = lineCheck(r, tr); if (e) return result(false, `Partenza non consentita: ${e}`); if (S.cdb[r.blk].occ) return result(false, `Partenza non consentita: sezione ${r.blk} occupata dal treno ${S.cdb[r.blk].occ}`); }
+  a.deg = true; a.open = false;
+  const n = ++S.m40n, ora = fmtM(S.simT);
+  const txt = k => k === 15 ? `${M40TXT[15](c)} ${(pls || []).map(p => PLS[p].km).join(', ') || '………'}.` : k === 16 ? (free || '') : M40TXT[k](c);
+  const body = list.map(k => `Prescr. ${k}: ${txt(k)}`).join(' ');
+  phone('DM', `Treno ${nm}, trasmetto Mod. M. 40 D.L. (B.m./B.ca) n. ${n} delle ore ${ora}, località di servizio ${STATION}. ${body}`);
+  a.m40 = true; S.presc++; tr.callAck = true; tr.m40Pend = true;
+  const mav = list.includes(3), pl = list.includes(15) ? (pls || []) : [];
+  queuePhone(8, `AdC ${nm}`, `Ripeto: Mod. M40 DL n. ${n} delle ore ${ora}. ${body}`);
+  queuePhone(13, 'DM', 'Esatto.');
+  queuePhone(16, `AdC ${nm}`, `Ricevuto. Supero il segnale ${sigLab(sig)} a via impedita${mav ? ' e procedo in marcia a vista a 30 km/h sull\'itinerario' : ''}${pl.length ? ', marcia a vista ai PL km ' + pl.map(p => PLS[p].km).join(', ') : ''}.`, { t: 'm40ok', rid: c.rid, n, nm, sig, num: tr.num, mav, pls: pl });
+  return result(true, `Mod. M40 DL n. ${n} in trasmissione al ${nm}`, 'warn');
+}
+function m40Free16(c) {
+  // partenza da binario sprovvisto di segnale di partenza: prescrizione sulle righe in bianco (voce 16)
+  if (c.kind === 'dep' && c.virt) return `Partite da binario sprovvisto di segnalamento di partenza, tratto tra Latisana e ${c.nbOut || '………'} libero da treni.`;
+  return '';
+}
+function authCantiere(num) {
+  const tr = trainByNum(num); if (!tr) return result(false, `Treno ${num} non presente`);
+  if (!tr.t.can) return result(false, `${tr.cat} ${tr.num} non è un treno cantiere: occorre il Mod. M40 DL`);
+  const sig = tr.await; if (!sig) return result(false, `Il treno cantiere ${tr.num} non è fermo a un segnale`);
+  const rid = S.sigActive[sig], a = rid && S.active[rid];
+  if (!a) return result(false, `Formare prima l'itinerario ${sig === 'QM' ? "dall'asta" : 'verso l\'asta'} (a via impedita)`);
+  if (a.state !== 'set') return result(false, 'Attendere la predisposizione dell\'itinerario (deviatoio 101 manovrato dal personale)');
+  if (a.auth || a.m40) return result(false, 'Movimento già autorizzato');
+  if (!atSignal(tr)) return result(false, `Il treno cantiere ${tr.num} non è ancora fermo`);
+  const it = S.ints.find(x => x.state === 'active' && LINES[x.ente] && LINES[x.ente].side === 'SG');
+  if (!it) return result(false, 'Nessuna interruzione in atto: il treno cantiere non può circolare');
+  a.deg = true; a.m40 = true; tr.callAck = true;
+  const where = sig === 'QM' ? `dall'asta di manutenzione verso S. Giorgio sul ${cname(it.ente)} interrotto` : `dal segnale ${sigLab(sig)} all'asta di manutenzione per il ricovero`;
+  phone('DM', `Capo cantiere del treno ${tr.num}, qui DM di ${STN}: nell'ambito dell'interruzione n. ${it.id} già concordata autorizzo verbalmente il movimento ${where}. Procedete con cautela.`);
+  queuePhone(6, 'Capo cantiere', `Ricevuto ${STN}, ci muoviamo ${sig === 'QM' ? 'verso S. Giorgio' : "verso l'asta"} con cautela.`, { t: 'm40ok', rid, n: 'verbale', nm: `${tr.cat} ${tr.num}`, sig, num: tr.num, mav: true, pls: [], verbal: true });
+  return result(true, `Movimento del treno cantiere ${tr.num} autorizzato verbalmente`, 'warn');
+}
+function waitCall(num) {
+  const tr = trainByNum(num); if (!tr) return result(false, `Treno ${num} non presente`);
+  const nm = `${tr.cat} ${tr.num}`, g = atGate(tr);
+  phone('DM', `Treno ${nm}, attendete al segnale ${g ? g.id.replace('PBI', 'PBI ') : sigLab(tr.await || '')} a via impedita, vi richiamo.`);
+  queuePhone(4, `AdC ${nm}`, 'Ricevuto, attendo.'); tr.callAck = true;
+  return result(true, `Comunicato al ${nm} di attendere`);
+}
+function telMsg(to, text) {
+  if (to === 'DC' || to === 'MT' || to === 'CEI') { const who = to === 'DC' ? 'DC' : to === 'MT' ? MT : 'CEI'; phone('DM', `${who === 'DC' ? 'DC Ve. Mestre' : who}: ${text}`); queuePhone(5, who, `Ricevuto, ${STN}.`); return { ok: true, m: '' }; }
+  const tr = trainByNum(to); if (!tr) return result(false, `Treno ${to} non presente`);
+  phone('DM', `Treno ${tr.cat} ${tr.num}: ${text}`); queuePhone(5, `AdC ${tr.cat} ${tr.num}`, 'Ricevuto.');
+  return { ok: true, m: '' };
+}
+function gateAhead(tr) { let s = 0; for (const p of tr.path) { if (p.gate && s >= tr.head - 0.01) return { p, a: s, id: p.gate }; s += p.len; } return null; }
+function atGate(tr) { const g = gateAhead(tr); return g && tr.v < 0.05 && g.a - tr.head < 30 && pbiAspect(g.id) === 'R' ? g : null; }
+function ctxKey(tr) { if (tr.stab) return null; const g = atGate(tr); if (g) return 'G:' + g.id; if (tr.await && atSignal(tr) && !routeOpenFor(tr.await)) return tr.await; return null; }
+function routeOpenFor(sig) { const rid = S.sigActive[sig]; return rid && (S.active[rid].open || S.active[rid].auth) ? rid : null; }
+function letterA(id) { const f = S.faults[id]; return !!(f && f.letterA); }
+function adcStatus(tr) {
+  const nm = `${tr.cat} ${tr.num}`, g = atGate(tr);
+  if (g) {
+    const flt = (S.blkFault[g.id] || (PBI[g.id].pla && PLAS.some(k => S.pl[k].st === 'allarme')));
+    return `Sono l'AdC del treno ${nm}, fermo al segnale di blocco ${g.id.replace('PBI', 'PBI ')} disposto a via impedita.${flt ? (letterA(g.id) ? ' La lettera luminosa A è accesa a luce fissa.' : ' La lettera luminosa A è spenta.') : ''} Attendo istruzioni.`;
+  }
+  if (tr.await && atSignal(tr) && !routeOpenFor(tr.await)) return `Sono l'AdC del treno ${nm}, fermo ${VIRT[tr.await] ? (tr.await === 'QM' ? "nell'asta di manutenzione" : 'sul binario ' + SIGTRK[tr.await] + ', sprovvisto di segnale di partenza') : 'al segnale di ' + SIGNAME[tr.await] + ' disposto a via impedita'}. Attendo istruzioni.`;
+  if (tr.stab) return `Sono il capo treno del cantiere ${nm}, ricoverato nell'asta di manutenzione.`;
+  return `Sono l'AdC del treno ${nm}, in marcia regolare, nessuna anormalità.`;
+}
+function callTrain(num) {
+  const tr = trainByNum(num); if (!tr) return result(false, `Treno ${num} non presente`);
+  const nm = `${tr.cat} ${tr.num}`, k = ctxKey(tr);
+  phone('DM', `Treno ${nm}, qui DM di ${STN}: comunicate la vostra posizione.`);
+  queuePhone(5, `AdC ${nm}`, adcStatus(tr));
+  if (k) { tr.callSig = k; tr.called = true; tr.callAck = true; tr.stopT = Math.max(tr.stopT || 0, 180); tr.reported = true; }
+  return result(true, `Chiamata al treno ${nm}`);
+}
+// Mod. M40a ai segnali di blocco guasti
+function m40aContext(num) {
+  const tr = trainByNum(num); if (!tr) return { err: `Treno ${num} non presente` };
+  const g = atGate(tr), nm = `${tr.cat} ${tr.num}`;
+  if (!g) return { err: `${nm} non è fermo a un segnale di blocco a via impedita` };
+  const P = PBI[g.id], plaAl = P.pla && PLAS.some(k => S.pl[k].st === 'allarme');
+  const L = LINES[P.L], i = L.secs.indexOf(P.enters), inward = P.dir === 'in';
+  // segnali successivi nel senso di marcia (fino a Latisana o alla stazione vicina)
+  const nextList = [];
+  for (const id in PBI) if (PBI[id].L === P.L && PBI[id].dir === P.dir && id !== g.id) nextList.push(id);
+  return { tr, g, id: g.id, n: g.id.replace('PBI', ''), nm, fault: !!S.blkFault[g.id] || plaAl, plaAl, letterA: letterA(g.id), sec: P.enters, pla: P.pla, nextList, toStation: inward ? STATION : SIDES[L.side].name };
+}
+function sendM40a(num, o) {
+  const c = m40aContext(num); if (c.err) return result(false, c.err);
+  if (!c.fault) return result(false, `Il segnale ${c.id.replace('PBI', 'PBI ')} è a via impedita per occupazione della sezione successiva: non è un guasto, il treno deve attendere`);
+  if (S.cdb[c.sec].occ) return result(false, `Sezione dopo il segnale ${c.id} occupata dal treno ${S.cdb[c.sec].occ}: prescrizione non consentita`);
+  if (c.tr.m40aPend) return result(false, 'Mod. M40a già in trasmissione per questo treno');
+  const parts = [];
+  if (o.osr) { if (!c.letterA) return result(false, 'Nulla osta al supero rosso ammesso solo con lettera luminosa A accesa'); parts.push(`Nulla osta effettuazione Operazione Supero Rosso al segnale di blocco ${c.n} disposto a via impedita con lettera luminosa A accesa a luce fissa.`); }
+  if (o.par) parts.push(`Partite dal PBI ${c.n} con segnale disposto a via impedita.`);
+  if (o.tratto) parts.push(`Tratto da PBI ${o.from || c.n} a ${o.to || c.toStation} libero da treni.`);
+  if (o.pl && (o.pls || []).length) parts.push(`Effettuate marcia a vista specifica ai PL km ${o.pls.map(p => PLS[p].km).join(', ')}.`);
+  if (!parts.length) return result(false, 'Nessuna voce del Mod. M40a selezionata');
+  const n = ++S.m40n, ora = fmtM(S.simT), txt = parts.join(' '), ad = `AdC ${c.nm}`;
+  phone('DM', `Treno ${c.nm}, trasmetto Mod. M. 40a n. ${n} delle ore ${ora}. Si ordina all'Agente di condotta del treno ${c.tr.num}: ${txt}`);
+  S.presc++; c.tr.callAck = true; c.tr.m40aPend = true;
+  queuePhone(8, ad, `Ripeto: Mod. M40a n. ${n} delle ore ${ora}. ${txt}`);
+  queuePhone(13, 'DM', 'Esatto.');
+  queuePhone(16, ad, `Ricevuto. Supero il segnale ${c.id.replace('PBI', 'PBI ')} a via impedita e procedo in marcia a vista, massimo 30 km/h, fino al segnale successivo.`, { t: 'm40aok', num: c.tr.num, gate: c.id, n, pls: o.pl ? (o.pls || []) : [] });
+  return result(true, `Mod. M40a n. ${n} in trasmissione al ${c.nm}`, 'warn');
+}
+// ---------- DC: ordini di circolazione ----------
+function dcSay(text) { phone('DC', text); onSound('phone'); }
+function updateDC() {
+  // precedenze per orario
+  for (const t of S.TT) {
+    if (t.precFor && !t.dcSent && !t.done && S.simT >= t.arr - 600) {
+      t.dcSent = true; t.dcHold = t.precFor; t.dcWhy = 'prec';
+      dcSay(`Latisana, qui DC Ve. Mestre: il ${t.cat} ${t.num} va ricevuto sul binario ${t.plan} in precedenza al ${t.precCat} ${t.precFor}. Licenziatelo dopo il transito del ${t.precCat} ${t.precFor}.`);
+    }
+  }
+  // binario unico tra S. Giorgio e Latisana durante le interruzioni
+  const single = ['LU', 'LL'].find(L => S.line[L].interr);
+  for (const tr of S.trains) {
+    const t = tr.t;
+    if (t.dcHold && t.dcWhy === 'prec') { const o = S.TT.find(x => String(x.num) === String(t.dcHold) && x.dir === t.dir && Math.abs(x.arr - t.arr) < 3600); if (!o || o.done || o.depT || (S.trains.find(x => x.t === o) || {}).rec) { t.dcHold = null; dcSay(`Latisana, qui DC: potete licenziare il ${t.cat} ${t.num}.`); } }
+    if (t.dcHold && t.dcWhy === 'single') {
+      const o = S.TT.find(x => String(x.num) === String(t.dcHold));
+      const otr = o && S.trains.find(x => x.t === o);
+      if (!single || !o || o.done || (otr && otr.track) || (otr && otr.gone)) { t.dcHold = null; dcSay(`Latisana, qui DC: ${single ? `il ${o ? o.cat + ' ' + o.num : ''} è giunto, ` : ''}potete inoltrare il ${t.cat} ${t.num} verso S. Giorgio.`); }
+    }
+    if (single && tr.dir === 'L' && tr.track && !tr.rec && !t.dcHold && !t.can && !tr.exit) {
+      // il primo pari in arrivo da S. Giorgio entro 12 minuti ha la precedenza (o è già in linea)
+      const opp = S.TT.filter(x => x.dir === 'R' && !x.done && !x.can && !(S.trains.find(y => y.t === x) || {}).track && (x.sent || x.ready - S.simT < 720)).sort((a, b) => a.ready - b.ready)[0];
+      if (opp && (opp.sent || CATS[opp.cat].pax || !CATS[t.cat].pax)) { t.dcHold = opp.num; t.dcWhy = 'single'; dcSay(`Latisana, qui DC Ve. Mestre: circolazione a binario unico per interruzione del ${cname(single)}. Trattenete il ${t.cat} ${t.num} fino all'arrivo del ${opp.cat} ${opp.num} da S. Giorgio.`); }
+      else if (opp && !opp.dcSpawnHold) { opp.dcSpawnHold = t.uid; dcSay(`Latisana, qui DC: trattengo a S. Giorgio il ${opp.cat} ${opp.num}; inoltrate il ${t.cat} ${t.num}.`); }
+    }
+  }
+  // treni fermi nelle stazioni vicine perché il blocco non è orientato verso Latisana
+  for (const side of ['SG', 'PG']) {
+    const w = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready + 60 && !t.dcSpawnHold);
+    const ok = SIDES[side].lines.some(L => S.line[L].orient === 'in' && !S.line[L].interr);
+    if (w && !ok) {
+      const L = SIDES[side].lines.find(L => !S.line[L].interr && lineAllFree(L));
+      if (L && S.dcOrientAsk !== side + w.uid) { S.dcOrientAsk = side + w.uid; dcSay(`Latisana, qui DC: il ${w.cat} ${w.num} è pronto a ${SIDES[side].name} ma il blocco non è orientato verso di voi. Disponete il cambio di orientamento sul ${cname(L)}.`); }
+    }
+  }
+  for (const t of S.TT) if (t.dcSpawnHold) { const o = S.TT.find(x => x.uid === t.dcSpawnHold); const otr = o && S.trains.find(x => x.t === o); if (!o || o.done || !single) t.dcSpawnHold = null; }
+}
+// ---------- interruzioni ----------
+const MT = 'Manutenzione RFI';
+function intFree(k) { return LINES[k] ? (lineAllFree(k) && !S.line[k].chg && !S.trains.some(tr => tr.outLine === k && !tr.gone)) : (!S.cdb[k].occ && !S.cdb[k].lock); }
+function intStart(x) {
+  x.state = 'active'; x.started = S.simT; if (!x.to || x.to < S.simT + 1200) x.to = S.simT + x.dur;
+  if (LINES[x.ente]) S.line[x.ente].interr = true; else S.cdb[x.ente].lock = 'INT';
+  log(`Interruzione n. ${x.id} del ${cname(x.ente)} in atto fino alle ${fmtM(x.to)}`, 'warn');
+  if (x.by !== 'DM') phone(MT, `Ricevuto ${STN}, iniziamo i lavori sul ${cname(x.ente)}. Il treno cantiere è l'unico ammesso sul binario interrotto. Fine prevista alle ${fmtM(x.to)}.`);
+  dcSay(`Latisana, qui DC: preso nota, interruzione n. ${x.id} del ${cname(x.ente)} in atto. I treni circoleranno sul binario attiguo: provvedete al cambio di orientamento del blocco quando necessario.`);
+  if (LINES[x.ente] && LINES[x.ente].side === 'SG') {
+    const stab = S.trains.find(tr => tr.stab);
+    if (stab) { x.can = { mode: 'out', uid: stab.t.uid }; stab.t.status = 'pronto per l\'uscita'; stab.t.dep = S.simT + 300; stab.ready = true; stab.t.outLine = x.ente; queuePhone(240, 'Capo cantiere', `${STN}, qui il capo cantiere del treno ${stab.num}: siamo pronti a uscire dall'asta di manutenzione verso S. Giorgio sul ${cname(x.ente)} interrotto. Chiediamo l'itinerario e l'autorizzazione al movimento.`); }
+    else x.can = { mode: 'in', at: Math.max(S.simT + 600, x.to - 50 * 60) };
+  }
+}
+function intEnd(x, early) {
+  x.state = 'done';
+  if (LINES[x.ente]) S.line[x.ente].interr = false; else if (S.cdb[x.ente].lock === 'INT') S.cdb[x.ente].lock = null;
+  if (x.by !== 'DM') phone(MT, early ? `Ricevuto, restituiamo il ${cname(x.ente)}.` : `${STN}, lavori ultimati: restituiamo il ${cname(x.ente)} libero e percorribile. Interruzione n. ${x.id} terminata.`);
+  phone('DM', `DC Ve. Mestre, qui ${STN}: interruzione n. ${x.id} del ${cname(x.ente)} terminata, binario restituito all'esercizio.`);
+  queuePhone(5, 'DC', 'Ricevuto, si riprende la circolazione normale.');
+  log(`Fine interruzione n. ${x.id}: ${cname(x.ente)} restituito all'esercizio`, 'ok');
+}
+function intAnswer(yes) {
+  const x = S.ints.find(i => i.state === 'pending');
+  if (!x) return result(false, 'Nessuna richiesta di interruzione in attesa');
+  if (!yes) {
+    x.tries++; x.state = x.tries >= 2 ? 'done' : 'sched'; x.ask = S.simT + 1200;
+    phone('DM', `${MT}, al momento non posso concedere l'interruzione del ${cname(x.ente)}${x.tries < 2 ? ', richiamate tra 20 minuti' : ''}.`);
+    queuePhone(5, MT, x.tries < 2 ? 'Ricevuto, richiameremo.' : 'Ricevuto, rinviamo i lavori.');
+    return result(true, `Interruzione del ${cname(x.ente)} negata`, 'warn');
+  }
+  x.state = 'granted';
+  phone('DM', `${MT}, concedo l'interruzione n. ${x.id} del ${cname(x.ente)} fino alle ${fmtM(x.to)}, appena libero e dopo averla comunicata al DC.`);
+  queuePhone(5, MT, 'Ricevuto, attendiamo il vostro via.');
+  return result(true, `Interruzione n. ${x.id} concessa: comunicarla al DC (pulsante DC o codice DC ${x.id})`, 'warn');
+}
+function intToDC(id) {
+  const x = S.ints.find(i => String(i.id) === String(id) && (i.state === 'granted' || i.state === 'active'));
+  if (!x) return result(false, `Interruzione n. ${id} non concessa o già terminata`);
+  if (x.dc) return result(false, 'Interruzione già comunicata al DC');
+  x.dc = true;
+  phone('DM', `DC Ve. Mestre, qui ${STN}: comunico l'interruzione n. ${x.id} del ${cname(x.ente)} dalle ore ${fmtM(Math.max(S.simT, x.from || S.simT))} alle ${fmtM(x.to)}, con treno cantiere.`);
+  queuePhone(6, 'DC', `Ricevuto ${STN}, nulla osta all'interruzione n. ${x.id}. Regolo la circolazione sul binario attiguo.`);
+  return result(true, `Interruzione n. ${x.id} comunicata al DC`, 'ok');
+}
+function intByDM(k, min) {
+  if (!k || (!LINES[k] && !S.cdb[k]) || SECOF[k]) return result(false, 'Ente non valido (LU, LL, RU, RL, B1–B4, ZM)');
+  if (S.ints.some(i => i.ente === k && ['active', 'granted'].includes(i.state))) return result(false, `${cname(k)} già interrotto`);
+  const x = { id: ++S.intN, ente: k, dur: (min || 30) * 60, to: S.simT + (min || 30) * 60, state: 'granted', tries: 0, by: 'DM', dc: false };
+  S.ints.push(x);
+  return result(true, `Interruzione n. ${x.id} del ${cname(k)} disposta per ${min || 30} minuti: comunicarla al DC (DC ${x.id})`, 'warn');
+}
+function intRestore(k) {
+  const x = S.ints.find(i => i.ente === k && i.state === 'active');
+  if (!x) return result(false, `Nessuna interruzione in atto su ${cname(k)}`);
+  if (S.trains.some(tr => tr.t.can && !tr.stab && !tr.gone)) return result(false, 'Treno cantiere ancora in circolazione: restituzione non possibile');
+  if (x.by !== 'DM') { phone('DM', `${MT}, vi chiedo di sgomberare e restituire il ${cname(k)}.`); queuePhone(20, MT, 'Ricevuto, sgomberiamo.', { t: 'intend', id: x.id }); return result(true, `Richiesta restituzione anticipata del ${cname(k)}`, 'warn'); }
+  intEnd(x, true); return result(true, `Interruzione del ${cname(k)} terminata`, 'ok');
+}
+function updateInts() {
+  for (const x of S.ints) {
+    if (x.state === 'sched' && S.simT >= x.ask) {
+      x.state = 'pending'; x.askT = S.simT; x.ack = false;
+      const stab = S.trains.some(tr => tr.stab);
+      phone(MT, `${STN}, qui il capo squadra della manutenzione: chiediamo l'interruzione del ${cname(x.ente)} dalle ${fmtM(Math.max(x.from, S.simT + 300))} alle ${fmtM(x.to)} per lavori, con treno cantiere ${stab ? 'in uscita dall\'asta di Latisana verso S. Giorgio' : 'in arrivo da S. Giorgio per il ricovero nell\'asta di Latisana'}.`);
+      onSound('phone');
+    }
+    if (x.state === 'pending' && S.simT - x.askT > 900) { x.tries++; x.state = x.tries >= 2 ? 'done' : 'sched'; x.ask = S.simT + 1200; phone(MT, 'Nessuna risposta: richiameremo più tardi.'); }
+    if (x.state === 'granted' && x.dc && S.simT >= (x.from || 0) - 60 && intFree(x.ente)) intStart(x);
+    if (x.state === 'granted' && !x.dc && !x.dcWarn && S.simT >= (x.from || 0) + 300) { x.dcWarn = true; log(`Interruzione n. ${x.id} concessa ma non comunicata al DC: non può iniziare`, 'err'); }
+    if (x.state === 'active') {
+      if (x.can && x.can.mode === 'in' && !x.can.sent && S.simT >= x.can.at) spawnCantiere(x);
+      const canBusy = S.trains.some(tr => tr.t.can && !tr.stab && !tr.gone && (tr.outLine === x.ente || tr.lineIn === x.ente));
+      if (S.simT >= x.to && !canBusy) intEnd(x);
+      else if (S.simT >= x.to && canBusy && !x.extWarn) { x.extWarn = true; log(`Interruzione n. ${x.id}: il treno cantiere non è ancora rientrato, l'interruzione si protrae`, 'warn'); }
+    }
+  }
+  S.ints = S.ints.filter(x => x.state !== 'done' || S.simT - (x.to || x.ask || 0) < 120);
+}
+function spawnCantiere(x) {
+  x.can.sent = true;
+  const r = rng(x.id * 13 + 7);
+  const t = mkTT({ num: 99000 + Math.floor(r() * 400) * 2, cat: 'CAN', dir: 'R', arr: S.simT + 600, stops: true, stopMin: 0, dwell: 0, stopType: 'ricovero', len: 120 + Math.floor(r() * 12) * 10, vmax: 60, orig: 'S. GIORGIO DI NOGARO', dest: 'ZONA MANUT. LATISANA', impresa: IMP_CAN[Math.floor(r() * IMP_CAN.length)], plan: 'M' });
+  t.can = true; t.ready = S.simT; S.TT.push(t);
+  spawn(t, x.ente);
+  phone('Capo cantiere', `${STN}, qui il capo cantiere: il treno cantiere ${t.num} è partito da S. Giorgio sul ${cname(x.ente)} interrotto, diretto al ricovero nell'asta di manutenzione di Latisana. Al segnale chiederemo l'autorizzazione al movimento.`);
+}
+
+// ======================= SIMULAZIONE =======================
+function plsOn(pts) {
+  const out = [], y = pts[0][1];
+  if (pts.some(p => p[1] !== y)) return out;
+  const x0 = pts[0][0], x1 = pts[pts.length - 1][0];
+  for (const k in PLS) { const x = PLS[k].x; if ((x - x0) * (x - x1) < 0) out.push({ id: k, f: Math.abs(x - x0) / Math.abs(x1 - x0) }); }
+  return out;
+}
+function mkPiece(c, pts, vmax) {
+  const px = polyLen(pts), len = SECM[c] || Math.round(px * 1.2);
+  return { cdb: c, pts, px, len, vmax, pls: plsOn(pts).map(p => ({ id: p.id, at: p.f * len })) };
+}
+function routePieces(r, mav) {
+  return r.segs.map(s => {
+    const isE = s.cdb === 'E2' || s.cdb === 'E3', track = /^B\d$/.test(s.cdb);
+    let v = isE ? VLINE : track ? (r.ct ? VCT : VDEV) : (r.ct ? VCT : VDEV);
+    if (mav) v = Math.min(v, VMAV);
+    return mkPiece(s.cdb, s.pts, v);
+  });
+}
+function ptAlong(pts, d) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (d <= l || i === pts.length - 2) { const f = l ? Math.max(0, Math.min(1, d / l)) : 0; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
+    d -= l;
+  }
+  return pts[pts.length - 1];
+}
+function pointAt(path, s) {
+  let acc = 0;
+  for (let i = 0; i < path.length; i++) { const p = path[i]; if (s <= acc + p.len || i === path.length - 1) return ptAlong(p.pts, Math.max(0, Math.min(1, (s - acc) / p.len)) * p.px); acc += p.len; }
+  return [0, 0];
+}
+// progressiva chilometrica per l'orario grafico (S. Giorgio 90,962 · Latisana 73,289 · Portogruaro 59,342)
+const KMX = [[30, 90.962], [200, 84.6], [420, 78.9], [700, 74.0], [1455, 73.289], [2040, 72.4], [2250, 70.7], [2650, 65.35], [2810, 59.342]];
+function kmOfX(x) { if (x <= KMX[0][0]) return KMX[0][1]; for (let i = 1; i < KMX.length; i++) if (x <= KMX[i][0]) { const [x0, k0] = KMX[i - 1], [x1, k1] = KMX[i]; return k0 + (k1 - k0) * (x - x0) / (x1 - x0); } return KMX[KMX.length - 1][1]; }
+function linePieces(L, inward, can) {
+  const l = LINES[L], out = [], n = l.secs.length;
+  const idx = inward ? [...Array(n).keys()].reverse() : [...Array(n).keys()];
+  for (const i of idx) {
+    const a = [l.xs[i], l.y], b = [l.xs[i + 1], l.y], p = mkPiece(l.secs[i], inward ? [b, a] : [a, b], can ? VCAN : VLINE);
+    const g = GATE[L][inward ? 'in' : 'out'][l.secs[i]]; if (g && !can) p.gate = g;
+    out.push(p);
+  }
+  return out;
+}
+function pbiAspect(id) {
+  const p = PBI[id], st = S.line[p.L];
+  if (st.interr || st.chg || st.orient !== p.dir || S.blkFault[id]) return 'R';
+  if (S.cdb[p.enters].occ || S.cdb[p.enters].fault) return 'R';
+  if (p.pla && PLAS.some(k => S.pl[k].st !== 'C')) return 'R';
+  return 'V';
+}
+function computeOcc() {
+  for (const k in S.cdb) S.cdb[k].occ = null;
+  for (const tr of S.trains) {
+    const tail = tr.head - tr.len; let s = 0; tr.occ = [];
+    for (const p of tr.path) { const a = s, b = s + p.len; s = b; if (b > tail && a < tr.head) { S.cdb[p.cdb].occ = tr.num; tr.occ.push(p.cdb); } }
+  }
+}
+function spawn(t, L) {
+  const l = LINES[L], C = CATS[t.cat], path = linePieces(L, true, t.can), vcap = KMH(t.vmax);
+  const tr = { t, num: t.num, cat: t.cat, dir: t.dir, len: t.len, path, L: path.reduce((x, p) => x + p.len, 0), head: 1, v: Math.min(vcap, t.can ? VCAN : VLINE), await: LPROT[L], stops: t.stops, dwell: t.dwell, served: !t.stops, stopS: null, dw: 0, vcap, acc: C.acc, dec: C.dec, track: null, depS: null, rec: false, exit: false, ack: false, lineIn: L, plMav: [], plSeen: {} };
+  S.trains.push(tr); t.sent = true; t.status = 'in linea';
+  log(`${SIDES[l.side].name}: licenziato ${t.cat} ${t.num} sul ${cname(L)}${l.legal === 'in' ? '' : ' (senso illegale)'}`, C.pax ? '' : 'warn');
+  onSound('ring');
+}
+function stabledTrain(t) {
+  const p = mkPiece('ZM', [[1060, 290], [950, 290], [920, 250]], VCAN);
+  return { t, num: t.num, cat: t.cat, dir: 'L', len: t.len, path: [p], L: p.len, head: t.len + 2, v: 0, await: 'QM', stops: false, dwell: 0, served: true, stopS: null, dw: 0, vcap: VCAN, acc: CATS.CAN.acc, dec: CATS.CAN.dec, track: 'M', depS: null, rec: false, exit: false, ack: true, stab: true, plMav: [], plSeen: {} };
+}
+function commit(tr, rid) {
+  const r = ROUTES[rid], a = S.active[rid], oldL = tr.L;
+  tr.path.push(...routePieces(r, a.mav).slice(r.sig === 'QM' ? 1 : 0));
+  if (r.kind === 'dep') tr.path.push(...linePieces(r.line, false, tr.t.can));
+  tr.L = tr.path.reduce((x, p) => x + p.len, 0); a.committed = true; tr.stab = false;
+  if (r.kind === 'est') { tr.await = r.int; return; }
+  if (r.kind === 'arr') {
+    tr.await = r.next; tr.track = r.trk; tr.t.track = r.trk; tr.lineIn = null;
+    if (r.trk === 'M') { tr.await = null; tr.toZM = true; return; }
+    if (tr.stops) { const tl = tr.path[tr.path.length - 1].len, mid = tr.L - tl / 2; tr.stopS = CATS[tr.cat].pax ? Math.min(tr.L - 12, mid + tr.len / 2) : tr.L - 12; }
+    if (CATS[tr.cat].pax && tr.stops && !PLAT[r.trk]) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} ricevuto su binario privo di marciapiede`, 'err'); }
+  } else {
+    tr.await = null; tr.exit = true; tr.depS = oldL; tr.toSide = LINES[r.line].side; tr.outLine = r.line;
+    if (tr.t.dcHold) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} licenziato contro l'ordine del DC (attendere ${tr.t.dcHold})`, 'err'); onSound('err'); tr.t.dcHold = null; }
+  }
+}
+function atSignal(tr) { return tr.v < 0.05 && (tr.stab || (tr.track ? tr.served : tr.L - tr.head < 25)); }
+function limitOf(tr) {
+  if (tr.stab) return tr.head;
+  let lim = tr.await ? tr.L - 8 : tr.L + tr.len + 40;
+  if (tr.toZM) lim = tr.L - 4;
+  if (tr.stopS != null && !tr.served) lim = Math.min(lim, tr.stopS);
+  if (tr.stopS != null && tr.track && tr.await) { const rid = S.sigActive[tr.await], a = rid && S.active[rid]; if (!(a && (a.open || a.auth))) lim = Math.min(lim, Math.max(tr.head, tr.stopS)); }
+  return lim;
+}
+function moveTrain(tr, dt) {
+  if (tr.await) {
+    const rid = S.sigActive[tr.await], a = rid && S.active[rid];
+    if (a && !a.committed && a.state === 'set') {
+      const d = tr.L - tr.head;
+      if ((a.open && (d < tr.v * tr.v / (2 * tr.dec) + 60 || atSignal(tr))) || (a.auth && atSignal(tr))) commit(tr, rid);
+    }
+  }
+  let lim = limitOf(tr), vA = tr.vcap, s = 0;
+  const tail = tr.head - tr.len;
+  for (const p of tr.path) {
+    const a = s, b = s + p.len, pv = p.vmax; s = b;
+    if (b > tail && a < tr.head) vA = Math.min(vA, pv);
+    else if (a >= tr.head) vA = Math.min(vA, Math.sqrt(pv * pv + 2 * tr.dec * (a - tr.head)));
+    if (p.gate && a >= tr.head && pbiAspect(p.gate) === 'R') lim = Math.min(lim, a - 8);
+    // marcia a vista specifica ai PL: 4 km/h con la testa in prossimità del PL
+    for (const q of p.pls) if (tr.plMav.includes(q.id)) {
+      const x = a + q.at;
+      if (tr.head >= x - 40 && tr.head <= x + 5) vA = Math.min(vA, VPL);
+      else if (x - 40 > tr.head) vA = Math.min(vA, Math.sqrt(VPL * VPL + 2 * tr.dec * (x - 40 - tr.head)));
+    }
+  }
+  vA = Math.min(vA, Math.sqrt(Math.max(0, 2 * tr.dec * (lim - tr.head))));
+  if (tr.v < vA) tr.v = Math.min(vA, tr.v + tr.acc * dt); else tr.v = vA;
+  const prev = tr.head;
+  tr.head += tr.v * dt;
+  if (tr.head >= lim - 0.05) { tr.head = Math.max(prev, lim); tr.v = 0; }
+  // attraversamento dei passaggi a livello
+  s = 0;
+  for (const p of tr.path) {
+    for (const q of p.pls) { const x = s + q.at; if (prev < x && tr.head >= x && !tr.plSeen[q.id + '@' + Math.round(x)]) { tr.plSeen[q.id + '@' + Math.round(x)] = 1; const st = S.pl[q.id].st; if (st !== 'C' && !tr.plMav.includes(q.id)) { S.irreg++; log(`IRREGOLARITÀ GRAVE: ${tr.cat} ${tr.num} ha impegnato il ${PLS[q.id].lab} ${st === 'allarme' ? 'in allarme' : 'con barriere non chiuse'} senza prescrizione di marcia a vista`, 'err'); onSound('err'); } } }
+    s += p.len;
+  }
+  if (tr.stops && !tr.served && tr.stopS != null && tr.v < 0.02 && tr.head >= tr.stopS - 1) {
+    if (!tr.t.arrT) tr.t.arrT = S.simT;
+    tr.dw += dt;
+    const C = CATS[tr.cat];
+    // viaggiatori: sosta e orario di partenza; merci/MAT/LIS: sosta tecnica o cambio personale; sosta programmata: subito
+    const ready = C.pax ? (tr.dw >= tr.dwell && S.simT >= tr.t.dep) : tr.dw >= tr.dwell;
+    if (ready) { tr.served = true; log(`${tr.cat} ${tr.num}: ${C.pax ? 'servizio viaggiatori ultimato' : tr.t.stopType + ' ultimata'}, pronto a partire dal bin. ${tr.track}`); }
+  }
+  if (tr.toZM && tr.v < 0.02 && tr.head >= tr.L - 5) {
+    // ricovero nell'asta: il treno viene invertito e resta in sosta
+    const st = stabledTrain(tr.t); Object.assign(tr, st); tr.t.status = 'ricoverato'; tr.t.done = false; tr.t.arrT = S.simT; tr.toZM = false;
+    log(`Treno cantiere ${tr.num} ricoverato nell'asta di manutenzione`, 'ok');
+    phone('Capo cantiere', `${STN}, treno cantiere ${tr.num} ricoverato nell'asta di manutenzione e assicurato. Il personale rimette il deviatoio 101 in normale: potete reinserire la chiave.`);
+  }
+  if (tr.depS != null && !tr.rec && tr.head >= tr.depS) {
+    tr.rec = true; const t = tr.t; t.depT = S.simT;
+    const dl = Math.max(0, Math.floor((S.simT - t.dep) / 60)); t.delay = dl; S.served++;
+    if (CATS[tr.cat].pax) S.paxDelay += dl;
+    log(`${tr.cat} ${tr.num} ${tr.stops ? 'partito' : 'licenziato'} ${tr.track === 'M' ? "dall'asta" : 'dal bin. ' + tr.track} sul ${cname(tr.outLine)} — ${dl ? 'ritardo +' + dl + "'" : 'in orario'}`, dl > 2 && CATS[tr.cat].pax ? 'warn' : 'ok');
+  }
+  if (tr.exit && tr.head - tr.len >= tr.L) { tr.gone = true; tr.t.done = true; tr.t.doneT = S.simT; log(`${tr.cat} ${tr.num} giunto a ${SIDES[tr.toSide].name}`); }
+}
+function updateRoutes(dt) {
+  for (const rid of Object.keys(S.active)) {
+    const r = ROUTES[rid], a = S.active[rid];
+    if (a.state === 'prep') {
+      a.prepT -= dt;
+      const elec = Object.entries(r.sw).every(([k, p]) => a.manual.includes(k) || (S.sw[k].pos === p && !S.sw[k].mv));
+      if (a.prepT <= 0 && elec) { for (const k of a.manual) { const w = S.sw[k]; w.pos = w.target = r.sw[k]; w.mv = 0; } a.state = 'set'; log(`Itinerario ${rlabel(r)} predisposto con segnale ${sigLab(r.sig)} a via impedita: trasmettere il Mod. M40 DL`, 'warn'); }
+      continue;
+    }
+    if (a.state === 'forming' && Object.entries(r.sw).every(([k, p]) => S.sw[k].pos === p && !S.sw[k].mv)) a.state = 'set';
+    if (a.state === 'set') {
+      if (a.committed && S.cdb[r.cdb[0]].occ) { a.state = 'passed'; a.open = false; if (!VIRT[r.sig]) S.sig[r.sig].norm = S.sig[r.sig].lev === 'T'; }
+      else if (a.deg) a.open = false;
+      else {
+        const lev = S.sig[r.sig].lev === 'T', why = lev ? openBlock(r.sig, rid, a.open) : 'leva';
+        if (why) { if (a.open) { a.open = false; if (!a.committed) log(`Segnale ${sigLab(r.sig)} disposto a via impedita${why !== 'leva' ? ': ' + why : ''}`, why !== 'leva' ? 'err' : ''); } a.openAt = null; }
+        else if (!a.open) { if (a.openAt == null) a.openAt = S.simT + 3 + Math.random() * 4; if (S.simT >= a.openAt) { a.open = true; a.wasOpen = true; log(`Segnale ${sigLab(r.sig)} a via libera (${aspect(r.sig)})`, 'ok'); } }
+      }
+    }
+    if (a.state === 'annulling') { a.annT -= dt; if (a.annT <= 0) { releaseRoute(rid); log(`Annullamento ${rlabel(r)} completato`, 'ok'); continue; } }
+    if (a.state === 'passed') {
+      r.cdb.forEach((c, i) => { if (S.cdb[c].occ) a.seen[i] = true; });
+      for (let i = 0; i < r.cdb.length; i++) {
+        if (a.rel[i]) continue;
+        const c = r.cdb[i], last = i === r.cdb.length - 1;
+        if ((a.seen[i] && !S.cdb[c].occ) || (last && r.kind === 'arr' && a.relN === i)) { a.rel[i] = true; a.relN++; if (S.cdb[c].lock === rid) S.cdb[c].lock = null; }
+        else break;
+      }
+      if (a.relN === r.cdb.length) { delete S.active[rid]; delete S.sigActive[r.sig]; }
+    }
+  }
+  // il personale rimette il deviatoio 101 in normale quando nessun itinerario lo impegna
+  const d = S.sw.D101;
+  if (S.key === 'R' && d.pos === 'R' && !d.mv && !Object.keys(S.active).some(id => ROUTES[id].sw.D101 === 'R') && !S.trains.some(t => t.toZM)) {
+    if (!d.manT) d.manT = S.simT + 60; else if (S.simT >= d.manT) { d.pos = d.target = 'N'; d.manT = 0; log('Il personale ha rimesso il deviatoio 101 in normale: reinserire la chiave (FD101)', 'ok'); }
+  } else d.manT = 0;
+}
+function updateLines(dt) {
+  for (const L in LINES) {
+    const st = S.line[L];
+    if (st.chg > 0) { st.chg -= dt; if (st.chg <= 0) { st.chg = 0; st.orient = st.orient === 'in' ? 'out' : 'in'; log(`Blocco del ${cname(L)} orientato ${st.orient === 'in' ? 'verso Latisana' : 'in uscita da Latisana'}${st.orient === LINES[L].legal ? ' (senso legale)' : ' (senso illegale)'}`, 'ok'); } }
+  }
+  // invio dei treni dalle stazioni vicine (il DC regola la circolazione)
+  for (const side of ['SG', 'PG']) {
+    const nx = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready && !t.dcSpawnHold);
+    if (!nx) continue;
+    const L = SIDES[side].lines.find(L => {
+      const st = S.line[L], l = LINES[L];
+      if (st.orient !== 'in' || st.chg || st.interr) return false;
+      const outer = S.cdb[l.secs[l.secs.length - 1]];
+      return !outer.occ && !outer.lock && !outer.fault && !S.trains.some(tr => tr.lineIn === L && !tr.track && tr.head < 2500);
+    });
+    if (L) spawn(nx, L); else nx.status = 'attende linea libera';
+  }
+  // PLA: chiusura disposta dalla partenza (pari) o dall'approccio da Portogruaro (dispari)
+  const dem = Object.keys(S.active).some(id => { const r = ROUTES[id], a = S.active[id]; return r.pl && (S.sig[r.sig].lev === 'T' && !a.deg && a.state === 'set') || (r.pl && a.auth); }) || ['RU1', 'RU2', 'RL1', 'RL2'].some(c => S.cdb[c].occ);
+  for (const k of PLAS) { const p = S.pl[k]; if (p.st === 'allarme') continue; if (dem && (p.st === 'A' || p.st === 'aprendo')) { p.st = 'chiudendo'; p.t = S.simT + 12; } if (!dem && p.st === 'C') { p.st = 'aprendo'; p.t = S.simT + 6; } }
+  for (const k in S.pl) { const p = S.pl[k]; if (p.st === 'chiudendo' && S.simT >= p.t) { p.st = 'C'; if (PLS[k].cmd) log(`${PLS[k].lab}: chiuso e controllato`, 'ok'); } if (p.st === 'aprendo' && S.simT >= p.t) p.st = 'A'; }
+}
+function updateFaults() {
+  if (S.faultsOn && S.simT >= S.nextFault) {
+    S.nextFault = S.simT + 2700 + Math.random() * 4500;
+    const q = Math.random();
+    let type = q < 0.25 ? 'cdb' : q < 0.48 ? 'sw' : q < 0.66 ? 'sig' : q < 0.82 ? 'blk' : q < 0.92 ? 'pla' : 'bca', cand;
+    if (type === 'cdb') cand = ['B1', 'B2', 'B3', 'B4', 'D1', 'D8', 'D4', 'D7', 'Z3W', 'Z2W', 'Z3E', 'Z2E'].filter(k => !S.cdb[k].occ && !S.cdb[k].lock && !S.faults[k]);
+    if (type === 'sw') cand = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'].filter(k => !swBusy(k) && !S.faults[k] && !S.sw[k].mv);
+    if (type === 'sig') cand = Object.keys(SIG_LEVER).filter(k => !S.sigActive[k] && !S.faults[k] && !SIGS[k].ill);
+    if (type === 'blk') cand = ['PBI30', 'PBI31', 'PBI32', 'PBI33', 'PBI26', 'PBI27'].filter(k => !S.faults[k]);
+    if (type === 'pla') cand = PLAS.filter(k => !S.faults[k] && S.pl[k].st !== 'allarme');
+    if (type === 'bca') cand = ['LU1', 'LL1', 'RU1', 'RL1'].filter(k => !S.cdb[k].occ && !S.cdb[k].fault && !S.faults[k] && !S.line[SECOF[k]].interr);
+    if (cand && cand.length) {
+      const k = cand[Math.floor(Math.random() * cand.length)];
+      S.faults[k] = { type, state: 'guasto', ack: false, since: S.simT };
+      if (type === 'cdb') { S.cdb[k].fault = true; log(`Anormalità: ${cname(k)} indica occupazione senza treno (guasto CdB) — CEI`, 'err'); }
+      if (type === 'sw') { S.sw[k].fault = true; log(`Anormalità: ${cname(k)} senza controllo — CEI`, 'err'); }
+      if (type === 'blk') { S.blkFault[k] = true; S.faults[k].letterA = Math.random() < 0.5; log(`Anormalità: segnale di blocco ${k.replace('PBI', 'PBI ')} guasto, disposto a via impedita — CEI`, 'err'); }
+      if (type === 'sig') { S.sigFault[k] = true; log(`Anormalità: segnale ${sigLab(k)} spento/guasto, non può disporsi a via libera — CEI`, 'err'); }
+      if (type === 'pla') { S.pl[k].st = 'allarme'; log(`Anormalità: ${PLS[k].lab} in allarme (barriere senza controllo) — CEI`, 'err'); }
+      if (type === 'bca') { S.cdb[k].fault = true; log(`Anormalità: conta assi della ${cname(k)} indica occupazione (BCA guasto) — ripristino con TlBca1 previo accertamento, oppure CEI`, 'err'); }
+      onSound('err');
+    }
+  }
+  for (const k of Object.keys(S.faults)) {
+    const f = S.faults[k];
+    if (f.state === 'attesa' && S.simT >= f.t1) {
+      const busy = (S.cdb[k] && (S.cdb[k].lock || S.cdb[k].occ)) || (f.type === 'sig' && S.sigActive[k]) || (f.type === 'sw' && swBusy(k)) || (f.type === 'pla' && S.trains.some(tr => (tr.occ || []).some(c => ['RU1', 'RL1'].includes(c))));
+      if (busy) { if (!f.waitLogged) { f.waitLogged = true; log(`Tecnici sul posto per ${cname(k)}: attendono la disponibilità dell'ente`, 'warn'); } f.t1 = S.simT + 30; continue; }
+      f.state = 'intervento'; f.t1 = S.simT + 300 + Math.random() * 600;
+      log(`${cname(k)} consegnato ai tecnici per la riparazione (fine prevista ${fmtM(f.t1)})`, 'warn');
+    } else if (f.state === 'intervento' && S.simT >= f.t1) {
+      if (f.type === 'cdb' || f.type === 'bca') S.cdb[k].fault = false;
+      if (f.type === 'sw') S.sw[k].fault = false;
+      if (f.type === 'sig') delete S.sigFault[k];
+      if (f.type === 'blk') delete S.blkFault[k];
+      if (f.type === 'pla') S.pl[k].st = 'A';
+      delete S.faults[k];
+      log(`Guasto rimosso: ${cname(k)} riconsegnato al DM`, 'ok');
+    }
+  }
+}
+function updatePhone(dt) {
+  for (const q of S.phoneQ.filter(q => S.simT >= q.t)) { phone(q.from, q.text); if (q.act) doAct(q.act); }
+  S.phoneQ = S.phoneQ.filter(q => S.simT < q.t);
+  for (const tr of S.trains) {
+    const k = ctxKey(tr);
+    if (tr.callSig !== k) { tr.callSig = k; tr.stopT = 0; tr.called = false; tr.callAck = false; }
+    if (!k) continue;
+    tr.stopT += dt;
+    // l'AdC fermo a un segnale a via impedita chiama dopo 3 minuti (il DM può chiamarlo prima)
+    if (!tr.called && tr.stopT >= 180) { tr.called = true; phone(`AdC ${tr.cat} ${tr.num}`, `Pronto, DM di ${STN}? ` + adcStatus(tr)); onSound('phone'); }
+  }
+}
+function tick(dt) {
+  S.simT += dt;
+  for (const k in S.sw) { const w = S.sw[k]; if (w.mv > 0) { w.mv -= dt; if (w.mv <= 0) { w.mv = 0; w.pos = w.target; } } }
+  computeOcc();
+  updateRoutes(dt);
+  for (const tr of S.trains) moveTrain(tr, dt);
+  S.trains = S.trains.filter(t => !t.gone);
+  computeOcc();
+  updateLines(dt);
+  updateFaults();
+  updatePhone(dt);
+  updateInts();
+  updateDC();
+  if (Math.floor(S.simT / 15) !== Math.floor((S.simT - dt) / 15)) for (const tr of S.trains) { if (tr.stab) continue; const p = pointAt(tr.path, tr.head); tr.t.hist.push([Math.round(S.simT), +kmOfX(p[0]).toFixed(3)]); }
+  if (Math.floor(S.simT) % 60 === 0 && Math.floor(S.simT - dt) % 60 !== 0) ensureDays(false);
+}
+// ======================= ASPETTI =======================
+function routeOpen(k) { const rid = S.sigActive[k]; return rid && S.active[rid].open ? ROUTES[rid] : null; }
+function aspect(k) {
+  const g = SIGS[k];
+  if (g.t === 'pbi' || g.t === 'pbid') return pbiAspect(k);
+  if (g.t === 'avl') return aspect(g.of) === 'R' ? 'G' : 'V';
+  if (g.t === 'avv') { const p = aspect(g.of); return p === 'R' || p === 'off' ? 'G' : (p === 'RG' || p === 'RV') ? 'GVl' : 'V'; }
+  if (g.t === 'avv1') { const p = aspect(g.of); return p === 'R' || p === 'off' ? 'G' : p === 'G' ? 'Gl' : 'V'; }
+  if (g.t === 'virt') return 'R';
+  if (S.sigFault[k]) return 'off';
+  const r = routeOpen(k); if (!r) return 'R';
+  if (r.kind === 'est') { const p = aspect(r.int); return p === 'R' || p === 'off' ? 'G' : (p === 'RG' || p === 'RV') ? 'GVl' : 'V'; }
+  if (r.kind === 'arr') { if (!r.ct) return 'RG'; return aspect(r.next) !== 'R' && aspect(r.next) !== 'off' ? 'V' : 'G'; }
+  const v = pbiAspect(NEXTPBI[r.exit]) === 'V';
+  if (k === 'QIE') return 'RV';
+  if (g.tab) return v ? 'V' : 'G';
+  if (!r.ct) return v ? 'RV' : 'RG';
+  return v ? 'V' : 'G';
+}
+
+// ======================= SALVATAGGIO =======================
+function serialize(extra) {
+  const o = Object.assign({}, S, { trains: S.trains.map(tr => Object.assign({}, tr, { t: tr.t.uid })) });
+  return JSON.stringify({ app: 'cs-latisana', v: 1, saved: Date.now(), UID, S: o, extra: extra || {} });
+}
+function deserialize(str) {
+  const o = JSON.parse(str);
+  if (o.app !== 'cs-latisana') throw new Error('File non valido per Latisana');
+  const s = o.S, by = new Map(s.TT.map(t => [t.uid, t]));
+  s.trains = s.trains.map(tr => Object.assign(tr, { t: by.get(tr.t) })).filter(tr => tr.t);
+  S = s; UID = o.UID;
+  return o.extra || {};
+}
+
+// ============================================================ DISEGNO QL (stesse icone di Valdorana)
+const svg = document.getElementById('ql');
+const NS = 'http://www.w3.org/2000/svg';
+const COLQ = { bar: '#4b5259', dotOff: '#23272c', route: '#ffb21f', routeDim: '#6b5320', red: '#ff3b30', ink: '#c9cfd3', lampOff: '#15171a', R: '#ff2a2a', G: '#22e06b', Y: '#ffd21f', W: '#f4f4f4', V: '#c26bff' };
+function el(t, a, p) { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; }
+function txt(x, y, s, a, p) { const t = el('text', Object.assign({ x, y, fill: '#9aa59f', 'font-size': 10, 'font-family': 'ui-monospace,monospace' }, a || {}), p); t.textContent = s; return t; }
+const PP = pts => pts.map(p => p.join(',')).join(' ');
+function dotsAlong(pts, g) {
+  const Ln = polyLen(pts), n = Math.max(1, Math.floor((Ln - 6) / 9)), step = (Ln - 6) / n;
+  for (let i = 0; i <= n; i++) {
+    let s = 3 + i * step, j = 0;
+    while (j < pts.length - 2 && s > Math.hypot(pts[j + 1][0] - pts[j][0], pts[j + 1][1] - pts[j][1])) { s -= Math.hypot(pts[j + 1][0] - pts[j][0], pts[j + 1][1] - pts[j][1]); j++; }
+    const a = pts[j], b = pts[j + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, t = Math.min(1, s / l);
+    el('circle', { cx: (a[0] + (b[0] - a[0]) * t).toFixed(1), cy: (a[1] + (b[1] - a[1]) * t).toFixed(1), r: 1.7 }, g);
+  }
+}
+const NL = { prot: 3, part: 3, prote: 3, avv: 2, avv1: 2, avl: 2, pbi: 1, pbid: 1 };
+let L = {};
+// segnale come a Valdorana: stante, base, lampade tonde (a sinistra del binario) o quadrate (a destra)
+function drawSig(k) {
+  const g0 = SIGS[k], n = g0.tab ? 1 : (g0.n || NL[g0.t]), kk = g0.s === 'u' ? -1 : 1, sq = !!(g0.ill || g0.t === 'pbid');
+  const ly = g0.y + 16 * kk, d = g0.dir === 'R' ? -1 : 1, x = g0.x, g = el('g', {});
+  el('line', { x1: x, y1: ly - 4.5, x2: x, y2: ly + 4.5, stroke: COLQ.ink, 'stroke-width': 1.5 }, g);
+  el('circle', { cx: x + d * 3, cy: ly, r: 1.4, fill: COLQ.ink }, g);
+  el('line', { x1: x + d * 3, y1: ly, x2: x + d * 7, y2: ly, stroke: COLQ.ink, 'stroke-width': 1.4 }, g);
+  const ls = [];
+  for (let i = 0; i < n; i++) {
+    const cx = x + d * (12 + 10 * i);
+    ls.push(sq ? el('rect', { x: cx - 4.2, y: ly - 4.2, width: 8.4, height: 8.4, fill: COLQ.lampOff, stroke: '#8e959b', 'stroke-width': 1 }, g)
+      : el('circle', { cx, cy: ly, r: 4.4, fill: COLQ.lampOff, stroke: '#8e959b', 'stroke-width': 1 }, g));
+  }
+  let ind = null;
+  if (g0.ind) { const cx = x + d * (12 + 10 * n + 2); el('rect', { x: cx - 5, y: ly - 5, width: 10, height: 10, fill: '#0e1011', stroke: '#8e959b', 'stroke-width': 1 }, g); ind = el('line', { x1: cx, y1: ly - 3.5, x2: cx, y2: ly + 3.5, stroke: COLQ.lampOff, 'stroke-width': 2 }, g); }
+  if (g0.tab) { const tx = x + d * 21; el('path', { d: `M${tx},${ly - 5} L${tx},${ly + 5} L${tx + d * 9},${ly} Z`, fill: '#f4f4f4', stroke: '#111', 'stroke-width': 1 }, g); }
+  const end = x + d * (12 + 10 * (n - 1) + 5 + (g0.tab || g0.ind ? 12 : 0)), oy = ly + kk * 15;
+  const isB = g0.t === 'pbi' || g0.t === 'pbid';
+  const lab = txt((x + end) / 2, oy + 3.5, g0.lab, { 'font-size': isB ? 9 : 9.5, 'font-weight': 700, fill: isB ? '#b48cff' : '#e6ece8', 'text-anchor': 'middle' }, g);
+  return { ls, lab, ind };
+}
+function buildQL() {
+  svg.innerHTML = '';
+  const defs = el('defs', {});
+  const pat = el('pattern', { id: 'tile', width: 70, height: 56, patternUnits: 'userSpaceOnUse', patternTransform: 'translate(0,22)' }, defs);
+  el('rect', { width: 70, height: 56, fill: '#23282a' }, pat);
+  el('path', { d: 'M70 0H0V56', fill: 'none', stroke: '#171b1c', 'stroke-width': 1.6 }, pat);
+  el('rect', { width: 2840, height: 430, fill: 'url(#tile)' });
+  txt(1445, 34, 'LATISANA-LIGNANO-BIBIONE', { fill: '#cfd6d1', 'font-size': 15, 'text-anchor': 'middle', 'letter-spacing': 4, 'font-weight': 700 });
+  txt(1445, 52, 'QUADRO LUMINOSO · DOPPIO BINARIO BANALIZZATO IN BCA — DIRIGENZA CENTRALE', { fill: '#7f8a84', 'text-anchor': 'middle', 'letter-spacing': 2 });
+  txt(30, 222, 'S. GIORGIO DI N.', { fill: '#cfd6d1', 'font-size': 12, 'font-weight': 700 });
+  txt(2810, 222, 'PORTOGRUARO C.', { fill: '#cfd6d1', 'font-size': 12, 'font-weight': 700, 'text-anchor': 'end' });
+  // marciapiedi e fabbricato viaggiatori
+  el('rect', { x: 1250, y: 100, width: 395, height: 12, fill: '#383e3a', stroke: '#141716' });
+  el('rect', { x: 1250, y: 212, width: 395, height: 16, fill: '#383e3a', stroke: '#141716' });
+  el('rect', { x: 1250, y: 336, width: 395, height: 12, fill: '#383e3a', stroke: '#141716' });
+  el('rect', { x: 1355, y: 360, width: 200, height: 28, fill: '#2b312d', stroke: '#545c57' });
+  txt(1455, 379, 'F.V. — UFFICIO D.M.', { 'font-size': 11, 'text-anchor': 'middle', 'letter-spacing': 2 });
+  // binari: corpo scuro con lampadine
+  const gBar = el('g', {}), gDots = el('g', {}), gHit = el('g', {});
+  L.seg = [];
+  for (const [c, pts, br] of SEG) {
+    const bar = el('polyline', { points: PP(pts), fill: 'none', stroke: COLQ.bar, 'stroke-width': 7, 'stroke-linejoin': 'round' }, gBar);
+    const dg = el('g', { fill: COLQ.dotOff }, gDots); dotsAlong(pts, dg);
+    el('polyline', { points: PP(pts), fill: 'none', stroke: 'transparent', 'stroke-width': 16, 'data-cdb': c }, gHit);
+    L.seg.push({ c, br, bar, dots: dg });
+  }
+  // giunti isolanti tra CdB diversi
+  const nodes = {};
+  for (const [c, pts] of SEG) for (const p of [pts[0], pts[pts.length - 1]]) { const k = p.join(','); (nodes[k] = nodes[k] || new Set()).add(c); }
+  for (const k in nodes) if (nodes[k].size > 1) { const [x, y] = k.split(',').map(Number); el('line', { x1: x, y1: y - 5, x2: x, y2: y + 5, stroke: '#0b0d0e', 'stroke-width': 2.2 }); }
+  // tronchini / paraurti
+  for (const [x, y, d] of TRONCHINI) {
+    el('line', { x1: x + d, y1: y - 8, x2: x + d, y2: y + 8, stroke: COLQ.ink, 'stroke-width': 4 });
+    el('line', { x1: x + d, y1: y, x2: x + d * 7, y2: y, stroke: COLQ.ink, 'stroke-width': 2 });
+  }
+  // numeri di binario
+  [['IV', 130], ['III', 190], ['II', 250], ['I', 310]].forEach(([n, y]) => txt(1455, y - 8, n, { 'font-size': 13, 'font-weight': 700, fill: '#3ecf6e', 'text-anchor': 'middle' }));
+  // deviatoi: numero e lampada di controllo
+  L.sw = {};
+  for (const k in SWLAB) L.sw[k] = SWLAB[k].map(([n, x, y]) => {
+    const t = txt(x - 6, y + 2.5, n, { 'font-size': 9.5, 'font-weight': 700, 'text-anchor': 'middle', fill: COLQ.ink });
+    el('rect', { x: x + 6, y: y - 4, width: 9, height: 6, rx: 1, fill: '#0e1011', stroke: '#777', 'stroke-width': .8 });
+    return { t, lamp: el('circle', { cx: x + 10.5, cy: y - 1, r: 1.8, fill: COLQ.lampOff }) };
+  });
+  // trasmettichiave deviatoio 101
+  txt(1000, 312, 'zona manut.', { 'font-size': 8.5, 'text-anchor': 'middle' });
+  el('rect', { x: 905, y: 300, width: 34, height: 14, rx: 2, fill: '#0e1011', stroke: '#777' });
+  txt(915, 310.5, 'TC', { 'font-size': 8, 'font-weight': 700, fill: COLQ.ink, 'text-anchor': 'middle' });
+  L.tc = el('circle', { cx: 930, cy: 307, r: 3, fill: COLQ.lampOff });
+  // indicatori di blocco conta assi per binario di linea (OCC / LIB, orientamento)
+  L.bca = {};
+  const bcaBox = (id, x, y, right) => {
+    const f = v => right ? x - v : x + v;
+    txt(f(12), y + 3.5, 'BCA', { 'font-size': 8.5, 'font-weight': 700, fill: COLQ.ink, 'text-anchor': 'middle' });
+    el('rect', { x: Math.min(f(26), f(52)), y: y - 5, width: 26, height: 10, rx: 1, fill: '#0e1011', stroke: '#777' });
+    const occ = el('circle', { cx: f(33), cy: y, r: 3, fill: COLQ.lampOff }), lib = el('circle', { cx: f(45), cy: y, r: 3, fill: COLQ.lampOff });
+    const out = el('path', { d: `M${f(58)},${y} l${right ? -8 : 8},-5 v10 Z`, fill: '#333' });
+    const inn = el('path', { d: `M${f(84)},${y} l${right ? 8 : -8},-5 v10 Z`, fill: '#333' });
+    L.bca[id] = { occ, lib, out, inn };
+    el('rect', { x: Math.min(f(0), f(92)) - 4, y: y - 9, width: 100, height: 18, fill: 'transparent', 'data-co': id, style: 'cursor:pointer' });
+
+  };
+  bcaBox('LU', 30, 128, false); bcaBox('LL', 30, 322, false); bcaBox('RU', 2810, 128, true); bcaBox('RL', 2810, 322, true);
+  // PL comandati: barra parallela (chiusa) e perpendicolare (aperta)
+  L.pl = {};
+  for (const k of ['PL1', 'PL2']) {
+    const x = PLS[k].x, y = 220;
+    const cl = el('line', { x1: x - 11, y1: y, x2: x + 11, y2: y, stroke: COLQ.lampOff, 'stroke-width': 4, 'stroke-linecap': 'round' });
+    const op = el('line', { x1: x, y1: y - 11, x2: x, y2: y + 11, stroke: COLQ.lampOff, 'stroke-width': 4, 'stroke-linecap': 'round' });
+    el('circle', { cx: x, cy: y, r: 2, fill: '#555' });
+    txt(x, y + 25, 'PL', { 'font-size': 8.5, 'text-anchor': 'middle', fill: '#7f8a84' });
+    L.pl[k] = { cl, op };
+  }
+  // PLA: lucina viola per ciascun PL
+  for (const k of ['PLA1', 'PLA2', 'PLA3']) {
+    const x = PLS[k].x;
+    const lp = el('circle', { cx: x, cy: 220, r: 4.5, fill: COLQ.lampOff, stroke: '#8e959b', 'stroke-width': 1 });
+    L.pl[k] = { lp };
+  }
+  txt(2482, 240, 'PLA', { 'font-size': 8.5, 'text-anchor': 'middle', fill: '#7f8a84' });
+  // segnali
+  L.sig = {};
+  for (const k in SIGS) if (SIGS[k].t !== 'virt') L.sig[k] = drawSig(k);
+  L.trains = el('g', { id: 'trains', 'pointer-events': 'none' });
+}
+
+// ======================= INTERFACCIA =======================
+const E = {};
+function $(id) {
+  if (E[id] && E[id].isConnected) return E[id];
+  let e = document.getElementById(id);
+  if (!e && typeof PANELS !== 'undefined') for (const p of PANELS) { e = p.querySelector('#' + id); if (e) break; }
+  if (e) E[id] = e; return e;
+}
+let speed = 0, soundOn = true, AC = null;
+function msg(m, cls = '') { const e = $('msg'); if (e) { e.textContent = m; e.className = cls; } }
+function beep(f, d, type = 'square', vol = 0.04) {
+  if (!soundOn) return;
+  try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; g.gain.value = vol; o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime + d); } catch (e) { }
+}
+onSound = k => { if (k === 'err') beep(200, .3, 'sawtooth'); if (k === 'ring') { beep(1300, .12); setTimeout(() => beep(1300, .12), 180); } if (k === 'phone') { [0, 160, 600, 760].forEach(d => setTimeout(() => beep(d % 2 ? 950 : 750, .12, 'sine', .06), d)); } };
+onLog = (m, cls, t) => {
+  const el = $('log'); if (!el) return;
+  const d = document.createElement('div'); d.className = cls;
+  d.innerHTML = `<span class="ts">${fmt(t != null ? t : S.simT)}</span>`; d.appendChild(document.createTextNode(m));
+  el.prepend(d); while (el.children.length > 200) el.lastChild.remove();
+};
+function show(res) { if (!res || !res.m) return; msg(res.m, res.ok ? (/ritardo|prescrizione|degrado|via impedita|M40|interruz|chiave|DC/.test(res.m) ? 'warn' : '') : 'err'); if (res.ok) beep(880, .06); else onSound('err'); }
+
+// ---------- quadro luminoso: stato ----------
+function toLamps(a) {
+  switch (a) {
+    case 'R': return [['R'], 0]; case 'G': return [['Y'], 0]; case 'V': return [['G'], 0];
+    case 'Gl': return [['Y'], 1]; case 'RG': return [['R', 'Y'], 0]; case 'RV': return [['R', 'G'], 0];
+    case 'GV': return [['Y', 'G'], 0]; case 'GVl': return [['Y', 'G'], 1]; case 'off': return [[], 0];
+  }
+  return [['R'], 0];
+}
+function renderQL() {
+  const blinkOn = Math.floor(performance.now() / 350) % 2 === 0;
+  for (const p of L.seg) {
+    const c = S.cdb[p.c], Ln = SECOF[p.c]; let dot = COLQ.dotOff, op = 1, dash = '';
+    if (p.br) { const w = S.sw[p.br.sw]; if (w.mv || w.pos !== p.br.pos) { dot = 'none'; op = .28; } }
+    if (dot !== 'none') {
+      if (c.occ || c.fault) dot = COLQ.red;
+      else if (Ln && S.line[Ln].interr) { dot = '#6a2420'; dash = '6 4'; }
+      else if (c.lock === 'INT') { dot = '#6a2420'; dash = '6 4'; }
+      else if (c.lock && !(p.br && p.br.x && ROUTES[c.lock] && ROUTES[c.lock].sw[p.br.sw] !== 'R')) { const a = S.active[c.lock]; dot = a && (a.state === 'forming' || a.state === 'prep' || a.state === 'annulling') && !blinkOn ? COLQ.routeDim : (a && a.deg ? '#ff9f43' : COLQ.route); }
+      if (inConsegna(p.c)) dot = blinkOn ? '#e08a30' : COLQ.dotOff;
+      if (p.c === 'ZM' && S.key === 'R' && !c.occ && !c.lock) dot = blinkOn ? COLQ.Y : COLQ.dotOff;
+    }
+    if (p.dots._f !== dot) { p.dots.setAttribute('fill', dot); p.dots._f = dot; }
+    if (p.bar._o !== op + dash) { p.bar.setAttribute('opacity', op); p.bar.setAttribute('stroke-dasharray', dash); p.bar._o = op + dash; }
+  }
+  for (const k in L.sig) {
+    const a = aspect(k), [cols, fl] = toLamps(a), on = !fl || blinkOn;
+    L.sig[k].ls.forEach((l, i) => l.setAttribute('fill', cols[i] && on ? COLQ[cols[i]] : COLQ.lampOff));
+    if (L.sig[k].ind) L.sig[k].ind.setAttribute('stroke', a === 'RV' ? COLQ.W : COLQ.lampOff);
+    const isB = PBI[k], flt = S.sigFault[k] || S.blkFault[k];
+    let lc = isB ? '#b48cff' : '#e6ece8';
+    if (flt) lc = blinkOn ? '#ff6b5e' : '#7a2a24';
+    else if (SIG_LEVER[k] && S.sigActive[k]) { const ac = S.active[S.sigActive[k]]; lc = ac.state === 'annulling' && blinkOn ? '#ff9f43' : '#ffffff'; }
+    L.sig[k].lab.setAttribute('fill', lc);
+  }
+  for (const k in L.sw) {
+    const w = S.sw[k];
+    for (const e of L.sw[k]) {
+      e.lamp.setAttribute('fill', w.fault ? (blinkOn ? COLQ.R : COLQ.lampOff) : inConsegna(k) ? (blinkOn ? '#e08a30' : COLQ.lampOff) : w.mv ? (blinkOn ? COLQ.W : COLQ.lampOff) : w.pos === 'R' ? COLQ.Y : COLQ.W);
+      e.t.setAttribute('fill', swLockedBy(k) ? '#ffffff' : COLQ.ink);
+    }
+  }
+  L.tc.setAttribute('fill', S.key === 'R' ? (blinkOn ? COLQ.Y : COLQ.lampOff) : COLQ.W);
+  for (const id in L.bca) {
+    const st = S.line[id], secs = LINES[id].secs, occ = secs.some(c => S.cdb[c].occ || S.cdb[c].fault), b = L.bca[id];
+    b.occ.setAttribute('fill', occ ? COLQ.red : COLQ.lampOff); b.lib.setAttribute('fill', !occ && !st.interr ? COLQ.G : COLQ.lampOff);
+    const col = st.interr ? COLQ.red : st.chg ? (blinkOn ? COLQ.Y : '#333') : (st.orient === LINES[id].legal ? COLQ.W : COLQ.Y);
+    b.out.setAttribute('fill', st.interr || st.orient === 'out' || st.chg ? col : '#333'); b.inn.setAttribute('fill', st.interr || st.orient === 'in' || st.chg ? col : '#333');
+  }
+  for (const k of ['PL1', 'PL2']) {
+    const st = S.pl[k].st, o = L.pl[k];
+    const clOn = st === 'C' || (st === 'chiudendo' && blinkOn), opOn = st === 'A' || (st === 'aprendo' && blinkOn);
+    o.cl.setAttribute('stroke', clOn ? COLQ.W : COLQ.lampOff); o.op.setAttribute('stroke', opOn ? COLQ.W : COLQ.lampOff);
+  }
+  for (const k of PLAS) { const st = S.pl[k].st; L.pl[k].lp.setAttribute('fill', st === 'allarme' ? (blinkOn ? COLQ.R : COLQ.lampOff) : st === 'C' ? COLQ.V : st === 'A' ? COLQ.W : (blinkOn ? COLQ.V : COLQ.W)); }
+  // descrittori treno
+  let h = '';
+  for (const tr of S.trains) {
+    const hp = pointAt(tr.path, tr.head), col = CATS[tr.cat].col;
+    const lab = `${tr.cat} ${tr.num}`, wl = lab.length * 6.4 + 8, ds = tr.dir === 'R' ? 1 : -1;
+    const sk = hp[1] <= 200 ? -1 : 1;
+    const lx = Math.min(Math.max(hp[0] - ds * wl / 2, 45), 2795), top = sk < 0 ? hp[1] - 21 : hp[1] + 8;
+    h += `<path d="M${hp[0].toFixed(1)},${(hp[1] + (sk < 0 ? -3 : 3)).toFixed(1)} l-3,${sk < 0 ? -4 : 4} h6 Z" fill="${col}"/>`;
+    h += `<rect x="${(lx - wl / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${wl.toFixed(1)}" height="12" rx="1.5" fill="#050606" stroke="${col}"/>`;
+    h += `<text x="${lx.toFixed(1)}" y="${(top + 9.3).toFixed(1)}" font-size="9.2" fill="${col}" text-anchor="middle" font-weight="700" font-family="ui-monospace,monospace">${lab}</text>`;
+  }
+  L.trains.innerHTML = h;
+}
+svg.addEventListener('click', e => { const b = e.target.closest('[data-co]'); if (b) show(changeOrient(b.dataset.co)); });
+
+// ---------- banco: tabulatore ----------
+const LEVV = (rot, col) => `<svg class="lev" viewBox="-28 -28 56 56" style="transform:rotate(${rot}deg)"><path d="M-9,-24 L9,-24 L4,-6 A7,7 0 0 1 4,6 L9,24 L-9,24 L-4,6 A7,7 0 0 1 -4,-6 Z" fill="${col || '#ececec'}" stroke="#555" stroke-width="1.5"/><circle r="6.5" fill="#9a9a9a" stroke="#555"/><circle r="2.5" fill="#666"/></svg>`;
+const PIN = '<svg style="position:absolute;left:6px;top:22px" width="10" height="16" viewBox="0 0 10 16"><line x1="5" y1="5" x2="5" y2="16" stroke="#222" stroke-width="1.2"/><circle cx="5" cy="4" r="3.2" fill="#222"/></svg>';
+const SL_LAB = { P2: '2 → I·III·IV·asta', P1d: '1 → I·II·III·IV·asta', P4: '4 → I·II·IV', P3d: '3 → I·II·III·IV', P4E: '4E → 4', P3Ed: '3E → 3', QIVE: 'IV → 3·4', QIIIE: 'III → 3·4', QIE: 'I → 3·4', QIVW: 'IV → 1·2', QIIW: 'II → 1·2', QIW: 'I → 1·2', QIIIW: 'III → 1·2', QIIE: 'II → 3·4', QM: 'asta → 1·2' };
+const sigCells = (id, rts) => VIRT[id] ? [['bs', id], ...rts.map(r => ['rt', r])] : [['bs', id], ['sl', id], ...rts.map(r => ['rt', r])];
+const PARI = ['lbl', 'PARI', 'verso Portogruaro →'], DISP = ['lbl', 'DISPARI', '← verso S. Giorgio'];
+const GRID = [
+  [['key', 'Te', 'Te'], ['key', 'TlBcaW', 'TlBca1 S.G.'], ['title'], ['key', 'TID', 'TlD'], ['key', 'TlBcaE', 'TlBca1 Port.']],
+  [PARI, ...sigCells('P1d', ['1-IV', '1-III', '1-II', '1-I', '1-M']), ...sigCells('QIIE', ['II-3', 'II-4'])],
+  [PARI, ...sigCells('P2', ['2-IV', '2-III', '2-I', '2-M']), ...sigCells('QIVE', ['IV-3', 'IV-4'])],
+  [PARI, ...sigCells('QIIIE', ['III-3', 'III-4']), ...sigCells('QIE', ['I-3', 'I-4']), ['e'], ['e']],
+  [DISP, ...sigCells('P3d', ['3-IV', '3-III', '3-II', '3-I']), ...sigCells('QIVW', ['IV-1', 'IV-2'])],
+  [DISP, ...sigCells('P4E', ['4E-4']), ...sigCells('P4', ['4-IV', '4-II', '4-I']), ['e'], ['e']],
+  [DISP, ...sigCells('P3Ed', ['3E-3']), ...sigCells('QIIW', ['II-1', 'II-2']), ...sigCells('QIIIW', ['III-1', 'III-2'])],
+  [DISP, ...sigCells('QIW', ['I-1', 'I-2']), ...sigCells('QM', ['M-1', 'M-2']), ['e'], ['e'], ['e']],
+  [['lbl', 'DEVIATOI', 'lato S. Giorgio · lato Portogruaro'], ['dv', 'D2'], ['dv', 'D3'], ['dv', 'D8'], ['dv', 'D1'], ['dv', 'D4'], ['dv', 'D7'], ['dv', 'D5'], ['dv', 'D6'], ['e'], ['e']],
+  [['lbl', 'SERVIZIO', 'tasti e trasmettichiave'], ['key', 'VI', 'VI (via imp.)'], ['key', 'TcD', 'TcD'], ['key', 'TbD', 'TbD'], ['btn', 'Tacc', 'Tacc'], ['key', 'Tz2', 'Tz2'], ['key', 'Tz4', 'Tz4'], ['fd', 'FD101', 'FD101'], ['e'], ['e'], ['e']],
+];
+const KEYS = { Te: 'Te — funzione da confermare', TID: 'TlD — funzione da confermare', TcD: 'TcD — funzione da confermare', TbD: 'TbD — funzione da confermare', Tz2: 'Tz2 — funzione da confermare', Tz4: 'Tz4 — funzione da confermare' };
+const rtLab = id => id.replace('-', ' → ').replace('M', 'asta');
+function cellHTML(c) {
+  const [ty, id, lab] = c;
+  if (ty === 'title') return '<div class="cell title">TABULATORE</div>';
+  if (ty === 'e') return '<div class="cell empty"></div>';
+  if (ty === 'lbl') return `<div class="cell empty lblc">${id}<small>${lab}</small></div>`;
+  if (ty === 'key') {
+    let lc = '';
+    if (id === 'VI') lc = S.viMode ? 'y blink' : '';
+    if (id === 'TlBcaW') lc = ['LU1', 'LU2', 'LU3', 'LL1', 'LL2', 'LL3'].some(k => S.faults[k] && S.faults[k].type === 'bca') ? 'rd' : '';
+    if (id === 'TlBcaE') lc = ['RU1', 'RU2', 'RL1', 'RL2'].some(k => S.faults[k] && S.faults[k].type === 'bca') ? 'rd' : '';
+    return `<div class="cell" data-k="${id}"><span class="lp l ${lc}"></span>${LEVV(0)}${PIN}<span class="nm">${lab}</span></div>`;
+  }
+  if (ty === 'btn') return `<div class="cell" data-k="${id}"><div class="ring"><i></i></div><span class="nm">${lab}</span></div>`;
+  if (ty === 'rt') {
+    const a = S.active[id], cl = a ? (a.state === 'forming' || a.state === 'prep' || a.state === 'annulling' ? 'mv' : a.deg ? 'deg' : 'on') : '';
+    return `<div class="cell" data-rt="${id}" title="${ROUTES[id].vi ? 'itinerario solo a via impedita' : ''}"><div class="ring ${cl}"><i></i></div><span class="nm">${rtLab(id)}</span></div>`;
+  }
+  if (ty === 'sl') {
+    const s = S.sig[id], rot = s.lev === 'T' ? -40 : s.lev === 'M' ? 40 : 0, a = S.sigActive[id] && S.active[S.sigActive[id]];
+    const lc = S.sigFault[id] ? 'rd blink' : a && a.open ? 'g' : s.lev === 'T' && s.norm ? 'rd' : s.lev === 'T' ? 'y blink' : '';
+    return `<div class="cell" data-sl="${id}" title="clic: Tl (treno) ↔ normale · tasto destro: Tm (manovra)"><span class="lp l ${lc}"></span>${LEVV(rot)}${PIN}<span class="nm"><small>Tl/Tm</small><br>${SL_LAB[id]}</span></div>`;
+  }
+  if (ty === 'bs') {
+    const a = S.sigActive[id] && S.active[S.sigActive[id]], lc = a && a.state === 'annulling' ? 'y blink' : '';
+    return `<div class="cell ${VIRT[id] ? 'virt' : ''}" data-bs="${id}" title="annullamento itinerario"><span class="lp l ${lc}"></span>${LEVV(90)}${PIN}<span class="nm r"><small>TB/S${VIRT[id] ? ' (s.s.)' : ''}</small><br>${SL_LAB[id]}</span></div>`;
+  }
+  if (ty === 'dv') {
+    const w = S.sw[id], lk = swLockedBy(id);
+    const f = w.fault ? 'rd blink' : null;
+    const ln = f || (w.mv ? 'y blink' : w.pos === 'N' ? 'y' : ''), rn = f || (w.mv ? 'y blink' : w.pos === 'R' ? 'y' : '');
+    return `<div class="cell" data-dv="${id}" title="${SWS[id].d}"><span class="lp l ${ln}"></span><span class="lp r ${rn}"></span>${LEVV(w.pos === 'R' ? 35 : 0)}${PIN}<span class="nm r">${SWN[id]}${lk ? ' 🔒' : ''}</span></div>`;
+  }
+  if (ty === 'fd') return `<div class="cell" data-fd="1" title="Trasmettichiave deviatoio 101"><span class="lp l ${S.key === 'R' ? 'y blink' : 'y'}"></span>${LEVV(S.key === 'R' ? 0 : 90)}${PIN}<span class="nm r">FD101${S.key === 'R' ? ' (chiave fuori)' : ''}<br><small>D101 ${S.sw.D101.pos === 'R' ? 'rovescio' : 'normale'}</small></span></div>`;
+  return '<div class="cell empty"></div>';
+}
+let lastBanco = '', lastPL = '';
+function renderBanco() {
+  const tab = $('tab'); if (!tab) return;
+  let h = ''; for (const row of GRID) for (const c of row) h += cellHTML(c);
+  if (h !== lastBanco) { tab.innerHTML = h; lastBanco = h; }
+  const pl = ['PL1', 'PL2'].map(k => { const st = S.pl[k].st, lc = st === 'C' ? 'v' : st === 'A' ? '' : 'rd blink'; return `<div class="pl"><span>${PLS[k].lab}</span><span class="lp ${lc}" title="${st}"></span><button class="pb c" data-plc="${k}" title="Chiusura">CH</button><button class="pb a" data-pla="${k}" title="Apertura">AP</button></div>`; }).join('')
+    + PLAS.map(k => { const st = S.pl[k].st, lc = st === 'C' ? 'v' : st === 'A' ? 'w' : st === 'allarme' ? 'rd blink' : 'v blink'; return `<div class="pl"><span>${PLS[k].lab} <small>(automatico)</small></span><span class="lp ${lc}"></span><span></span><span></span></div>`; }).join('');
+  if (pl !== lastPL) { $('pls').innerHTML = pl; lastPL = pl; }
+  $('libc').textContent = String(S.libCount).padStart(5, '0');
+  $('sel').textContent = S.viMode ? '▶ Tasto VI premuto: il prossimo itinerario sarà formato con segnale a via impedita' : '';
+}
+function bindBanco(root) {
+  root.querySelector('#tab').addEventListener('click', e => {
+    const c = e.target.closest('.cell'); if (!c) return;
+    if (c.dataset.rt) show(formRoute(c.dataset.rt));
+    else if (c.dataset.sl) show(sigLever(c.dataset.sl, S.sig[c.dataset.sl].lev === 'C' ? 'T' : 'C'));
+    else if (c.dataset.bs) show(annul(c.dataset.bs));
+    else if (c.dataset.dv) show(devCmd(c.dataset.dv));
+    else if (c.dataset.fd) show(keyLever());
+    else if (c.dataset.k) keyPress(c.dataset.k);
+    renderBanco(); renderQL();
+  });
+  root.querySelector('#tab').addEventListener('contextmenu', e => { const c = e.target.closest('.cell'); if (c && c.dataset.sl) { e.preventDefault(); show(sigLever(c.dataset.sl, S.sig[c.dataset.sl].lev === 'M' ? 'C' : 'M')); renderBanco(); } });
+  root.querySelector('#pls').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.plc) show(plButton(b.dataset.plc, true)); if (b.dataset.pla) show(plButton(b.dataset.pla, false)); renderBanco(); });
+}
+function keyPress(k) {
+  if (k === 'VI') { S.viMode = !S.viMode; msg(S.viMode ? 'VI: premere il pulsante dell\'itinerario da formare con segnale a via impedita' : 'Tasto VI rilasciato', 'warn'); beep(500, .04); return; }
+  if (k === 'Tacc') { S.trains.forEach(t => { t.ack = true; t.callAck = true; }); S.ints.forEach(x => x.ack = true); Object.values(S.faults).forEach(f => f.ack = true); msg('Tacc: suoneria tacitata'); return; }
+  if (k === 'TlBcaW') return show(bcaReset('SG'));
+  if (k === 'TlBcaE') return show(bcaReset('PG'));
+  msg(KEYS[k] || k, 'warn');
+}
+
+// ---------- tastiera codici ----------
+function findSig(tok) { tok = tok.toUpperCase(); for (const k in SL_LAB) if (k.toUpperCase() === tok || (SIG_LEVER[k] || '').toUpperCase() === tok) return k; return null; }
+function execCommand(raw) {
+  const p = raw.trim().split(/\s+/), c = (p[0] || '').toUpperCase(), a = p[1], b = p[2];
+  switch (c) {
+    case 'M40': if (!a) return result(false, 'Indicare il numero del treno: M40 3455'); openM40(a); return { ok: true, m: '' };
+    case 'M40A': if (!a) return result(false, 'Indicare il numero del treno: M40A 41233'); openM40a(a); return { ok: true, m: '' };
+    case 'CHI': return a ? callTrain(a) : result(false, 'CHI <treno>');
+    case 'AUT': return a ? authCantiere(a) : result(false, 'AUT <treno cantiere>');
+    case 'ATT': return a ? waitCall(a) : result(false, 'ATT <treno>');
+    case 'TEL': { if (!a) return result(false, 'TEL DC|MT|CEI|<treno> testo'); const to = a.toUpperCase(); return telMsg(['DC', 'MT', 'CEI'].includes(to) ? to : a, p.slice(2).join(' ') || '...'); }
+    case 'CEI': return a ? ceiRequest(normEnte(a)) : result(false, 'CEI <ente>');
+    case 'LIB': return a ? libArt(normEnte(a)) : result(false, 'LIB <CdB>');
+    case 'INT': if (!a) return result(false, 'INT SI | INT NO | INT <ente> <minuti>'); if (a.toUpperCase() === 'SI') return intAnswer(true); if (a.toUpperCase() === 'NO') return intAnswer(false); return intByDM(normEnte(a), +b || 30);
+    case 'RIP': return a ? intRestore(normEnte(a)) : result(false, 'RIP <ente>');
+    case 'DC': return a ? intToDC(a) : result(false, 'DC <n. interruzione>');
+    case 'CO': return a ? changeOrient(a.toUpperCase()) : result(false, 'CO LU|LL|RU|RL');
+    case 'VI': { const rid = (a || '').toUpperCase().replace('ASTA', 'M'); if (!ROUTES[rid]) return result(false, 'VI <itinerario>, es. VI 2-III'); return autRoute(rid); }
+    case 'ANN': { const s = findSig(a || ''); return s ? annul(s) : result(false, 'ANN <segnale> (es. ANN 2, ANN IV→)'); }
+    case 'HELP': case '?': document.querySelector('details').open = true; return result(true, 'Elenco codici nel riquadro "Come si usa"');
+  }
+  if (ROUTES[c.replace('ASTA', 'M')]) return formRoute(c.replace('ASTA', 'M'));
+  return result(false, `Codice non riconosciuto: ${raw}`);
+}
+function normEnte(t) {
+  const u = t.toUpperCase();
+  if (S.cdb[u] || LINES[u]) return u;
+  const m = u.match(/^PBI\s?(\d+D?)$/); if (m) return 'PBI' + m[1].toLowerCase().replace('d', 'd');
+  const sw = Object.keys(SWN).find(k => k.toUpperCase() === u || SWN[k].toUpperCase().split('/').includes(u) || SWN[k].toUpperCase() === u); if (sw) return sw;
+  const s = findSig(u); if (s) return s;
+  const pl = Object.keys(PLS).find(k => k === u || PLS[k].km === t); if (pl) return pl;
+  return t;
+}
+const hist = []; let hi = 0;
+function runCmd() {
+  const ce = $('cmd'), v = ce.value.trim(); if (!v) return;
+  hist.push(v); hi = hist.length; ce.value = '';
+  show(execCommand(v));
+}
+$('cmdForm').addEventListener('submit', e => { e.preventDefault(); runCmd(); });
+$('cmd').addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' && hist.length) { hi = Math.max(0, hi - 1); e.target.value = hist[hi]; e.preventDefault(); }
+  if (e.key === 'ArrowDown') { hi = Math.min(hist.length, hi + 1); e.target.value = hist[hi] || ''; e.preventDefault(); }
+});
+for (const id of ['reqs', 'ttBody', 'calls']) $(id).addEventListener('click', e => { const b = e.target.closest('button[data-c]'); if (b) show(execCommand(b.dataset.c)); });
+$('ttBody').addEventListener('change', e => {
+  const sl = e.target.closest('select[data-plan]'); if (!sl) return;
+  const t = S.TT.find(x => String(x.uid) === sl.dataset.plan); if (!t || !sl.value) return;
+  t.plan = sl.value; log(`Binario di ricevimento programmato per ${t.cat} ${t.num}: ${t.plan}`); sl.blur(); renderTT(); renderBoard();
+});
+// ---------- velocità ----------
+const SPEEDS = [0, 1, 2, 5, 10, 30]; let lastSpeed = 2;
+function setSpeed(v) {
+  speed = v; if (v > 0) lastSpeed = v;
+  const sp = $('speeds');
+  [...sp.children].forEach((c, i) => c.classList.toggle('on', i > 0 && SPEEDS[i] === speed));
+  const pb = sp.children[0]; if (pb) { pb.textContent = speed > 0 ? '❚❚' : '▶'; pb.title = speed > 0 ? 'Pausa' : 'Avvia'; pb.classList.toggle('on', speed === 0); pb.style.minWidth = '34px'; }
+}
+for (const [lab, v] of [['❚❚', 0], ['×1', 1], ['×2', 2], ['×5', 5], ['×10', 10], ['×30', 30]]) {
+  const b = document.createElement('button'); b.className = 'hb'; b.textContent = lab; b.title = v ? 'Velocità ' + lab : 'Pausa';
+  b.onclick = () => setSpeed(v ? v : (speed > 0 ? 0 : lastSpeed || 2));
+  $('speeds').appendChild(b);
+}
+DOWL.forEach((d, i) => $('startDay').add(new Option(d, i)));
+for (let h = 0; h < 24; h++) $('startHour').add(new Option(String(h).padStart(2, '0') + ':00', h));
+$('startHour').add(new Option('05:30', 5.5)); $('startHour').value = 5.5;
+$('faults').onchange = e => S.faultsOn = e.target.checked;
+$('sound').onchange = e => soundOn = e.target.checked;
+$('restart').onclick = () => start(+$('startDay').value, +$('startHour').value);
+
+// ---------- telefono ----------
+onPhone = p => {
+  const chat = $('chat'); if (!chat) return;
+  const d = document.createElement('div');
+  d.className = 'm ' + (p.from === 'DM' ? 'dm' : p.from === 'DC' ? 'st' : p.from === MT ? 'mt' : p.from === 'Capo cantiere' ? 'cc' : p.from === 'CEI' ? 'ce' : 'adc');
+  d.innerHTML = `<small>${fmt(p.t)} · ${p.from === 'DC' ? 'DC Ve. Mestre' : p.from}</small>`; d.appendChild(document.createTextNode(p.text));
+  chat.appendChild(d); while (chat.children.length > 150) chat.firstChild.remove();
+  chat.scrollTop = chat.scrollHeight;
+};
+$('telForm').addEventListener('submit', e => { e.preventDefault(); const to = $('telTr').value, tx = $('telTxt'); if (!to || !tx.value.trim()) return; show(telMsg(to, tx.value.trim())); tx.value = ''; });
+$('telCall').addEventListener('click', () => { const v = $('telTr').value; if (!v) return; if (['DC', 'MT', 'CEI'].includes(v)) { msg('Scrivi il messaggio e premi Invia', 'warn'); return; } show(callTrain(v)); });
+function renderPhone() {
+  let h = '';
+  for (const tr of S.trains) {
+    if (!tr.called || tr.callAck && tr.reported === 'done') { }
+    if (!tr.called) continue;
+    if (tr.callSig && tr.callSig.startsWith('G:')) {
+      if (tr.m40aPend) continue;
+      const gid = tr.callSig.slice(2);
+      h += `<div class="c ${tr.callAck ? '' : 'ring'}"><span>☎ ${tr.cat} ${tr.num} fermo al ${gid.replace('PBI', 'PBI ')}</span><span><button class="hb sm" data-c="M40A ${tr.num}">M40a</button> <button class="hb sm" data-c="ATT ${tr.num}">Attendere</button></span></div>`;
+      continue;
+    }
+    const rid = tr.await && S.sigActive[tr.await], a = rid && S.active[rid];
+    if (a && (a.auth || a.m40)) continue;
+    h += `<div class="c ${tr.callAck ? '' : 'ring'}"><span>☎ ${tr.cat} ${tr.num} fermo a ${tr.await ? sigLab(tr.await) : ''}${a && a.state === 'set' ? ' · itinerario ' + rid.replace('-', '→') + ' formato' : ''}</span><span>${tr.t.can ? `<button class="hb sm" data-c="AUT ${tr.num}">Autorizza</button>` : `<button class="hb sm" data-c="M40 ${tr.num}">M40</button>`} <button class="hb sm" data-c="ATT ${tr.num}">Attendere</button></span></div>`;
+  }
+  for (const x of S.ints) if (x.state === 'pending') h += `<div class="c ${x.ack ? '' : 'ring'}"><span>☎ Manutenzione: interruzione ${cname(x.ente)} fino alle ${fmtM(x.to)}</span><span><button class="hb sm" data-c="INT SI">Concedi</button> <button class="hb sm" data-c="INT NO">Nega</button></span></div>`;
+  for (const tr of S.trains) if (tr.stab && tr.ready && !(S.sigActive.QM && S.active[S.sigActive.QM].m40)) h += `<div class="c"><span>☎ Capo cantiere ${tr.num}: pronto a uscire dall'asta verso S. Giorgio${S.sigActive.QM ? ' · itinerario formato' : ' (formare asta → 1 o 2 con chiave FD101 liberata)'}</span><span><button class="hb sm" data-c="AUT ${tr.num}">Autorizza</button></span></div>`;
+  $('calls').innerHTML = h || '<div class="c" style="color:#8b939c">Nessuna chiamata in attesa</div>';
+  const sel = $('telTr'), cur = sel.value, opts = ['DC', 'MT', 'CEI'].concat(S.trains.map(t => String(t.num)));
+  if (sel.dataset.k !== opts.join()) { sel.innerHTML = opts.map(n => n === 'DC' ? '<option value="DC">DC Ve. Mestre</option>' : n === 'MT' ? '<option value="MT">Manutenzione RFI</option>' : n === 'CEI' ? '<option value="CEI">CEI (tecnici)</option>' : `<option value="${n}">AdC ${trainByNum(n).cat} ${n}</option>`).join(''); sel.dataset.k = opts.join(); if (opts.includes(cur)) sel.value = cur; }
+}
+// ---------- Mod. M40 DL (B.m./B.ca): tutte le voci ----------
+let m40num = null;
+const M40G = [['it', 'ITINERARIO', [1, 2, 3, 4, 5]], ['di', 'DISTANZIAMENTO', [6, 7, 8, 9, 10]], ['bi', 'BINARIO ILLEGALE', [11, 12, 13, 14]], ['va', 'VARIE', [15, 16]]];
+function openM40(num) {
+  const c = m40Context(num); if (c.err) { msg(c.err, 'err'); return; }
+  if (c.tr.t.can) { msg(`${c.tr.cat} ${c.tr.num} è un treno cantiere in interruzione: autorizza il movimento verbalmente (AUT ${c.tr.num})`, 'warn'); return; }
+  m40num = num;
+  $('m40n').textContent = S.m40n + 1; $('m40d').textContent = DOWL[Math.floor(S.simT / 86400) % 7]; $('m40o').textContent = fmtM(S.simT);
+  $('m40t').textContent = `${c.tr.cat} ${c.tr.num}`;
+  const plBox = Object.keys(PLS).map(k => `<label><input type="checkbox" class="m40pl" value="${k}"> ${PLS[k].cmd ? 'PL' : 'PLA'} km ${PLS[k].km}</label>`).join('');
+  $('m40list').innerHTML = M40G.map(([cls, lab, ns]) => `<fieldset class="${cls}"><legend>${lab}</legend>${ns.map(n => n === 16
+    ? `<label><input type="checkbox" value="16"><b>16</b><span><input type="text" id="m40free" placeholder="prescrizione libera" value="${m40Free16(c)}" style="width:520px"></span></label>`
+    : `<label><input type="checkbox" value="${n}"><b>${n}</b><span>${M40TXT[n](c)}${n === 15 ? '' : ''}</span></label>${n === 15 ? `<div class="sub">${plBox}</div>` : ''}`).join('')}</fieldset>`).join('');
+  const ph = $('pTel').ownerDocument; if ($('m40').ownerDocument !== ph) ph.body.appendChild($('m40'));
+  $('m40').style.display = 'flex';
+}
+$('m40cancel').onclick = () => { $('m40').style.display = 'none'; m40num = null; };
+$('m40send').onclick = () => {
+  const box = $('m40list');
+  const list = [...box.querySelectorAll('label > input[type=checkbox]:checked')].map(i => +i.value).filter(Boolean);
+  const pls = [...box.querySelectorAll('.m40pl:checked')].map(i => i.value);
+  const free = (box.querySelector('#m40free') || {}).value || '';
+  if (pls.length && !list.includes(15)) list.push(15);
+  $('m40').style.display = 'none'; show(sendM40(m40num, list, pls, free)); m40num = null;
+};
+// ---------- Mod. M40a ----------
+let m40anum = null;
+function openM40a(num) {
+  const c = m40aContext(num); if (c.err) { msg(c.err, 'err'); return; }
+  m40anum = num;
+  $('m40an').textContent = S.m40n + 1; $('m40at').textContent = c.tr.num; $('m40ad').textContent = DOWL[Math.floor(S.simT / 86400) % 7] + ' ' + fmtM(S.simT);
+  $('m40aa').textContent = `Agente di condotta del treno ${c.tr.cat} ${c.tr.num}`;
+  const known = c.tr.reported || c.tr.called;
+  const aTxt = known ? (c.letterA ? 'lettera A accesa (comunicata dall\'AdC)' : 'lettera A spenta (comunicata dall\'AdC)') : 'stato della lettera A non ancora comunicato: chiamare il treno';
+  const opts = [...c.nextList.map(id => `<option value="${id.replace('PBI', '')}">PBI ${id.replace('PBI', '')}</option>`), `<option value="${c.toStation}">${c.toStation}</option>`].join('');
+  const plaBox = PLAS.map(k => `<label><input type="checkbox" class="m40apl" value="${k}" checked> PLA km ${PLS[k].km}</label>`).join('');
+  $('m40alist').innerHTML = `<div class="mrow"><small>Segnale ${c.id.replace('PBI', 'PBI ')} a via impedita · ${aTxt}</small></div><fieldset class="it"><legend>SI ORDINA</legend>
+    <label class="${c.letterA ? '' : 'dis'}"><input type="checkbox" id="oOSR" ${c.letterA ? '' : 'disabled'}><span>Nulla osta effettuazione Operazione Supero Rosso al segnale di blocco ${c.n} (solo con lettera A accesa).</span></label>
+    <label><input type="checkbox" id="oPAR"><span>Partite dal PBI ${c.n} con segnale disposto a via impedita.</span></label>
+    <label><input type="checkbox" id="oTR"><span>Tratto da PBI <select id="oFrom"><option value="${c.n}">${c.n}</option></select> a <select id="oTo">${opts}</select> libero da treni.</span></label>
+    ${c.pla ? `<label><input type="checkbox" id="oPL"><span>Effettuate marcia a vista specifica ai PL:</span></label><div class="sub">${plaBox}</div>` : ''}
+  </fieldset>`;
+  const ph = $('pTel').ownerDocument; if ($('m40a').ownerDocument !== ph) ph.body.appendChild($('m40a'));
+  $('m40a').style.display = 'flex';
+}
+$('m40acancel').onclick = () => { $('m40a').style.display = 'none'; m40anum = null; };
+$('m40asend').onclick = () => {
+  const b = $('m40alist'), q = s => b.querySelector(s);
+  const o = { osr: q('#oOSR') && q('#oOSR').checked, par: q('#oPAR').checked, tratto: q('#oTR').checked, from: q('#oFrom').value, to: q('#oTo').value, pl: !!(q('#oPL') && q('#oPL').checked), pls: [...b.querySelectorAll('.m40apl:checked')].map(i => i.value) };
+  if (o.to && /^\d/.test(o.to)) o.to = 'PBI ' + o.to;
+  $('m40a').style.display = 'none'; show(sendM40a(m40anum, o)); m40anum = null;
+};
+// ---------- orario grafico ----------
+const TG_ROWS = [[90.962, 'S. GIORGIO D.N.', 1], [84.6, 'PBI 32 / 33', 0], [78.9, 'PBI 30 / 31', 0], [73.289, 'LATISANA L.B.', 1], [65.35, 'PBI 26 / 27', 0], [59.342, 'PORTOGRUARO C.', 1]];
+function plannedPts(t) {
+  const v = KMH(Math.min(t.vmax, 140)) * 0.92, a = 73.289;
+  return t.dir === 'R' ? [[t.ready, 90.962], [t.arr, a], [t.dep, a], [t.dep + LINE_TOT.PG / v, 59.342]] : [[t.ready, 59.342], [t.arr, a], [t.dep, a], [t.dep + LINE_TOT.SG / v, 90.962]];
+}
+function renderTG() {
+  const cv = $('tg'); if (!cv) return;
+  const box = cv.parentElement, w = Math.max(300, box.clientWidth), h = Math.max(200, box.clientHeight);
+  const dpr = (cv.ownerDocument.defaultView || window).devicePixelRatio || 1;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.width = w + 'px'; cv.style.height = h + 'px'; }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const span = (+$('tgWin').value || 3) * 3600, t0 = S.simT - span * 0.3, t1 = t0 + span;
+  const Lm = 118, Rm = 14, T = 16, B = 26, X = t => Lm + (t - t0) / (t1 - t0) * (w - Lm - Rm), Y = km => T + (90.962 - km) / (90.962 - 59.342) * (h - T - B);
+  g.fillStyle = '#0f1213'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#1d2a22'; g.fillRect(Lm, Y(74.0), w - Lm - Rm, Y(72.4) - Y(74.0));
+  g.font = '10px ui-monospace,Menlo,Consolas,monospace'; g.textBaseline = 'middle';
+  const step = span <= 3 * 3600 ? 600 : 1800;
+  for (let tt = Math.ceil(t0 / step) * step; tt <= t1; tt += step) {
+    const x = X(tt), major = tt % 3600 === 0;
+    g.strokeStyle = major ? '#3a4448' : '#232b2e'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, T); g.lineTo(x, h - B); g.stroke();
+    g.fillStyle = major ? '#c9cfd3' : '#7f8a84'; g.textAlign = 'center'; g.fillText(fmtM(tt), x, h - B + 12);
+  }
+  for (const [km, name, st] of TG_ROWS) {
+    const y = Y(km);
+    g.strokeStyle = st ? '#56635d' : '#3a4448'; g.setLineDash(st ? [] : [4, 4]); g.beginPath(); g.moveTo(Lm, y); g.lineTo(w - Rm, y); g.stroke(); g.setLineDash([]);
+    g.fillStyle = st ? '#e6ece8' : '#b48cff'; g.textAlign = 'right'; g.font = (st ? 'bold ' : '') + '10px ui-monospace,Menlo,Consolas,monospace'; g.fillText(name, Lm - 6, y);
+  }
+  // interruzioni
+  for (const x of S.ints) if (x.state === 'active' || x.state === 'granted') { const a = Math.max(t0, x.started || x.from), b = Math.min(t1, x.to); if (b > a) { g.fillStyle = '#6a242055'; g.fillRect(X(a), Y(90.962), X(b) - X(a), Y(74.0) - Y(90.962)); g.fillStyle = '#ff8a80'; g.textAlign = 'left'; g.fillText(`INT ${x.ente === 'LU' ? 'pari' : x.ente === 'LL' ? 'dispari' : x.ente}`, X(a) + 4, Y(88)); } }
+  g.font = '10px ui-monospace,Menlo,Consolas,monospace';
+  for (const t of S.TT) {
+    const pp = t.can ? [] : plannedPts(t);
+    const col = CATS[t.cat].col;
+    if (pp.length && !(pp[pp.length - 1][0] < t0 || pp[0][0] > t1)) { g.strokeStyle = col; g.globalAlpha = 0.5; g.lineWidth = 1; g.setLineDash([5, 4]); g.beginPath(); pp.forEach(([tt, km], i) => i ? g.lineTo(X(tt), Y(km)) : g.moveTo(X(tt), Y(km))); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
+    const hs = t.hist || [], tr = S.trains.find(x => x.t === t);
+    const act = hs.filter(p => p[0] >= t0 - 600); if (tr && !tr.stab) { const p = pointAt(tr.path, tr.head); act.push([S.simT, kmOfX(p[0])]); }
+    if (act.length > 1) { g.strokeStyle = col; g.lineWidth = 2.2; g.beginPath(); act.forEach(([tt, km], i) => i ? g.lineTo(X(tt), Y(km)) : g.moveTo(X(tt), Y(km))); g.stroke(); }
+    const lp = pp.find(([tt]) => tt >= t0) || (act[0]); if (!lp) continue;
+    const lx = Math.max(Lm + 2, X(lp[0])), ly = Y(lp[1]) + (t.dir === 'R' ? 9 : -9);
+    if (lx < w - Rm - 20 && lp[0] <= t1) { g.fillStyle = col; g.textAlign = 'left'; g.fillText(`${t.cat} ${t.num}`, lx + 3, ly); }
+  }
+  const xn = X(S.simT); g.strokeStyle = '#ff3b30'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(xn, T - 4); g.lineTo(xn, h - B); g.stroke();
+  g.fillStyle = '#ff3b30'; g.textAlign = 'center'; g.fillText(fmtM(S.simT), xn, 8);
+}
+$('tgWin').addEventListener('change', renderTG);
+// ---------- tabellone ----------
+let boardTab = 'A';
+const VET = { R: ['Regionale', '#3f9b2f'], RV: ['Regionale', '#3f9b2f'], IC: ['Intercity', '#1d4f91'], FR: ['Frecciarossa', '#c8102e'], ITA: ['Italo', '#8c1d40'] };
+$('pBoard').addEventListener('click', e => { const b = e.target.closest('button[data-bt]'); if (!b) return; boardTab = b.dataset.bt; $('pBoard').querySelectorAll('button[data-bt]').forEach(x => x.classList.toggle('on', x === b)); renderBoard(); });
+function renderBoard() {
+  const arr = boardTab === 'A', now = S.simT;
+  $('bHead').innerHTML = arr ? '<th>Vettore</th><th>Categoria</th><th>Treno</th><th>Provenienza</th><th>Orario</th><th>Ritardo</th><th>Binario</th><th>In arrivo</th><th>Informazioni</th>'
+    : '<th>Vettore</th><th>Categoria</th><th>Treno</th><th>Destinazione</th><th>Orario</th><th>Ritardo</th><th>Binario</th><th>Informazioni</th>';
+  const list = S.TT.filter(t => CATS[t.cat].pax && t.stops).filter(t => {
+    const tr = S.trains.find(x => x.t === t);
+    if (arr) return (t.arrT ? now - t.arrT < 180 : true) && !t.done && t.arr - now < 4 * 3600 && !(tr && tr.rec);
+    return !(tr && tr.rec && now - (t.depT || now) > 120) && !t.done && t.dep - now < 4 * 3600;
+  }).sort((a, b) => (arr ? a.arr - b.arr : a.dep - b.dep)).slice(0, 12);
+  let h = '';
+  for (const t of list) {
+    const tr = S.trains.find(x => x.t === t), v = VET[t.cat] || ['', '#333'];
+    let rit = 0, info = '', inArr = '';
+    if (arr) { rit = t.arrT ? Math.max(0, Math.floor((t.arrT - t.arr) / 60)) : Math.max(0, Math.ceil((now - t.arr) / 60)); if (t.arrT) info = 'Arrivato'; else if (tr) { inArr = '<span class="blink">●</span>'; info = tr.track ? 'In arrivo al binario' : 'In arrivo'; } }
+    else { rit = tr && tr.rec ? (t.delay || 0) : Math.max(0, Math.ceil((now - t.dep) / 60)); if (tr && tr.rec) info = 'Partito'; else if (t.arrT) info = 'In partenza'; else if (tr) info = 'In arrivo'; }
+    const bin = { I: '1', II: '2', III: '3', IV: '4' }[t.track || t.plan] || '';
+    h += `<tr><td class="vet" style="color:${v[1]}">${v[0]}</td><td class="catb">${t.cat}</td><td>${t.num}</td><td>${arr ? t.orig : t.dest}</td><td>${fmtM(arr ? t.arr : t.dep)}</td><td class="rit">${rit ? rit + "'" : ''}</td><td style="text-align:center;font-weight:700">${bin}</td>${arr ? `<td style="text-align:center">${inArr}</td>` : ''}<td>${info}</td></tr>`;
+  }
+  for (let i = list.length; i < 8; i++) h += `<tr>${'<td>&nbsp;</td>'.repeat(arr ? 9 : 8)}</tr>`;
+  $('bBody').innerHTML = h; $('bClock').textContent = fmtM(now);
+}
+// ---------- orario di servizio e richieste ----------
+function trainStatus(t) {
+  if (t.done) return t.delay ? `licenziato +${t.delay}'` : 'licenziato in orario';
+  const tr = S.trains.find(x => x.t === t);
+  if (!tr) return t.status;
+  if (tr.stab) return tr.ready ? 'pronto a uscire dall\'asta' : 'ricoverato nell\'asta';
+  if (tr.rec) return `in linea verso ${SIDES[tr.toSide].name}`;
+  if (!tr.track) return tr.v < 0.02 ? `fermo a ${sigLab(tr.await)}` : 'in linea, in arrivo';
+  if (tr.stops && !tr.served) return tr.v < 0.02 && tr.stopS != null && tr.head >= tr.stopS - 1 ? `in sosta bin. ${tr.track}` : `entra bin. ${tr.track}`;
+  return tr.v < 0.02 ? `bin. ${tr.track}, attende ${tr.await ? sigLab(tr.await) : 'via'}` : `in corsa bin. ${tr.track}`;
+}
+function svcLabel(t) { if (CATS[t.cat].pax) return t.stops ? 'fermata' : 'transito'; if (t.stopType === 'transito') return 'transito'; if (t.stopType === 'sosta programmata') return 'sosta programmata' + (t.precFor ? ` (prec. ${t.precCat} ${t.precFor})` : ''); if (t.dwell) return `${t.stopType} ${Math.round(t.dwell / 60)}'`; return t.stopType; }
+function binCell(t) {
+  if (!t.stops || t.can) return t.track ? `<b>${t.track === 'M' ? 'asta' : t.track}</b>` : '<span style="color:#666">—</span>';
+  if (t.track || t.done) return `<b>${t.track || t.plan || '—'}</b>`;
+  const opts = ['I', 'II', 'III', 'IV'].filter(k => t.len <= TRACKM[k]).map(k => `<option value="${k}" ${t.plan === k ? 'selected' : ''}>${k}</option>`).join('');
+  return `<select class="bsel" data-plan="${t.uid}" title="Binario di ricevimento programmato">${opts}</select>`;
+}
+function renderTT() {
+  const tb = $('ttBody');
+  { const ae = tb.ownerDocument.activeElement; if (ae && ae.tagName === 'SELECT' && tb.contains(ae)) return; }
+  let h = '';
+  const list = S.TT.filter(t => (!t.done && t.ready - S.simT < 2.5 * 3600) || (t.done && S.simT - t.doneT < 1200)).sort((a, b) => a.arr - b.arr);
+  for (const t of list) {
+    const tr = S.trains.find(x => x.t === t), live = !!tr, wait = !t.sent && S.simT >= t.ready;
+    let st = trainStatus(t);
+    if (t.dcHold) st += ` · <span style="color:#ffd54f">DC: attendere ${t.dcHold}</span>`;
+    const showArr = !(CATS[t.cat].pax && !t.stops);
+    h += `<tr class="${t.done ? 'done' : live ? 'live' : wait ? 'wait' : ''}"><td><span class="cat" style="background:${CATS[t.cat].col}">${t.cat}</span> ${t.num}<div class="if">${t.impresa}</div></td><td>${t.orig} → ${t.dest}<div class="if">${t.len} m · ${t.vmax} km/h · ${t.can ? 'treno cantiere' : t.dir === 'R' ? 'pari, da S. Giorgio' : 'dispari, da Portogruaro'}</div></td><td>${showArr ? fmtM(t.arr) : '—'}</td><td>${fmtM(t.dep)}</td><td>${binCell(t)}</td><td class="note">${svcLabel(t)}${t.note && !t.precFor ? `<div class="if">${t.note}</div>` : ''}</td><td>${st}</td></tr>`;
+  }
+  tb.innerHTML = h || '<tr><td colspan="7" style="color:#8b939c">Nessun treno nelle prossime ore</td></tr>';
+  const d = Math.floor(S.simT / 86400) % 7;
+  $('ttDay').textContent = DOWL[d] + (d <= 4 ? ' · feriale' : d === 5 ? ' · sabato' : ' · festivo');
+  let r = '';
+  for (const x of S.ints) {
+    if (x.state === 'granted') r += `<div class="r hot"><span>Interruzione n. ${x.id} ${cname(x.ente)} concessa (fino alle ${fmtM(x.to)}) — ${x.dc ? 'comunicata al DC, inizia appena libero' : '<b>da comunicare al DC</b>'}</span>${x.dc ? '' : `<button class="hb sm" data-c="DC ${x.id}">DC</button>`}</div>`;
+    if (x.state === 'active') r += `<div class="r hot"><span>Interruzione n. ${x.id} ${cname(x.ente)} in atto fino alle ${fmtM(x.to)}${x.can ? ` · treno cantiere ${x.can.mode === 'out' ? 'in uscita dall\'asta' : 'in arrivo per il ricovero'}` : ''}</span><button class="hb sm" data-c="RIP ${x.ente}">RIP</button></div>`;
+  }
+  for (const t of S.TT) if (t.dcHold && !t.done) r += `<div class="r hot"><span>Ordine DC: trattenere ${t.cat} ${t.num} fino al ${t.dcHold}</span></div>`;
+  for (const L in LINES) { const st = S.line[L]; if (st.orient !== LINES[L].legal && !st.interr) r += `<div class="r"><span>Blocco ${cname(L)} orientato in senso illegale</span><button class="hb sm" data-c="CO ${L}">CO</button></div>`; }
+  if (S.key === 'R') r += `<div class="r hot"><span>Chiave FD101 liberata: deviatoio 101 al personale di manutenzione (${S.sw.D101.pos === 'R' ? 'rovescio' : 'normale'})</span></div>`;
+  for (const k in S.faults) { const f = S.faults[k]; r += `<div class="r bad"><span>Guasto ${cname(k)}${f.type === 'blk' ? (f.letterA ? ' (lettera A accesa)' : ' (lettera A spenta)') : ''} — ${f.state === 'guasto' ? 'da segnalare al CEI' : f.state === 'attesa' ? 'tecnici in arrivo ' + fmtM(f.t1) : 'riparazione in corso, fine ' + fmtM(f.t1)}</span>${f.state === 'guasto' ? `<button class="hb sm" data-c="CEI ${k}">CEI</button>` : ''}${f.type === 'bca' ? `<button class="hb sm" data-c="TLBCA ${k}">TlBca</button>` : ''}</div>`; }
+  $('reqs').innerHTML = r || '<div class="empty">Nessuna richiesta pendente</div>';
+  $('sDelay').textContent = S.paxDelay + "'"; $('sServed').textContent = S.served; $('sIrr').textContent = S.irreg; $('sPresc').textContent = S.presc;
+}
+const execOrig = execCommand;
+execCommand = function (raw) { const p = raw.trim().split(/\s+/); if (p[0].toUpperCase() === 'TLBCA') return bcaReset(/^R/.test(p[1] || '') ? 'PG' : 'SG'); return execOrig(raw); };
+
+// ---------- finestre sganciabili ----------
+const PANELS = [...document.querySelectorAll('.panel')];
+const STYLE = document.querySelector('style').textContent;
+function detach(p) {
+  if (p._win && !p._win.closed) { p._win.focus(); return; }
+  if (p.classList.contains('floating')) { dock(p); return; }
+  const r = p.getBoundingClientRect(), title = p.querySelector('.ph span').textContent;
+  let w = null;
+  try { w = window.open('', 'cs_' + p.id, `popup=yes,width=${Math.max(420, Math.round(r.width))},height=${Math.max(320, Math.round(r.height) + 30)}`); } catch (e) { w = null; }
+  if (!w || !w.document) { floatPanel(p); return; }
+  w.document.open(); w.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>${title} — Circolazione Simulatore</title><style>${STYLE}</style></head><body class="popup"></body></html>`); w.document.close();
+  p._ph = document.createComment('panel'); p.parentNode.insertBefore(p._ph, p);
+  w.document.body.appendChild(p); p._win = w;
+  p.querySelector('.dt').textContent = '⇲';
+  w.addEventListener('pagehide', () => setTimeout(() => dock(p), 0));
+}
+function dock(p) {
+  if (p._ph) { const w = p._win; p._ph.parentNode.insertBefore(p, p._ph); p._ph.remove(); p._ph = null; p._win = null; try { if (w && !w.closed) w.close(); } catch (e) { } }
+  if (p.classList.contains('floating')) { p.classList.remove('floating'); p.style.cssText = p.dataset.css || ''; }
+  for (const id of ['m40', 'm40a']) if ($(id).ownerDocument !== document) document.body.appendChild($(id));
+  p.querySelector('.dt').textContent = '⧉';
+}
+function floatPanel(p) {
+  const r = p.getBoundingClientRect();
+  p.dataset.css = p.style.cssText; p.classList.add('floating');
+  Object.assign(p.style, { left: Math.max(10, r.left + 30) + 'px', top: Math.max(10, r.top + 30) + 'px', width: Math.min(r.width, innerWidth - 40) + 'px', height: Math.min(r.height + 10, innerHeight - 40) + 'px', marginTop: '0' });
+  p.querySelector('.dt').textContent = '⇲';
+}
+for (const p of PANELS) {
+  p.querySelector('.dt').addEventListener('click', e => { e.stopPropagation(); (p._win || p.classList.contains('floating')) ? dock(p) : detach(p); });
+  const h = p.querySelector('.ph');
+  h.addEventListener('pointerdown', e => {
+    if (!p.classList.contains('floating') || e.target.closest('button')) return;
+    const sx = e.clientX - p.offsetLeft, sy = e.clientY - p.offsetTop;
+    const mv = ev => { p.style.left = (ev.clientX - sx) + 'px'; p.style.top = Math.max(0, ev.clientY - sy) + 'px'; };
+    const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up);
+  });
+}
+addEventListener('beforeunload', () => { saveLocal(true); for (const p of PANELS) if (p._win && !p._win.closed) p._win.close(); });
+
+// ---------- salvataggio ----------
+const SAVEKEY = 'cs-latisana-save';
+function toast(t) { const e = $('toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(e._t); e._t = setTimeout(() => e.style.display = 'none', 2500); }
+function saveLocal(quiet) { try { localStorage.setItem(SAVEKEY, serialize({ speed })); if (!quiet) toast(`Turno salvato — ${fmt(S.simT)}`); return true; } catch (e) { if (!quiet) toast('Salvataggio nel browser non disponibile: usa Esporta'); return false; } }
+function restoreUI(extra) {
+  $('log').innerHTML = ''; $('chat').innerHTML = '';
+  for (const l of S.logs) onLog(l.m, l.cls, l.t);
+  for (const ph of S.phone) onPhone(ph);
+  setSpeed(0);
+  $('faults').checked = S.faultsOn; lastBanco = ''; lastPL = ''; renderTT(); renderPhone();
+}
+function loadFrom(str, label) {
+  try { const extra = deserialize(str); restoreUI(extra); toast(`${label} — ${fmt(S.simT)}`); msg(`Turno ripreso: ${fmt(S.simT)}`); }
+  catch (e) { console.error(e); toast('Salvataggio non utilizzabile'); }
+}
+$('bSave').onclick = () => saveLocal(false);
+$('bLoad').onclick = () => { let v = null; try { v = localStorage.getItem(SAVEKEY); } catch (e) { } v ? loadFrom(v, 'Turno caricato') : toast('Nessun turno salvato nel browser'); };
+$('bExp').onclick = () => {
+  const blob = new Blob([serialize({ speed })], { type: 'application/json' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `turno-latisana-${DOW[Math.floor(S.simT / 86400) % 7]}-${fmtM(S.simT).replace(':', '')}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('File della partita esportato');
+};
+$('fImp').onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => loadFrom(t, 'Turno importato')); e.target.value = ''; };
+
+// ---------- avvio e ciclo ----------
+function start(day, hour) {
+  newState(day, hour);
+  for (const id of ['m40', 'm40a']) $(id).style.display = 'none';
+  S.faultsOn = $('faults').checked;
+  $('log').innerHTML = ''; $('chat').innerHTML = ''; lastBanco = ''; lastPL = '';
+  log(`Presa di servizio del DM di ${STN} — ${DOWL[day]} ${fmtM(S.simT)}. Regime di Dirigenza Centrale (DC Ve. Mestre), blocchi in senso legale, treno cantiere ricoverato nell'asta.`, 'ok');
+  renderTT(); renderPhone(); setSpeed(lastSpeed || 2);
+}
+buildQL();
+bindBanco(document);
+{
+  // avvio dal menu principale: ?day=&hour= nuovo turno, ?resume=1 riprende l'ultimo turno salvato
+  const q = new URLSearchParams(location.search);
+  const d = q.has('day') ? +q.get('day') : 0, h = q.has('hour') ? +q.get('hour') : 5.5;
+  $('startDay').value = d; $('startHour').value = h;
+  start(d, h); setSpeed(0);
+  let sv = null; try { sv = localStorage.getItem(SAVEKEY); } catch (e) { }
+  if (q.get('resume') === '1' && sv) loadFrom(sv, 'Turno ripreso');
+  else msg('Turno pronto: premi ▶ per avviare il tempo. Codici: HELP.');
+}
+$('bMenu').onclick = () => { saveLocal(true); location.href = 'index.html'; };
+let last = performance.now(), ringT = 0, ttT = 0, autoT = 0, loopErr = false;
+function loop() {
+  const now = performance.now(), dtr = Math.min(3, (now - last) / 1000); last = now;
+  let sim = dtr * speed;
+  try { while (sim > 0) { const d = Math.min(0.1, sim); tick(d); sim -= d; } }
+  catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore interno della simulazione: ${e.message}`, 'err'); window.__showErr && window.__showErr('simulazione: ' + (e.stack || e.message).split('\n').slice(0, 4).join('\n')); } }
+  ringT += dtr;
+  if (ringT > 3) { ringT = 0; if (speed > 0 && (S.trains.some(t => t.called && !t.callAck) || S.ints.some(x => x.state === 'pending' && !x.ack))) onSound('phone'); }
+  ttT += dtr; if (ttT > 0.5) { ttT = 0; renderTT(); renderPhone(); renderBoard(); renderTG(); }
+  try { renderQL(); renderBanco(); $('clock').textContent = fmt(S.simT); } catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore di visualizzazione: ${e.message}`, 'err'); window.__showErr && window.__showErr('visualizzazione: ' + (e.stack || e.message).split('\n').slice(0, 4).join('\n')); } }
+  autoT += dtr; if (autoT > 30) { autoT = 0; saveLocal(true); }
+  for (const p of PANELS) if (p._win && p._win.closed) dock(p);
+}
+setInterval(loop, 50);
+
+</script>
+</body>
+</html>
