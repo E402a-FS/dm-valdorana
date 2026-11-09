@@ -940,7 +940,7 @@ function serialize(extra) {
     trains: S.trains.map(tr => Object.assign({}, tr, { t: tr.t.uid })),
     active: Object.fromEntries(Object.entries(S.active).map(([k, a]) => [k, Object.assign({}, a, { manual: (a.manual || []).map(x => ROUTES[k].segs.indexOf(x)) })])),
   });
-  return JSON.stringify({ app: 'dm-valdorana', v: 1, saved: Date.now(), UID, S: o, extra: extra || {} });
+  return JSON.stringify({ app: 'dm-valdorana', v: 2, saved: Date.now(), UID, S: o, extra: extra || {} });
 }
 function deserialize(str) {
   const o = JSON.parse(str);
@@ -949,8 +949,42 @@ function deserialize(str) {
   const by = new Map(s.TT.map(t => [t.uid, t]));
   s.trains = s.trains.map(tr => Object.assign(tr, { t: by.get(tr.t) })).filter(tr => tr.t);
   for (const k in s.active) s.active[k].manual = (s.active[k].manual || []).map(i => ROUTES[k].segs[i]);
+  const note = migrate(s);
   S = s; UID = o.UID;
-  return o.extra || {};
+  return Object.assign({}, o.extra || {}, note ? { note } : {});
+}
+// adegua i salvataggi delle versioni precedenti (PBI 101-104 rinominati PBA, misure in metri, nuovi campi)
+function migrate(s) {
+  let note = '';
+  for (const k of ['sigFault', 'blkFault', 'faults', 'active', 'sigActive']) s[k] = s[k] || {};
+  for (const k of ['ints', 'nbEvents', 'phone', 'phoneQ', 'events', 'logs']) s[k] = s[k] || [];
+  s.m40n = s.m40n || 0; s.disp = s.disp || 0; s.intN = s.intN || 0;
+  for (const t of s.TT) {
+    if (!CATS[t.cat]) t.cat = 'IC';
+    const C = CATS[t.cat];
+    if (!t.vmax) {
+      t.vmax = C.vmax[0];
+      t.len = C.lens.length === 2 && !C.pax && t.cat !== 'LIS' ? Math.round((C.lens[0] + C.lens[1]) / 20) * 10 : C.lens[Math.floor(C.lens.length / 2)];
+    }
+    if (!t.orig) { t.orig = C.pax ? TERM[t.from][t.cat] : SIDES[t.from].name.toUpperCase(); t.dest = C.pax ? TERM[t.to][t.cat] : SIDES[t.to].name.toUpperCase(); }
+    if (t.plan === undefined) t.plan = t.stops ? (C.pax ? (t.from === 'A' ? '3' : '2') : (t.from === 'A' ? '4' : '1')) : null;
+    t.hist = t.hist || [];
+  }
+  // treni salvati con le vecchie misure: vengono riprogrammati dalle stazioni vicine
+  const old = s.trains.filter(tr => tr.path.some(p => p.px == null) || tr.acc == null);
+  if (old.length) {
+    for (const tr of old) { if (tr.rec) { tr.t.done = true; tr.t.doneT = s.simT; } else { tr.t.sent = false; tr.t.track = null; tr.t.status = 'programmato'; tr.t.ready = Math.max(tr.t.ready, s.simT + 60); } }
+    s.trains = s.trains.filter(tr => !old.includes(tr));
+    for (const rid in s.active) for (const sg of ROUTES[rid].segs) if (s.cdb[sg.cdb] && s.cdb[sg.cdb].lock === rid) s.cdb[sg.cdb].lock = null;
+    for (const k in s.cdb) if (s.cdb[k].lock === 'BLK') s.cdb[k].lock = null;
+    s.active = {}; s.sigActive = {};
+    note = `Salvataggio di una versione precedente: ${old.length} treni in circolazione sono stati riprogrammati dalle stazioni vicine e gli itinerari annullati.`;
+  }
+  for (const tr of s.trains) for (const p of tr.path) if (p.gate && !PBI[p.gate]) { const g = p.gate.replace('PBI ', 'PBA '); p.gate = PBI[g] ? g : null; }
+  for (const k of Object.keys(s.faults)) if (k.startsWith('PBI 10')) delete s.faults[k];
+  for (const k in s.cdb) s.cdb[k].occ = null;
+  for (const c of CDBS) if (!s.cdb[c]) s.cdb[c] = { lock: null, fault: false, occ: null };
+  return note;
 }
 // ---------- simulazione ----------
 // lunghezze reali dei pezzi di percorso: binari = capacità, linea = sezioni di blocco, deviatoi in scala
@@ -1858,8 +1892,8 @@ function restoreUI(extra) {
   $('faults').checked = S.faultsOn; setMode(null); $('m40').style.display = 'none'; renderTT(); renderPhone();
 }
 function loadFrom(str, label) {
-  try { const extra = deserialize(str); restoreUI(extra); toast(`${label} — ${fmt(S.simT)}`); msg(`Turno ripreso: ${fmt(S.simT)}`); }
-  catch (e) { toast('File di partita non valido'); }
+  try { const extra = deserialize(str); restoreUI(extra); toast(`${label} — ${fmt(S.simT)}`); msg(extra.note ? extra.note : `Turno ripreso: ${fmt(S.simT)}`, extra.note ? 'warn' : ''); if (extra.note) log(extra.note, 'warn'); }
+  catch (e) { console.error(e); toast('Salvataggio non utilizzabile: avvio un nuovo turno'); start(+$('mmDay').value || 0, +$('mmHour').value || 5.5); }
 }
 $('bSave').onclick = () => { if (NATIVE) { NATIVE.quicksave(serialize({ speed })).then(f => toast(`Turno salvato in ${f}`)).catch(() => toast('Salvataggio non riuscito')); saveLocal(true); } else saveLocal(false); };
 $('bLoad').onclick = () => {
@@ -1918,12 +1952,13 @@ $('mmClose').onclick = () => closeMenu();
 $('bMenu').onclick = () => { saveLocal(true); menuSave = null; openMenu(false); };
 // PWA: service worker per l'uso offline (ignorato se non disponibile)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { try { navigator.serviceWorker.register('sw.js').catch(() => { }); } catch (e) { } }
-let last = performance.now(), ringT = 0, ttT = 0;
+let last = performance.now(), ringT = 0, ttT = 0, loopErr = false;
 function loop() {
   const now = performance.now();
   const dtr = Math.min(3, (now - last) / 1000); last = now;
   let sim = dtr * speed;
-  while (sim > 0) { const d = Math.min(0.1, sim); tick(d); sim -= d; }
+  try { while (sim > 0) { const d = Math.min(0.1, sim); tick(d); sim -= d; } }
+  catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore interno della simulazione: ${e.message}. Usa Menu → Nuovo turno e segnalami il messaggio.`, 'err'); } }
   if (pending && now - pending.t > 8000) { pending = null; msg('Selezione scaduta (tempo massimo 8 s)', 'err'); }
   ringT += dtr;
   if (ringT > 3) {
@@ -1933,7 +1968,7 @@ function loop() {
     if (speed > 0 && ring) onSound('ring');
   }
   ttT += dtr; if (ttT > 0.5) { ttT = 0; renderTT(); renderPhone(); renderBoard(); renderTG(); }
-  render();
+  try { render(); } catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore interno di visualizzazione: ${e.message}`, 'err'); } }
   autoT += dtr; if (autoT > 30) { autoT = 0; saveLocal(true); if (NATIVE && ++autoN % 2 === 0) NATIVE.autosave(serialize({ speed })).catch(() => { }); }
   for (const p of PANELS) if (p._win && p._win.closed) dock(p);
 }
