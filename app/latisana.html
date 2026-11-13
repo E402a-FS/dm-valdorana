@@ -366,12 +366,19 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 .fshost{position:relative;border:16px solid #121314;border-bottom-width:26px;border-radius:8px;box-shadow:0 0 0 2px #2b2e31,0 24px 70px #000;overflow:hidden;background:#0e1012}
 .fshost .scr{position:absolute;left:0;top:0}
 
+.modl{max-height:260px;overflow:auto;padding:4px 0;font-size:12px}
+.modl .mo{padding:6px 10px;border-bottom:1px solid #22262a;cursor:pointer}.modl .mo:hover{background:#1f2428}
+.modl .mo .mh2 b{color:#ffd54f}.modl .mo.on{background:#1b2024}
+.modl .mt{margin-top:6px;padding:8px 10px;background:#f7f6f1;color:#111;border-radius:3px;font:12.5px/1.45 Arial,Helvetica,sans-serif}
+.scr .pg .modl{max-height:none;height:700px}
+.fshost{box-sizing:content-box}
+
 </style>
 </head>
 <body>
 <header>
   <h1>Circolazione Simulatore · Latisana-Lignano-Bibione<small>ACEI con tabulatore · Doppio binario banalizzato in BCA · DC – Dirigenza Centrale (DC Ve. Mestre) · S. Giorgio di Nogaro – Portogruaro C. <span id="appVer"></span></small></h1>
-  <div class="clock" id="clock">Lun 05:30:00</div>
+  <div class="clock" id="clock">Lun 05:30:00</div><button class="hb" id="bSync" title="Porta il simulatore al giorno della settimana e all'ora reali (velocità ×1)">⏱ Ora reale</button>
   <div class="grp" id="speeds"></div>
   <div class="grp"><button class="hb" id="bMenu" title="Menu principale: scelta dell'impianto">Menu</button><button class="hb" id="b3d" title="Sala del DM in 3D: banco con quadro luminoso e pulsantiera, PC con due monitor">Vista 3D</button><select id="startDay"></select><select id="startHour"></select><button class="hb" id="restart">Nuovo turno</button></div>
   <div class="grp"><button class="hb" id="bSave" title="Salva nel browser">Salva</button><button class="hb" id="bLoad" title="Riprendi l'ultimo salvataggio">Carica</button><button class="hb" id="bExp" title="Scarica il file della partita">Esporta</button><label class="hb" title="Apri un file di partita">Importa<input type="file" id="fImp" accept=".json,application/json" hidden></label></div>
@@ -430,6 +437,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
     <div class="board"><div class="btop"><span class="tabs"><button type="button" data-bt="A" class="on">Arrivi</button><button type="button" data-bt="P">Partenze</button></span><b>LATISANA-LIGNANO-BIBIONE</b><span id="bClock"></span></div>
     <div class="bwrap"><table class="btab"><thead><tr id="bHead"></tr></thead><tbody id="bBody"></tbody></table></div></div>
   </div>
+  <div class="card panel" id="pMod"><h2 class="ph"><span>Moduli consegnati (M40 DL, M40a, autorizzazioni)</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="modl" id="modList"></div></div>
   <div class="card panel" id="pLog"><h2 class="ph"><span>Registro di stazione</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="log" id="log"></div></div>
   <details><summary>Come si usa · codici</summary><div class="help">
     <table>
@@ -472,7 +480,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '1.7.1';
+window.SIM_BUILD = '1.7.2';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5229,7 +5237,7 @@ function newState(startDay = 0, startHour = 5.5) {
   const pl = {}; for (const k in PLS) pl[k] = { st: 'A', t: 0 };
   S = {
     simT: startDay * 86400 + startHour * 3600, sw, cdb, line, sig, pl, key: 'N', trains: [], TT: [], genDays: [], active: {}, sigActive: {},
-    faults: {}, sigFault: {}, blkFault: {}, phone: [], phoneQ: [], m40n: 0, ints: [], intN: 0, dcN: 0,
+    faults: {}, sigFault: {}, blkFault: {}, phone: [], phoneQ: [], m40n: 0, moduli: [], ints: [], intN: 0, dcN: 0,
     libCount: 0, bcaCount: 0, paxDelay: 0, irreg: 0, served: 0, presc: 0, faultsOn: true, nextFault: startDay * 86400 + startHour * 3600 + 1500 + Math.random() * 2400, logs: [], viMode: false,
   };
   ensureDays(true);
@@ -5530,9 +5538,9 @@ function doAct(x) {
   if (x.t === 'm40aok' && tr) {
     tr.m40aPend = false;
     const p = tr.path.find(q => q.gate === x.gate);
-    if (p) { p.gate = null; p.vmax = Math.min(p.vmax, VMAV); p.mav = true; }
+    if (p) { p.gate = null; }   // blocco conta assi: nessuna marcia a vista a 30 km/h dopo il supero
     (x.pls || []).forEach(k => tr.plMav.push(k));
-    if (!x.ext) log(`Mod. M40a n. ${x.n} consegnato al ${tr.cat} ${tr.num}: superamento del segnale ${x.gate.replace('PBI', 'PBI ')} a via impedita, marcia a vista fino al segnale successivo`, 'warn');
+    if (!x.ext) log(`Mod. M40a n. ${x.n} consegnato al ${tr.cat} ${tr.num}: superamento del segnale ${x.gate.replace('PBI', 'PBI ')} a via impedita${(x.pls || []).length ? ', marcia a vista specifica ai PL (4 km/h)' : ''}`, 'warn');
   }
   if (x.t === 'm40ok') {
     const a = S.active[x.rid]; if (!a) return;
@@ -5598,6 +5606,7 @@ function sendM40(num, list, pls, free) {
   const body = list.map(k => `Prescr. ${k}: ${txt(k)}`).join(' ');
   phone('DM', `Treno ${nm}, trasmetto Mod. M. 40 D.L. (B.m./B.ca) n. ${n} delle ore ${ora}, località di servizio ${STATION}. ${body}`);
   a.m40 = true; S.presc++; tr.callAck = true; tr.m40Pend = true;
+  regMod('Mod. M. 40 D.L. (B.m./B.ca)', n, nm, `Si ordina all'Agente di condotta del treno ${tr.num}, fermo al segnale ${sigLab(sig)}: ${body}`);
   const mav = list.includes(3), pl = list.includes(15) ? (pls || []) : [];
   queuePhone(8, `AdC ${nm}`, `Ripeto: Mod. M40 DL n. ${n} delle ore ${ora}. ${body}`);
   queuePhone(13, 'DM', 'Esatto.');
@@ -5623,6 +5632,7 @@ function authCantiere(num) {
   a.deg = true; a.m40 = true; tr.callAck = true;
   const where = sig === 'QM' ? `dall'asta di manutenzione verso S. Giorgio sul ${cname(it.ente)} interrotto` : `dal segnale ${sigLab(sig)} all'asta di manutenzione per il ricovero`;
   phone('DM', `Capo cantiere del treno ${tr.num}, qui DM di ${STN}: nell'ambito dell'interruzione n. ${it.id} già concordata autorizzo verbalmente il movimento ${where}. Procedete con cautela.`);
+  regMod('Autorizzazione verbale (treno cantiere)', '—', `${tr.cat} ${tr.num}`, `Nell'ambito dell'interruzione n. ${it.id} è autorizzato il movimento ${where}.`);
   queuePhone(6, 'Capo cantiere', `Ricevuto ${STN}, ci muoviamo ${sig === 'QM' ? 'verso S. Giorgio' : "verso l'asta"} con cautela.`, { t: 'm40ok', rid, n: 'verbale', nm: `${tr.cat} ${tr.num}`, sig, num: tr.num, mav: true, pls: [], verbal: true });
   return result(true, `Movimento del treno cantiere ${tr.num} autorizzato verbalmente`, 'warn');
 }
@@ -5685,19 +5695,22 @@ function sendM40a(num, o) {
   if (o.osr) { if (!c.letterA) return result(false, 'Nulla osta al supero rosso ammesso solo con lettera luminosa A accesa'); parts.push(`Nulla osta effettuazione Operazione Supero Rosso al segnale di blocco ${c.n} disposto a via impedita con lettera luminosa A accesa a luce fissa.`); }
   if (o.par) parts.push(`Partite dal PBI ${c.n} con segnale disposto a via impedita.`);
   if (o.tratto) parts.push(`Tratto da PBI ${o.from || c.n} a ${o.to || c.toStation} libero da treni.`);
-  if (o.pl && (o.pls || []).length) parts.push(`Effettuate marcia a vista specifica ai PL km ${o.pls.map(p => PLS[p].km).join(', ')}.`);
+  if (c.plaAl && !(o.pl && (o.pls || []).length)) return result(false, `PLA in allarme: va prescritta la marcia a vista specifica ai PL (max 4 km/h) km ${PLAS.filter(k => S.pl[k].st === 'allarme').map(k => PLS[k].km).join(', ')}`);
+  if (o.pl && (o.pls || []).length) parts.push(`Effettuate marcia a vista specifica ai PL km ${o.pls.map(p => PLS[p].km).join(', ')}, velocità massima 4 km/h in corrispondenza dei PL.`);
   if (!parts.length) return result(false, 'Nessuna voce del Mod. M40a selezionata');
   const n = ++S.m40n, ora = fmtM(S.simT), txt = parts.join(' '), ad = `AdC ${c.nm}`;
   phone('DM', `Treno ${c.nm}, trasmetto Mod. M. 40a n. ${n} delle ore ${ora}. Si ordina all'Agente di condotta del treno ${c.tr.num}: ${txt}`);
   S.presc++; c.tr.callAck = true; c.tr.m40aPend = true;
+  regMod('Mod. M. 40a', n, c.nm, `Si ordina all'Agente di condotta del treno ${c.tr.num}: ${txt}`);
   queuePhone(8, ad, `Ripeto: Mod. M40a n. ${n} delle ore ${ora}. ${txt}`);
   queuePhone(13, 'DM', 'Esatto.');
-  queuePhone(16, ad, `Ricevuto. Supero il segnale ${c.id.replace('PBI', 'PBI ')} a via impedita e procedo in marcia a vista, massimo 30 km/h, fino al segnale successivo.`, { t: 'm40aok', num: c.tr.num, gate: c.id, n, pls: o.pl ? (o.pls || []) : [] });
+  queuePhone(16, ad, `Ricevuto. Supero il segnale ${c.id.replace('PBI', 'PBI ')} a via impedita${o.pl && (o.pls || []).length ? ' e osservo la marcia a vista specifica ai PL, massimo 4 km/h' : ''}.`, { t: 'm40aok', num: c.tr.num, gate: c.id, n, pls: o.pl ? (o.pls || []) : [] });
   return result(true, `Mod. M40a n. ${n} in trasmissione al ${c.nm}`, 'warn');
 }
 // ---------- DC: ordini di circolazione ----------
 function dcSay(text) { ring('DC', text); }
 // chiamata in arrivo: il telefono squilla finché il DM non risponde (clic sul telefono)
+function regMod(tipo, n, treno, testo) { (S.moduli = S.moduli || []).push({ tipo, n, treno, testo, t: S.simT }); if (S.moduli.length > 300) S.moduli.shift(); }
 function ring(from, text) { phone(from, text); S.ringing = true; onSound('phone'); }
 function answerPhone() {
   if (!S.ringing && !S.trains.some(t => t.called && !t.callAck) && !S.ints.some(x => x.state === 'pending' && !x.ack)) return false;
@@ -6679,7 +6692,7 @@ function openM40a(num) {
     <label class="${c.letterA ? '' : 'dis'}"><input type="checkbox" id="oOSR" ${c.letterA ? '' : 'disabled'}><span>Nulla osta effettuazione Operazione Supero Rosso al segnale di blocco ${c.n} (solo con lettera A accesa).</span></label>
     <label><input type="checkbox" id="oPAR"><span>Partite dal PBI ${c.n} con segnale disposto a via impedita.</span></label>
     <label><input type="checkbox" id="oTR"><span>Tratto da PBI <select id="oFrom"><option value="${c.n}">${c.n}</option></select> a <select id="oTo">${opts}</select> libero da treni.</span></label>
-    ${c.pla ? `<label><input type="checkbox" id="oPL"><span>Effettuate marcia a vista specifica ai PL:</span></label><div class="sub">${plaBox}</div>` : ''}
+    ${c.pla ? `<label><input type="checkbox" id="oPL" ${c.plaAl ? 'checked' : ''}><span>Effettuate marcia a vista specifica ai PL (velocità massima 4 km/h)${c.plaAl ? ' — <b>obbligatoria: PLA in allarme</b>' : ''}:</span></label><div class="sub">${plaBox}</div>` : ''}
   </fieldset>`;
   const ph = $('pTel').ownerDocument; if ($('m40a').ownerDocument !== ph) ph.body.appendChild($('m40a'));
   $('m40a').style.display = 'flex';
@@ -6920,6 +6933,23 @@ function loop() {
   for (const p of PANELS) if (p._win && p._win.closed) dock(p);
 }
 setInterval(loop, 50);
+
+// ---------- moduli consegnati ----------
+let modOpen = -1;
+function renderMod() {
+  const box = $('modList'); if (!box) return;
+  const L = (S.moduli || []).slice().reverse(), k = L.length + '|' + modOpen;
+  if (box.dataset.k === k) return; box.dataset.k = k;
+  box.innerHTML = L.length ? L.map((m, i) => `<div class="mo ${modOpen === i ? 'on' : ''}" data-i="${i}"><div class="mh2"><b>${m.tipo}</b> n. ${m.n} · ${fmt(m.t)} · ${m.treno}</div>${modOpen === i ? `<div class="mt">${m.testo}</div>` : ''}</div>`).join('') : '<div class="empty" style="padding:8px;color:#8b939c">Nessun modulo consegnato in questo turno</div>';
+}
+$('modList').addEventListener('click', e => { const d = e.target.closest('.mo'); if (!d) return; modOpen = modOpen === +d.dataset.i ? -1 : +d.dataset.i; renderMod(); });
+setInterval(renderMod, 700);
+// ---------- sincronizzazione con l'ora reale ----------
+$('bSync').onclick = () => {
+  const d = new Date(), day = (d.getDay() + 6) % 7, h = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+  if ((S.served || S.trains.some(t => !t.stab)) && !confirm(`Sincronizzare con l'ora reale (${DOWL[day]} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')})? Il turno in corso ricomincia da quell'ora.`)) return;
+  start(day, h); setSpeed(1); $('startDay').value = day; msg(`Turno sincronizzato con l'ora reale: ${DOWL[day]} ${fmtM(S.simT)}, velocità ×1`, 'ok');
+};
 
 // ======================= VISTA 3D: SALA DEL DM (Three.js / WebGL) =======================
 // Il motore del gioco non cambia: il quadro luminoso è la stessa immagine SVG del QL usata
@@ -7496,7 +7526,7 @@ const R3 = (() => {
   // ---------- monitor: pagine vere del gioco ----------
   function mkScreens() {
     for (const id of ['r3m1', 'r3m2']) { let e = document.getElementById(id); if (!e) { e = document.createElement('div'); e.id = id; e.className = 'scr'; hidden.appendChild(e); } }
-    $('r3m1').innerHTML = '<div class="stabs"><button data-pg="tt" class="on">Orario di servizio</button><button data-pg="tg">Train Graph</button><button data-pg="ds">Display di servizio</button><button data-pg="bd">Tabellone</button><span class="mclk"></span></div><div class="pg on" data-p="tt"></div><div class="pg" data-p="tg"></div><div class="pg ds" data-p="ds"></div><div class="pg" data-p="bd"></div>';
+    $('r3m1').innerHTML = '<div class="stabs"><button data-pg="tt" class="on">Orario di servizio</button><button data-pg="tg">Train Graph</button><button data-pg="ds">Display di servizio</button><button data-pg="bd">Tabellone</button><button data-pg="mo">Moduli</button><span class="mclk"></span></div><div class="pg on" data-p="tt"></div><div class="pg" data-p="tg"></div><div class="pg ds" data-p="ds"></div><div class="pg" data-p="bd"></div><div class="pg" data-p="mo"></div>';
     $('r3m2').innerHTML = '<div class="m2top"></div><div class="m2tel"></div><div class="m2bar"><span>Moduli in degrado per il treno selezionato nel telefono:</span><button data-m="M40">Mod. M40 DL B.ca</button><button data-m="M40A">Mod. M40a</button></div>';
     $('r3m1').addEventListener('click', e => { const b = e.target.closest('button[data-pg]'); if (b) page(b.dataset.pg); });
     $('r3m2').addEventListener('click', e => {
@@ -7790,7 +7820,7 @@ const R3 = (() => {
     try { build(); } catch (e) { console.error(e); document.body.classList.remove('v3d'); while (movedN.length) { const [n, p, s] = movedN.pop(); p.insertBefore(n, s && s.parentNode === p ? s : null); } qlTheme(false); msg('Impossibile avviare la vista 3D (WebGL): ' + e.message, 'err'); return; }
     const m1 = $('r3m1'), m2 = $('r3m2');
     mv($('pTT'), m1.querySelector('[data-p=tt]')); mv($('pTG'), m1.querySelector('[data-p=tg]'));
-    mv($('pReq'), m1.querySelector('[data-p=ds]')); mv($('pLog'), m1.querySelector('[data-p=ds]')); mv($('pBoard'), m1.querySelector('[data-p=bd]'));
+    mv($('pReq'), m1.querySelector('[data-p=ds]')); mv($('pLog'), m1.querySelector('[data-p=ds]')); mv($('pBoard'), m1.querySelector('[data-p=bd]')); mv($('pMod'), m1.querySelector('[data-p=mo]'));
     mv(document.querySelector('.lcd'), m2.querySelector('.m2top')); mv($('pTel'), m2.querySelector('.m2tel'));
     mv($('m40'), m2); mv($('m40a'), m2);
     $('b3d').textContent = 'Vista 2D';
