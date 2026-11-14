@@ -375,6 +375,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 .hud3 .fps{background:#000a;color:#7ee08a;font-size:11px;padding:3px 8px;border-radius:3px;pointer-events:none}
 #room3d.moving .scrw{will-change:transform}
 .rid{display:inline-block;width:10px;height:10px;background:#ff7a00;border:1px solid #000;vertical-align:-1px}
+.telhold{display:flex;gap:6px;align-items:center;padding:6px 8px;border-top:1px solid #2c3238;font-size:12px;color:#c9cfd3;flex-wrap:wrap}.telhold input,.telhold select{background:#0e1012;color:#e6ece8;border:1px solid #3a4046;border-radius:3px;padding:3px 5px;font:inherit}
 
 </style>
 </head>
@@ -431,6 +432,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
     <div class="calls" id="calls"></div>
     <div class="chat" id="chat"></div>
     <form class="tel" id="telForm" autocomplete="off"><select id="telTr"></select><button type="button" class="hb sm" id="telCall" title="Chiama l'AdC del treno selezionato">☎ Chiama</button><input id="telTxt" placeholder="messaggio…"><button class="hb sm">Invia</button></form>
+    <div class="telhold" id="telHold" style="display:none"><span>Partenza non prima delle</span><input id="telHoldT" type="time"><span>causa</span><select id="telHoldC"><option value="G">guasto</option><option value="T">intervento tecnici in corso</option><option value="C" selected>esigenze di circolazione</option></select><button type="button" class="hb sm" id="telHoldBtn">Comunica all'AdC</button></div>
   </div>
   <div class="card panel" id="pReq"><h2 class="ph"><span>Richieste, ordini DC e anormalità</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="reqs" id="reqs"></div></div>
   <div class="card panel" id="pTT"><h2 class="ph"><span>Orario di servizio · <span id="ttDay"></span></span><button class="dt" title="Sgancia in una finestra">⧉</button></h2>
@@ -483,7 +485,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '1.9.0';
+window.SIM_BUILD = '1.9.2';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5399,7 +5401,7 @@ function autRoute(rid) {
   for (const c of r.cdb) {
     const s = S.cdb[c];
     if (r.sig === 'QM' && c === 'ZM') continue; // l'asta è occupata dal treno cantiere che deve uscire
-    if (inConsegna(c)) return result(false, `VI rifiutato: ${cname(c)} in consegna ai tecnici`);
+    if (inConsegna(c)) return result(false, `VI rifiutato: ${cname(c)} in consegna ai tecnici — chiedere la restituzione temporanea (RIT ${c})`);
     if (s.lock === 'INT') return result(false, `VI rifiutato: ${cname(c)} interrotto per lavori`);
     if (s.lock) return result(false, `VI rifiutato: ${cname(c)} bloccato da altro itinerario`);
     if (s.occ) return result(false, `VI rifiutato: dalla verifica ${cname(c)} risulta occupato da treno`);
@@ -5541,6 +5543,16 @@ function ceiRequest(k) {
   queuePhone(5, 'CEI', `Ricevuto ${STN}, squadra in arrivo alle ${fmtM(f.t1)}.`);
   return result(true, `Richiesta al CEI per ${cname(k)}: squadra in arrivo alle ${fmtM(f.t1)}`, 'ok');
 }
+// restituzione temporanea dell'ente in consegna ai tecnici (per far circolare un treno): il guasto permane
+function ritTemp(k) {
+  const f = S.faults[k];
+  if (!f || f.state !== 'intervento') return result(false, `${cname(k)} non è in consegna ai tecnici`);
+  if (f.ritAsk) return result(false, 'Restituzione temporanea già richiesta');
+  f.ritAsk = true;
+  phone('DM', `Tecnici, qui ${STN}: chiedo la restituzione temporanea del ${cname(k)} per il passaggio di un treno. Liberate l'ente da personale e attrezzi.`);
+  queuePhone(60, 'Tecnici', '', { t: 'ritok', k });
+  return result(true, `Restituzione temporanea del ${cname(k)} richiesta ai tecnici`, 'warn');
+}
 function libArt(k) {
   const c = S.cdb[k]; if (!c) return result(false, 'Ente inesistente');
   S.libCount++;
@@ -5582,6 +5594,7 @@ function doAct(x) {
     log(x.verbal ? `Movimento del treno cantiere ${x.num} autorizzato verbalmente (interruzione in atto)` : `Mod. M40 DL n. ${x.n} consegnato al ${x.nm}: superamento del segnale ${sigLab(x.sig)} a via impedita${x.mav ? ', marcia a vista 30 km/h sull\'itinerario' : ''}`, 'warn');
   }
   if (x.t === 'coresp') coResp(x.L);
+  if (x.t === 'ritok') { const f = S.faults[x.k]; if (f && f.state === 'intervento') { f.state = 'sospeso'; f.rem = Math.max(120, f.t1 - S.simT); f.susT = S.simT; f.used = false; f.ritAsk = false; ring('Tecnici', `${STN}, ${cname(x.k)} libero da personale e attrezzi: ve lo restituiamo temporaneamente. Il guasto permane, disponete il movimento in degrado e avvisateci a treno transitato.`); } }
   if (x.t === 'cochg') { const st = S.line[x.L]; if (!st.chg && st.orient === 'out' && lineAllFree(x.L)) st.chg = 10; }
   if (x.t === 'dcint') intDCresp(x.id);
   if (x.t === 'limint') intLimResp(x.id);
@@ -5697,6 +5710,20 @@ function adcStatus(tr) {
   if (tr.await && atSignal(tr) && !routeOpenFor(tr.await)) return `Sono l'AdC del treno ${nm}, fermo ${VIRT[tr.await] ? (tr.await === 'QM' ? "nell'asta di manutenzione" : 'sul binario ' + SIGTRK[tr.await] + ', sprovvisto di segnale di partenza') : 'al segnale di ' + SIGNAME[tr.await] + ' disposto a via impedita'}. Attendo istruzioni.`;
   if (tr.stab) return `Sono il capo treno del cantiere ${nm}, ricoverato nell'asta di manutenzione.`;
   return `Sono l'AdC del treno ${nm}, in marcia regolare, nessuna anormalità.`;
+}
+// orario di partenza comunicato all'AdC: il treno non parte prima e l'AdC non richiama fino a quell'ora
+const HOLD_CAUSE = { G: 'guasto agli impianti', T: 'intervento dei tecnici in corso', C: 'esigenze di circolazione' };
+function adcHold(num, hhmm, cause) {
+  const tr = trainByNum(num); if (!tr) return result(false, `Treno ${num} non presente`);
+  const m = /^(\d{1,2})[:.]?(\d{2})$/.exec(String(hhmm || '').trim()); if (!m) return result(false, 'Orario non valido (HH:MM)');
+  const day = Math.floor(S.simT / 86400) * 86400; let t = day + (+m[1]) * 3600 + (+m[2]) * 60;
+  if (t <= S.simT - 60) t += 86400;
+  if (t - S.simT > 6 * 3600) return result(false, 'Orario troppo lontano');
+  const cz = HOLD_CAUSE[String(cause || 'C').toUpperCase()[0]] || HOLD_CAUSE.C, nm = `${tr.cat} ${tr.num}`;
+  tr.holdUntil = t; tr.holdCause = cz; tr.called = true; tr.callAck = true; S.ringing = false;
+  phone('DM', `Treno ${nm}, qui DM di ${STN}: la vostra partenza è prevista non prima delle ore ${fmtM(t)} per ${cz}. Attendete il segnale o le prescrizioni.`);
+  queuePhone(6, `AdC ${nm}`, `Ricevuto, partenza non prima delle ${fmtM(t)} per ${cz}. Non richiamo prima di quell'ora.`);
+  return result(true, `${nm}: partenza non prima delle ${fmtM(t)} (${cz})`, 'ok');
 }
 function callTrain(num) {
   const tr = trainByNum(num); if (!tr) return result(false, `Treno ${num} non presente`);
@@ -5984,7 +6011,7 @@ function spawn(t, L) {
   const tr = { t, num: t.num, cat: t.cat, dir: t.dir, len: t.len, path, L: path.reduce((x, p) => x + p.len, 0), head: 1, v: Math.min(vcap, t.can ? VCAN : VLINE), await: LPROT[L], stops: t.stops, dwell: t.dwell, served: !t.stops, stopS: null, dw: 0, vcap, acc: C.acc, dec: C.dec, track: null, depS: null, rec: false, exit: false, ack: false, lineIn: L, plMav: [], plSeen: {} };
   S.trains.push(tr); t.sent = true; t.status = 'in linea';
   log(`${SIDES[l.side].name}: licenziato ${t.cat} ${t.num} sul ${cname(L)}${l.legal === 'in' ? '' : ' (senso illegale)'}`, C.pax ? '' : 'warn');
-  onSound('ring');
+  onSound('entry');
 }
 function stabledTrain(t) {
   const p = mkPiece('ZM', [[1060, 290], [950, 290], [920, 250]], VCAN);
@@ -6016,6 +6043,7 @@ function limitOf(tr) {
   return lim;
 }
 function moveTrain(tr, dt) {
+  if (tr.holdUntil && S.simT < tr.holdUntil && tr.v < 0.3) { tr.v = 0; return; }   // rispetta l'orario di partenza indicato dal DM
   if (tr.await) {
     const rid = S.sigActive[tr.await], a = rid && S.active[rid];
     if (a && !a.committed && a.state === 'set') {
@@ -6163,6 +6191,11 @@ function updateFaults() {
       if (busy) { if (!f.waitLogged) { f.waitLogged = true; log(`Tecnici sul posto per ${cname(k)}: attendono la disponibilità dell'ente`, 'warn'); } f.t1 = S.simT + 30; continue; }
       f.state = 'intervento'; f.t1 = S.simT + 300 + Math.random() * 600;
       log(`${cname(k)} consegnato ai tecnici per la riparazione (fine prevista ${fmtM(f.t1)})`, 'warn');
+    } else if (f.state === 'sospeso') {
+      // i tecnici riprendono il lavoro quando il treno è passato e l'ente è di nuovo libero
+      const busy = (S.cdb[k] && (S.cdb[k].lock || S.cdb[k].occ)) || (f.type === 'sw' && swBusy(k));
+      if (busy) f.used = true;
+      else if (f.used || S.simT > f.susT + 900) { f.state = 'intervento'; f.t1 = S.simT + f.rem; log(`${cname(k)}: i tecnici riprendono l'intervento (fine prevista ${fmtM(f.t1)})`, 'warn'); }
     } else if (f.state === 'intervento' && S.simT >= f.t1) {
       if (f.type === 'cdb' || f.type === 'bca') S.cdb[k].fault = false;
       if (f.type === 'sw') S.sw[k].fault = false;
@@ -6180,6 +6213,10 @@ function updatePhone(dt) {
   for (const tr of S.trains) {
     const k = ctxKey(tr);
     if (tr.callSig !== k) { tr.callSig = k; tr.stopT = 0; tr.called = false; tr.callAck = false; }
+    if (tr.holdUntil) {
+      if (S.simT < tr.holdUntil) { tr.called = true; tr.callAck = true; continue; }
+      tr.holdUntil = null; if (k) { tr.called = false; tr.stopT = 180; }   // passata l'ora indicata l'AdC può richiamare
+    }
     if (!k) continue;
     tr.stopT += dt;
     // l'AdC fermo a un segnale a via impedita chiama dopo 3 minuti (il DM può chiamarlo prima)
@@ -6404,7 +6441,11 @@ function beep(f, d, type = 'square', vol = 0.04) {
   if (!soundOn) return;
   try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; g.gain.value = vol; o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime + d); } catch (e) { }
 }
-onSound = k => { if (k === 'err') beep(200, .3, 'sawtooth'); if (k === 'ring') { beep(1300, .12); setTimeout(() => beep(1300, .12), 180); } if (k === 'phone') { for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), i * 60); for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), 1300 + i * 60); } };
+// suono di ingresso in tratta di un treno diretto a Latisana
+const ENTRY_SND = 'data:audio/mpeg;base64,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';
+let entryAudio = null;
+function playEntry() { if (!soundOn) return; try { entryAudio = entryAudio || new Audio(ENTRY_SND); entryAudio.currentTime = 0; entryAudio.volume = 0.8; entryAudio.play().catch(() => {}); } catch (e) { } }
+onSound = k => { if (k === 'entry') { playEntry(); return; } if (k === 'err') beep(200, .3, 'sawtooth'); if (k === 'ring') { beep(1300, .12); setTimeout(() => beep(1300, .12), 180); } if (k === 'phone') { for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), i * 60); for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), 1300 + i * 60); } };
 onLog = (m, cls, t) => {
   const el = $('log'); if (!el) return;
   const d = document.createElement('div'); d.className = cls;
@@ -6587,10 +6628,12 @@ function execCommand(raw) {
     case 'M40': if (!a) return result(false, 'Indicare il numero del treno: M40 3455'); openM40(a); return { ok: true, m: '' };
     case 'M40A': if (!a) return result(false, 'Indicare il numero del treno: M40A 41233'); openM40a(a); return { ok: true, m: '' };
     case 'CHI': return a ? callTrain(a) : result(false, 'CHI <treno>');
+    case 'ORA': { const [n, hh, cz] = (a || '').split(/\s+/); return n && hh ? adcHold(n, hh, cz) : result(false, 'ORA <treno> <HH:MM> <G|T|C> (G guasto, T intervento tecnici, C esigenze di circolazione)'); }
     case 'AUT': return a ? authCantiere(a) : result(false, 'AUT <treno cantiere>');
     case 'ATT': return a ? waitCall(a) : result(false, 'ATT <treno>');
     case 'TEL': { if (!a) return result(false, 'TEL DC|MT|CEI|<treno> testo'); const to = a.toUpperCase(); return telMsg(['DC', 'MT', 'CEI'].includes(to) ? to : a, p.slice(2).join(' ') || '...'); }
     case 'CEI': return a ? ceiRequest(normEnte(a)) : result(false, 'CEI <ente>');
+    case 'RIT': return a ? ritTemp(normEnte(a)) : result(false, 'RIT <ente> (restituzione temporanea dai tecnici)');
     case 'LIB': return a ? libArt(normEnte(a)) : result(false, 'LIB <CdB>');
     case 'INT': if (!a) return result(false, 'INT SI | INT NO | INT <ente> <minuti>'); if (a.toUpperCase() === 'SI') return intAnswer(true); if (a.toUpperCase() === 'NO') return intAnswer(false); return intByDM(normEnte(a), +b || 30);
     case 'RIP': return a ? intRestore(normEnte(a)) : result(false, 'RIP <ente>');
@@ -6662,8 +6705,11 @@ onPhone = p => {
 };
 $('pTel').addEventListener('pointerdown', () => { if (answerPhone()) { renderPhone(); msg('Risposto al telefono'); } }, true);
 $('telForm').addEventListener('submit', e => { e.preventDefault(); const to = $('telTr').value, tx = $('telTxt'); if (!to || !tx.value.trim()) return; show(telMsg(to, tx.value.trim())); tx.value = ''; });
+$('telHoldBtn').addEventListener('click', () => { const v = $('telTr').value; if (!v || ['DC', 'MT', 'CEI'].includes(v)) { msg('Seleziona un treno nel menu del telefono', 'warn'); return; } show(adcHold(v, $('telHoldT').value, $('telHoldC').value)); });
+$('telTr').addEventListener('change', () => { const tr = trainByNum($('telTr').value); $('telHold').style.display = tr ? '' : 'none'; if (tr && !$('telHoldT').value) $('telHoldT').value = fmtM(S.simT + 600); });
 $('telCall').addEventListener('click', () => { const v = $('telTr').value; if (!v) return; if (['DC', 'MT', 'CEI'].includes(v)) { msg('Scrivi il messaggio e premi Invia', 'warn'); return; } show(callTrain(v)); });
 function renderPhone() {
+  { const tr = trainByNum($('telTr').value); $('telHold').style.display = tr ? '' : 'none'; if (tr && !$('telHoldT').value) $('telHoldT').value = fmtM(S.simT + 600); }
   let h = '';
   for (const tr of S.trains) {
     if (!tr.called || tr.callAck && tr.reported === 'done') { }
@@ -6859,7 +6905,7 @@ function renderTT() {
   for (const t of S.TT) if (t.dcHold && !t.done) r += `<div class="r hot"><span>Ordine DC: trattenere ${t.cat} ${t.num} fino al ${t.dcHold}</span></div>`;
   for (const L in LINES) { const st = S.line[L]; if (st.orient !== LINES[L].legal && !st.interr) r += `<div class="r"><span>Blocco ${cname(L)} orientato in senso illegale</span><button class="hb sm" data-c="CO ${L}">CO</button></div>`; }
   if (S.key === 'R') r += `<div class="r hot"><span>Chiave FD101 liberata: deviatoio 101 al personale di manutenzione (${S.sw.D101.pos === 'R' ? 'rovescio' : 'normale'})</span></div>`;
-  for (const k in S.faults) { const f = S.faults[k]; r += `<div class="r bad"><span>Guasto ${cname(k)}${f.type === 'blk' ? (f.letterA ? ' (lettera A accesa)' : ' (lettera A spenta)') : ''} — ${f.state === 'guasto' ? 'da segnalare al CEI' : f.state === 'attesa' ? 'tecnici in arrivo ' + fmtM(f.t1) : 'riparazione in corso, fine ' + fmtM(f.t1)}</span>${f.state === 'guasto' ? `<button class="hb sm" data-c="CEI ${k}">CEI</button>` : ''}${f.type === 'bca' ? `<button class="hb sm" data-c="TLBCA ${k}">TlBca</button>` : ''}</div>`; }
+  for (const k in S.faults) { const f = S.faults[k]; r += `<div class="r bad"><span>Guasto ${cname(k)}${f.type === 'blk' ? (f.letterA ? ' (lettera A accesa)' : ' (lettera A spenta)') : ''} — ${f.state === 'guasto' ? 'da segnalare al CEI' : f.state === 'attesa' ? 'tecnici in arrivo ' + fmtM(f.t1) : f.state === 'sospeso' ? 'restituito temporaneamente dai tecnici (guasto presente)' : 'in consegna ai tecnici, fine ' + fmtM(f.t1)}</span>${f.state === 'intervento' && !f.ritAsk && (S.cdb[k] || S.sw[k]) ? `<button class="hb sm" data-c="RIT ${k}">Restituz. temporanea</button>` : ''}${f.state === 'guasto' ? `<button class="hb sm" data-c="CEI ${k}">CEI</button>` : ''}${f.type === 'bca' ? `<button class="hb sm" data-c="TLBCA ${k}">TlBca</button>` : ''}</div>`; }
   $('reqs').innerHTML = r || '<div class="empty">Nessuna richiesta pendente</div>';
   $('sDelay').textContent = S.paxDelay + "'"; $('sServed').textContent = S.served; $('sIrr').textContent = S.irreg; $('sPresc').textContent = S.presc;
 }
