@@ -372,6 +372,8 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 .modl .mt{margin-top:6px;padding:8px 10px;background:#f7f6f1;color:#111;border-radius:3px;font:12.5px/1.45 Arial,Helvetica,sans-serif}
 .scr .pg .modl{max-height:none;height:700px}
 .fshost{box-sizing:content-box}
+.hud3 .fps{background:#000a;color:#7ee08a;font-size:11px;padding:3px 8px;border-radius:3px;pointer-events:none}
+#room3d.moving .scrw{will-change:transform}
 
 </style>
 </head>
@@ -391,7 +393,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
     <div class="stat"><b id="sPresc">0</b><span>prescrizioni</span></div>
   </div>
 </header>
-<div id="room3d"><div class="hud3"><button data-v="back" title="Torna all'inquadratura precedente (Backspace)">◀ Indietro</button><button data-v="seat">Banco</button><button data-v="ql">Quadro luminoso</button><button data-v="puls">Pulsantiera</button><button data-v="r3m1">Monitor 1</button><button data-v="r3m2">Monitor 2</button><button data-v="win">Finestra</button><button data-v="pano">Panoramica</button><button data-v="pano2">Panoramica 2</button><button data-v="q" title="Ombre, riflessi e bagliore: alta su PC, bassa su tablet o PC lenti">Qualità: alta</button><span>WASD o frecce per camminare (Maiusc = più veloce) · trascina per guardarti intorno · rotella per avvicinarti · doppio clic sul quadro o sulla pulsantiera · Esc torna al banco · tasti 1–5 · interruttori accanto alla finestra · clic su un monitor = schermo intero · clic sul telefono per rispondere · clic sulla lampada</span></div></div>
+<div id="room3d"><div class="hud3"><button data-v="back" title="Torna all'inquadratura precedente (Backspace)">◀ Indietro</button><button data-v="seat">Banco</button><button data-v="ql">Quadro luminoso</button><button data-v="puls">Pulsantiera</button><button data-v="r3m1">Monitor 1</button><button data-v="r3m2">Monitor 2</button><button data-v="win">Finestra</button><button data-v="pano">Panoramica</button><button data-v="pano2">Panoramica 2</button><button data-v="q" title="Ombre, riflessi e bagliore: alta su PC, bassa su tablet o PC lenti">Qualità: alta</button><span class="fps" title="Fotogrammi al secondo (la scena viene ridisegnata solo quando cambia qualcosa)">— fps</span><span>WASD o frecce per camminare (Maiusc = più veloce) · trascina per guardarti intorno · rotella per avvicinarti · doppio clic sul quadro o sulla pulsantiera · Esc torna al banco · tasti 1–5 · interruttori accanto alla finestra · clic su un monitor = schermo intero · clic sul telefono per rispondere · clic sulla lampada</span></div></div>
 <main>
 <section>
   <div class="panel qlpanel" id="pQL"><div class="ph"><span>Quadro luminoso</span><button class="dt" title="Sgancia in una finestra">⧉</button></div>
@@ -480,7 +482,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '1.7.2';
+window.SIM_BUILD = '1.7.3';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5441,7 +5443,7 @@ function devCmd(k) {
   if (swLockedBy(k)) return result(false, `${cname(k)} bloccata dall'itinerario ${swLockedBy(k).replace('-', ' → ')}`);
   if (SWCDB[k].some(c => S.cdb[c].occ || S.cdb[c].fault)) return result(false, `${cname(k)}: CdB occupato, manovra non consentita`);
   if (w.mv > 0) return result(false, `${cname(k)} già in manovra`);
-  w.target = w.pos === 'N' ? 'R' : 'N'; w.mv = 4 + Math.random() * 2;
+  w.target = w.pos === 'N' ? 'R' : 'N'; w.mv = 4 + Math.random() * 2; w.lev = w.target;
   return result(true, `Leva ${SWN[k]} → ${w.target === 'N' ? 'normale' : 'rovescio'}`, 'ok');
 }
 function keyLever() {
@@ -6503,7 +6505,7 @@ function cellHTML(c) {
     const w = S.sw[id], lk = swLockedBy(id);
     const f = w.fault ? 'rd blink' : null;
     const ln = f || (w.mv ? 'y blink' : w.pos === 'N' ? 'y' : ''), rn = f || (w.mv ? 'y blink' : w.pos === 'R' ? 'y' : '');
-    return `<div class="cell" data-dv="${id}" title="${SWS[id].d}"><span class="lp l ${ln}"></span><span class="lp r ${rn}"></span>${LEVV(w.pos === 'R' ? 35 : 0)}${PIN}<span class="nm r">${SWN[id]}${lk ? ' 🔒' : ''}</span></div>`;
+    return `<div class="cell" data-dv="${id}" title="${SWS[id].d}"><span class="lp l ${ln}"></span><span class="lp r ${rn}"></span>${LEVV((w.lev || 'N') === 'R' ? 35 : 0)}${PIN}<span class="nm r">${SWN[id]}${lk ? ' 🔒' : ''}</span></div>`;
   }
   if (ty === 'fd') return `<div class="cell" data-fd="1" title="Trasmettichiave deviatoio 101"><span class="lp l ${S.key === 'R' ? 'y blink' : 'y'}"></span>${LEVV(S.key === 'R' ? 0 : 90)}${PIN}<span class="nm r">FD101${S.key === 'R' ? ' (chiave fuori)' : ''}<br><small>D101 ${S.sw.D101.pos === 'R' ? 'rovescio' : 'normale'}</small></span></div>`;
   return '<div class="cell empty"></div>';
@@ -6964,7 +6966,7 @@ const R3 = (() => {
   const T = {};                  // superfici inquadrabili (mm)
   const tick = [];               // funzioni chiamate a ogni fotogramma
   const LS = (() => { try { return JSON.parse(localStorage.getItem('cs-latisana-luci')) || {}; } catch (e) { return {}; } })();
-  let ceilA = LS.ceilA !== undefined ? LS.ceilA : LS.ceil !== false, ceilB = LS.ceilB !== undefined ? LS.ceilB : LS.ceil !== false, lampOn = LS.lamp !== false; const ceilOnF = () => (ceilA ? 0.5 : 0) + (ceilB ? 0.5 : 0); quality = LS.q || 'alta';
+  let ceilA = LS.ceilA !== undefined ? LS.ceilA : LS.ceil !== false, ceilB = LS.ceilB !== undefined ? LS.ceilB : LS.ceil !== false, lampOn = LS.lamp !== false; const ceilOnF = () => (ceilA ? 0.5 : 0) + (ceilB ? 0.5 : 0); quality = LS.q || 'media';
   const saveLS = () => { try { localStorage.setItem('cs-latisana-luci', JSON.stringify({ ceilA, ceilB, lamp: lampOn, q: quality })); } catch (e) { } };
 
   // ---------- texture procedurali ----------
@@ -6996,14 +6998,14 @@ const R3 = (() => {
   const PXMM = 0.75;            // mm per px della pulsantiera
   const PW = Math.round(W / PXMM), PH = Math.round(L / PXMM), PS = 1.5;   // dimensioni pannello in px e scala texture
 
-  let phoneHit = [], phoneScr, phoneLed, sun, hemi, lampSpot, lampBulbMat, ceilLights = [], ceilMats = [], skyMat, qlTex, qlEmis, qlMesh, pulsGroup, pulsTex, cellObjs = [], monLights = [], glassMat, switchMesh, lampHit, clockTex, starPts;
+  let phoneHit = [], phoneScr, phoneLed, sun, hemi, lampSpot, lampBulbMat, ceilLights = [], ceilMats = [], skyMat, qlTex, qlMesh, pulsGroup, pulsTex, cellObjs = [], monLights = [], glassMat, switchMesh, lampHit, clockTex, starPts;
   const mats = {};
 
   function build() {
     if (built) return; built = true;
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.setPixelRatio(Math.min(1.5, devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.85;
     renderer.domElement.className = 'gl3';
     view.insertBefore(renderer.domElement, view.firstChild);
@@ -7107,8 +7109,9 @@ const R3 = (() => {
     for (const [x, z] of [[-600, -300], [1500, -300], [-600, 1000], [1500, 1000]]) {
       const lm = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff6e6, emissiveIntensity: 1.6, roughness: 0.5 });
       ceilMats.push(lm); lm.userData.grp = z < 0 ? 'A' : 'B'; box(x, H - 15, z, 1200, 15, 300, lm).castShadow = false;
-      const ra = new THREE.RectAreaLight(0xfff4e4, 6, M(1200), M(300)); ra.position.set(M(x), M(H - 20), M(z)); ra.lookAt(M(x), 0, M(z)); scene.add(ra); ra.userData.grp = z < 0 ? 'A' : 'B'; ceilLights.push(ra);
     }
+    // una sola luce ad area per gruppo di plafoniere (A lato banco, B lato porta): metà del costo di calcolo
+    for (const z of [-300, 1000]) { const ra = new THREE.RectAreaLight(0xfff4e4, 6, M(3300), M(300)); ra.position.set(M(450), M(H - 20), M(z)); ra.lookAt(M(450), 0, M(z)); scene.add(ra); ra.userData.grp = z < 0 ? 'A' : 'B'; ceilLights.push(ra); }
 
     // ---------- banco ACEI ----------
     const prof = [[0, 720], [0, yD], [zD, yD], [zP, yP], [zQ, yQ], [zB, yQ], [zB, 0], [-250, 0], [-250, 720]];
@@ -7121,11 +7124,15 @@ const R3 = (() => {
     // quadro luminoso: cornice e pannello a mosaico (texture dal QL vero)
     const qlG = group(0, (yP + yQ) / 2, (zP + zQ) / 2 + 10, 0, a2);
     box(0, -HQ / 2 - 10, 0, W - 40, HQ + 20, 14, mat({ color: 0x9aa1a7, roughness: 0.4, metalness: 0.5 }), qlG).position.z = M(-4);
-    const qc = document.createElement('canvas'), qe = document.createElement('canvas');
-    qc.width = qe.width = 4080; qc.height = qe.height = Math.round(4080 * (HQ - 40) / (W - 70));
+    const qc = document.createElement('canvas');
+    qc.width = 3072; qc.height = Math.round(3072 * (HQ - 40) / (W - 70));
     qlTex = new THREE.CanvasTexture(qc); qlTex.colorSpace = THREE.SRGBColorSpace; qlTex.anisotropy = 8;
-    qlEmis = new THREE.CanvasTexture(qe); qlEmis.colorSpace = THREE.SRGBColorSpace; qlEmis.anisotropy = 8;
-    qlMesh = mesh(new THREE.PlaneGeometry(M(W - 70), M(HQ - 40)), new THREE.MeshStandardMaterial({ map: qlTex, emissiveMap: qlEmis, emissive: 0xffffff, emissiveIntensity: 1.6, roughness: 0.55 }), [0, 0, 6], null, qlG);
+    const qm = new THREE.MeshStandardMaterial({ map: qlTex, emissive: 0xffffff, emissiveIntensity: 1.6, roughness: 0.55 });
+    // i LED (pixel saturati o quasi bianchi) emettono luce propria: calcolo fatto dalla scheda video
+    qm.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { vec3 qc = diffuseColor.rgb; float mx = max(qc.r, max(qc.g, qc.b)), mn = min(qc.r, min(qc.g, qc.b)), sat = mx > 0.0 ? (mx - mn) / mx : 0.0;
+        float e = ((sat > 0.6 && mx > 0.12) || mn > 0.86) ? 1.0 : 0.0; totalEmissiveRadiance *= qc * e; }`); };
+    qlMesh = mesh(new THREE.PlaneGeometry(M(W - 70), M(HQ - 40)), qm, [0, 0, 6], null, qlG);
     qlMesh.castShadow = false;
     T.ql = { x: 0, y: (yP + yQ) / 2, z: (zP + zQ) / 2, w: W, h: HQ, rx: a2 };
     // pulsantiera inclinata
@@ -7133,7 +7140,7 @@ const R3 = (() => {
     T.puls = { x: 0, y: (yD + yP) / 2, z: (zD + zP) / 2, w: W, h: L, rx: a1 };
     const pc = document.createElement('canvas'); pc.width = PW * PS; pc.height = PH * PS;
     pulsTex = new THREE.CanvasTexture(pc); pulsTex.colorSpace = THREE.SRGBColorSpace; pulsTex.anisotropy = 8;
-    const pm2 = mesh(new THREE.PlaneGeometry(M(PW * PXMM), M(PH * PXMM)), new THREE.MeshStandardMaterial({ map: pulsTex, roughness: 0.62, metalness: 0.05, transparent: true }), [0, 0, 1], null, pulsGroup); pm2.castShadow = false;
+    const pm2 = mesh(new THREE.PlaneGeometry(M(PW * PXMM), M(PH * PXMM)), new THREE.MeshStandardMaterial({ map: pulsTex, roughness: 0.62, metalness: 0.05 }), [0, 0, 1], null, pulsGroup); pm2.castShadow = false;
     // oggetti sul piano
     box(-330, yD + 10, -130, 260, 60, 330, mat({ color: 0xe8e4d2, roughness: 0.7 }), null, 6);
     plane(-330, yD + 71, -130, 230, 300, mat({ map: ctex(460, 600, (g, w, h) => { g.fillStyle = '#efeee6'; g.fillRect(0, 0, w, h); g.strokeStyle = '#b8b29a'; g.lineWidth = 8; g.strokeRect(10, 10, w - 20, h - 20); g.fillStyle = '#333'; g.font = 'bold 40px Arial'; g.textAlign = 'center'; ['RACCOLTA', 'DISPOSIZIONI', 'DI SERVIZIO'].forEach((t, i) => g.fillText(t, w / 2, 230 + i * 56)); }), roughness: 0.8 }), 0, 90);
@@ -7183,7 +7190,7 @@ const R3 = (() => {
       const p = new THREE.Vector3(0, M(yC), M(-33)).applyMatrix4(g.matrixWorld);
       o.position.copy(p).multiplyScalar(1000); o.rotation.y = ry * DEG; o.scale.setScalar(s); cssScene.add(o);
       // luce dello schermo
-      const ra = new THREE.RectAreaLight(0xaec4ff, 1.4, M(wS), M(hS)); ra.position.copy(p); ra.lookAt(p.x + Math.sin(ry * DEG), p.y - 0.3, p.z + Math.cos(ry * DEG)); scene.add(ra); monLights.push(ra);
+      const ra = new THREE.PointLight(0xaec4ff, 0.3, 1.6, 2); ra.position.set(p.x + Math.sin(ry * DEG) * 0.25, p.y - 0.05, p.z + Math.cos(ry * DEG) * 0.25); scene.add(ra); monLights.push(ra);
       const rad = ry * DEG; T[id] = { x: x - 33 * Math.sin(rad), y: yD + yC, z: z - 33 * Math.cos(rad), w: wS, h: hS, ry };
     };
     mkScreens();
@@ -7347,29 +7354,27 @@ const R3 = (() => {
 
   // ---------- quadro luminoso: SVG del gioco → texture (colore + emissione per i LED) ----------
   let qlBusy = false, qlLast = 0;
+  let qlLastSvg = '', qlBg = null;
   function updateQL(now) {
-    if (qlBusy || now - qlLast < 250) return; qlBusy = true; qlLast = now;
+    if (qlBusy || now - qlLast < 250) return; qlLast = now;
     const cl = svg.cloneNode(true); cl.setAttribute('width', 2840); cl.setAttribute('height', 430); cl.removeAttribute('style'); cl.removeAttribute('class');
-    const img = new Image(), url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(cl)], { type: 'image/svg+xml' }));
+    const str = new XMLSerializer().serializeToString(cl);
+    if (str === qlLastSvg) return;                       // nulla è cambiato sul quadro: niente da ridisegnare
+    qlLastSvg = str; qlBusy = true;
+    const img = new Image(), url = URL.createObjectURL(new Blob([str], { type: 'image/svg+xml' }));
     img.onload = () => {
       const c = qlTex.image, g = c.getContext('2d'), w = c.width, h = c.height;
-      // mosaico chiaro
-      g.fillStyle = '#e9ebe6'; g.fillRect(0, 0, w, h);
-      const tw = w / 34, th = tw * 0.8; g.strokeStyle = '#bfc3bd'; g.lineWidth = 2;
-      for (let x = 0; x <= w; x += tw) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
-      for (let y = h % th / 2; y <= h; y += th) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+      if (!qlBg) {   // mosaico chiaro disegnato una sola volta
+        qlBg = document.createElement('canvas'); qlBg.width = w; qlBg.height = h; const b = qlBg.getContext('2d');
+        b.fillStyle = '#e9ebe6'; b.fillRect(0, 0, w, h);
+        const tw = w / 34, th = tw * 0.8; b.strokeStyle = '#bfc3bd'; b.lineWidth = 1.5;
+        for (let x = 0; x <= w; x += tw) { b.beginPath(); b.moveTo(x, 0); b.lineTo(x, h); b.stroke(); }
+        for (let y = h % th / 2; y <= h; y += th) { b.beginPath(); b.moveTo(0, y); b.lineTo(w, y); b.stroke(); }
+      }
+      g.drawImage(qlBg, 0, 0);
       const iw = w * 0.985, ih = iw * 430 / 2840, ix = (w - iw) / 2, iy = (h - ih) / 2;
       g.drawImage(img, ix, iy, iw, ih);
-      // emissione: solo i pixel colorati o molto chiari (LED, lampade, binari illuminati)
-      const e = qlEmis.image, ge = e.getContext('2d', { willReadFrequently: true }); ge.fillStyle = '#000'; ge.fillRect(0, 0, w, h);
-      ge.drawImage(img, ix, iy, iw, ih);
-      const d = ge.getImageData(ix | 0, iy | 0, Math.ceil(iw), Math.ceil(ih)), a = d.data;
-      for (let i = 0; i < a.length; i += 4) {
-        const r = a[i], gg = a[i + 1], b = a[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), sat = mx ? (mx - mn) / mx : 0;
-        if (!((sat > 0.42 && mx > 110) || mn > 236)) { a[i] = a[i + 1] = a[i + 2] = 0; }
-      }
-      ge.putImageData(d, ix | 0, iy | 0);
-      qlTex.needsUpdate = true; qlEmis.needsUpdate = true; URL.revokeObjectURL(url); qlBusy = false;
+      qlTex.needsUpdate = true; markDirty(); URL.revokeObjectURL(url); qlBusy = false;
     };
     img.onerror = () => { URL.revokeObjectURL(url); qlBusy = false; };
     img.src = url;
@@ -7379,6 +7384,7 @@ const R3 = (() => {
   const hidden = document.createElement('div'); hidden.id = 'r3dom'; document.body.appendChild(hidden);
   let layout = null, panelSig = '';
   const LAYT = { tabX: 0, tabY: 0, plX: 0, plY: 0 };
+  let dirty = true, camDirty = true; const markDirty = () => { dirty = true; };
   function measure() {
     const tab = $('tab'), pls = $('pls'), plb = document.querySelector('.plbox');
     const tr = tab.getBoundingClientRect(), pr = plb.getBoundingClientRect();
@@ -7394,7 +7400,7 @@ const R3 = (() => {
   const domCell = c => (c.src === 'tab' ? $('tab') : $('pls')).children[c.i];
   function drawPanel() {
     const c = pulsTex.image, g = c.getContext('2d'); g.setTransform(PS, 0, 0, PS, 0, 0);
-    g.clearRect(0, 0, PW, PH);
+    g.fillStyle = '#2b58a3'; g.fillRect(0, 0, PW, PH);   // fondo blu del banco: pannello opaco, niente trasparenze da ordinare
     const mod = (x, y, w, h) => { g.fillStyle = '#4d5156'; g.fillRect(x - 6, y - 6, w + 12, h + 12); g.fillStyle = '#9ca1a6'; g.fillRect(x - 3, y - 3, w + 6, h + 6); };
     mod(LAYT.tabX, LAYT.tabY, layout.tw, layout.th); mod(LAYT.plX, LAYT.plY, layout.pw, layout.ph);
     // modulo cieco con targa
@@ -7456,70 +7462,99 @@ const R3 = (() => {
     const o = new THREE.Mesh(geo, m); o.rotation.x = Math.PI / 2; o.position.set(px2x(x), px2y(y), 0); par.add(o); return o;
   }
   const px2x = x => M((x - PW / 2) * PXMM), px2y = y => M((PH / 2 - y) * PXMM);
+  // materiale per lampade e pulsanti istanziati: colore per istanza; valori > 1 = luce propria (emissione)
+  function glowMat(base) {
+    const m = new THREE.MeshStandardMaterial(Object.assign({ color: 0xffffff, roughness: 0.35, metalness: 0 }, base));
+    m.onBeforeCompile = sh => {
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <color_fragment>', '#if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )\n float litC = step( 1.001, max( vColor.r, max( vColor.g, vColor.b ) ) );\n diffuseColor.rgb *= mix( vColor.rgb, vColor.rgb - vec3( 1.0 ), litC );\n#endif')
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n#if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )\n totalEmissiveRadiance += max( vColor.rgb - vec3( 1.0 ), vec3( 0.0 ) ) * litC * 0.9;\n#endif');
+    };
+    return m;
+  }
+  let inst = {}, panelState = [], levAnim = false;
+  const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _e = new THREE.Euler(), _c = new THREE.Color();
+  function setI(mesh, i, x, y, z, rx, rz, sc) { _e.set(rx || 0, 0, rz || 0, 'ZXY'); _q.setFromEuler(_e); _p.set(x, y, z); _s.setScalar(sc === undefined ? 1 : sc); _m4.compose(_p, _q, _s); mesh.setMatrixAt(i, _m4); }
   function buildPanel() {
     measure(); drawPanel();
-    for (const o of cellObjs) pulsGroup.remove(o.g);
-    cellObjs = [];
-    const g0 = geos();
+    for (const k in inst) { pulsGroup.remove(inst[k]); inst[k].dispose(); }
+    inst = {}; cellObjs = []; panelState = [];
+    const g0 = geos(), cnt = { rt: 0, lev: 0, levB: 0, lamp: 0, lampR: 0 };
     for (const cl of layout.cells) {
       const d = domCell(cl); if (!d) continue;
-      const g = new THREE.Group(); pulsGroup.add(g);
-      const o = { cl, g, kind: null };
-      const cx = cl.x + cl.w / 2;
-      if (d.dataset.rt || (d.dataset.k && d.querySelector('.ring'))) {
-        o.kind = 'rt';
-        const cy = cl.y + 50;
-        const ring = new THREE.Mesh(g0.ring, g0.mRing); ring.rotation.x = Math.PI / 2; ring.position.set(px2x(cx), px2y(cy), M(2)); ring.castShadow = true; g.add(ring);
-        const ri = new THREE.Mesh(g0.ringIn, g0.mRingIn); ri.rotation.x = Math.PI / 2; ri.position.set(px2x(cx), px2y(cy), M(2.3)); g.add(ri);
-        o.btnMat = new THREE.MeshStandardMaterial({ color: 0xefe8c8, roughness: 0.45, emissive: 0x000000, emissiveIntensity: 0.6 });
-        o.btn = new THREE.Group(); o.btn.position.set(px2x(cx), px2y(cy), M(4));
-        const b1 = new THREE.Mesh(g0.btn, o.btnMat); b1.rotation.x = Math.PI / 2; b1.castShadow = true; o.btn.add(b1);
-        const b2 = new THREE.Mesh(g0.btnTop, o.btnMat); b2.rotation.x = Math.PI / 2; b2.position.z = M(-2.2); o.btn.add(b2);
-        g.add(o.btn);
-        if (d.dataset.rt) o.lamp = lampMesh(g0.lampR, g, cl.x + 14.5, cl.y + 14.5);
-      } else if (d.querySelector('.lev')) {
-        o.kind = 'lev';
-        const cy = cl.y + (d.classList.contains('plc') ? 34 : 29);
-        o.lev = new THREE.Group(); o.lev.position.set(px2x(cx), px2y(cy), M(3)); g.add(o.lev);
-        const body = new THREE.Mesh(g0.lever, g0.mChrome); body.castShadow = true; body.position.z = 0; o.lev.add(body);
-        const kn = new THREE.Mesh(g0.knob, d.classList.contains('plc') ? g0.mKnobB : g0.mKnob); kn.rotation.x = Math.PI / 2; kn.position.z = M(7); kn.castShadow = true; o.lev.add(kn);
-        if (d.querySelector('.lp.l')) o.lamp = lampMesh(g0.lamp, g, cl.x + 13.5, cl.y + 12.5);
-        if (d.querySelector('.lp.r')) o.lampR = lampMesh(g0.lamp, g, cl.x + cl.w - 13.5, cl.y + 12.5);
-      } else if (d.querySelector('.lp')) {
-        o.kind = 'lamp'; o.lamp = lampMesh(g0.lampR, g, cx, cl.y + 26);
-      }
+      const o = { cl, kind: null }, cx = cl.x + cl.w / 2;
+      if (d.dataset.rt || (d.dataset.k && d.querySelector('.ring'))) { o.kind = 'rt'; o.i = cnt.rt++; o.x = cx; o.y = cl.y + 50; if (d.dataset.rt) o.lamp = { r: true, i: cnt.lampR++, x: cl.x + 14.5, y: cl.y + 14.5 }; }
+      else if (d.querySelector('.lev')) {
+        o.kind = 'lev'; o.blue = d.classList.contains('plc'); o.i = o.blue ? cnt.levB++ : cnt.lev++; o.x = cx; o.y = cl.y + (o.blue ? 34 : 29); o.rot = null;
+        if (d.querySelector('.lp.l')) o.lamp = { i: cnt.lamp++, x: cl.x + 13.5, y: cl.y + 12.5 };
+        if (d.querySelector('.lp.r')) o.lampR = { i: cnt.lamp++, x: cl.x + cl.w - 13.5, y: cl.y + 12.5 };
+      } else if (d.querySelector('.lp')) { o.kind = 'lamp'; o.lamp = { r: true, i: cnt.lampR++, x: cx, y: cl.y + 26 }; }
       cellObjs.push(o);
     }
-    panelSig = sig();
+    const mk = (k, geo, m, n) => { if (!n) return; const im = new THREE.InstancedMesh(geo, m, n); im.receiveShadow = true; im.castShadow = false; im.frustumCulled = false; pulsGroup.add(im); inst[k] = im; };
+    const btnM = glowMat({ roughness: 0.45 }), lampM = glowMat({ roughness: 0.3 });
+    mk('ring', g0.ring, g0.mRing, cnt.rt); mk('ringIn', g0.ringIn, g0.mRingIn, cnt.rt); mk('btn', g0.btn, btnM, cnt.rt); mk('btnTop', g0.btnTop, btnM, cnt.rt);
+    mk('lev', g0.lever, g0.mChrome, cnt.lev); mk('knob', g0.knob, g0.mKnob, cnt.lev); mk('levB', g0.lever, g0.mChrome, cnt.levB); mk('knobB', g0.knob, g0.mKnobB, cnt.levB);
+    mk('lamp', g0.lamp, lampM, cnt.lamp); mk('lampR', g0.lampR, lampM, cnt.lampR);
+    for (const o of cellObjs) {
+      if (o.kind === 'rt') {
+        setI(inst.ring, o.i, px2x(o.x), px2y(o.y), M(2), Math.PI / 2); setI(inst.ringIn, o.i, px2x(o.x), px2y(o.y), M(2.3), Math.PI / 2);
+        setI(inst.btn, o.i, px2x(o.x), px2y(o.y), M(4), Math.PI / 2); setI(inst.btnTop, o.i, px2x(o.x), px2y(o.y), M(4 - 2.2), Math.PI / 2);
+        inst.btn.setColorAt(o.i, _c.setHex(0xefe8c8)); inst.btnTop.setColorAt(o.i, _c);
+      }
+      for (const l of [o.lamp, o.lampR]) if (l) { const im = l.r ? inst.lampR : inst.lamp; setI(im, l.i, px2x(l.x), px2y(l.y), 0, Math.PI / 2); im.setColorAt(l.i, _c.setHex(l.r && o.kind === 'rt' ? 0xa9b0bb : 0xd8c8b8)); }
+    }
+    for (const k in inst) { inst[k].instanceMatrix.needsUpdate = true; if (inst[k].instanceColor) inst[k].instanceColor.needsUpdate = true; }
+    panelSig = sig(); markDirty();
   }
   const sig = () => [...$('tab').querySelectorAll('.nm'), ...$('pls').querySelectorAll('.nm')].map(n => n.textContent).join('|') + $('pls').children.length;
-  function setLamp(m, cls, blink) {
-    if (!m) return;
-    let col = null; for (const k in LAMPCOL) if (cls.contains(k)) { col = LAMPCOL[k]; break; }
-    const on = col !== null && (!cls.contains('blink') || blink);
-    m.material.emissive.setHex(on ? col : 0x000000); m.material.color.setHex(on ? new THREE.Color(col).lerp(new THREE.Color(0xd8c8b8), 0.45).getHex() : 0xd8c8b8);
-  }
+  function lampCol(cls, blink) { let col = null; for (const k in LAMPCOL) if (cls.contains(k)) { col = LAMPCOL[k]; break; } return col !== null && (!cls.contains('blink') || blink) ? col : null; }
+  const NOCLS = { contains: () => false };
   let pulsT = 0;
   function updatePanel(now) {
-    if (now - pulsT < 120) return; pulsT = now;
+    if (levAnim) animLevers();
+    if (now - pulsT < 150) return; pulsT = now;
     if (sig() !== panelSig) { buildPanel(); }
     const blink = Math.floor(now / 330) % 2 === 0;
-    for (const o of cellObjs) {
-      const d = domCell(o.cl); if (!d) continue;
+    let chM = false, chC = false;
+    const setLampC = (l, col, offHex) => { const im = l.r ? inst.lampR : inst.lamp; if (col === null) _c.setHex(offHex); else { _c.setHex(col); _c.setRGB(_c.r + 1, _c.g + 1, _c.b + 1); } im.setColorAt(l.i, _c); };
+    cellObjs.forEach((o, k) => {
+      const d = domCell(o.cl); if (!d) return;
+      let st = '';
       if (o.kind === 'rt') {
-        const r = d.querySelector('.ring'), on = r && (r.classList.contains('on') || r.classList.contains('deg') || (r.classList.contains('mv') && blink));
-        const col = r && r.classList.contains('deg') ? 0xffa850 : 0xfff2b8;
-        o.btnMat.emissive.setHex(on ? col : 0x000000);
-        if (o.lamp) { o.lamp.material.emissive.setHex(on ? col : 0x000000); o.lamp.material.color.setHex(on ? col : 0xa9b0bb); }
-        o.btn.position.z = M(d.classList.contains('pressed') ? 2 : 4);
+        const r = d.querySelector('.ring'), on = r && (r.classList.contains('on') || r.classList.contains('deg') || (r.classList.contains('mv') && blink)), deg = r && r.classList.contains('deg'), pr = d.classList.contains('pressed');
+        st = `${on}${deg}${pr}`; if (st === panelState[k]) return; panelState[k] = st;
+        const col = on ? (deg ? 0xffa850 : 0xfff2b8) : null;
+        if (col === null) _c.setHex(0xefe8c8); else { _c.setHex(col); _c.setRGB(_c.r * 0.9 + 1, _c.g * 0.9 + 1, _c.b * 0.9 + 1); }
+        inst.btn.setColorAt(o.i, _c); inst.btnTop.setColorAt(o.i, _c);
+        setI(inst.btn, o.i, px2x(o.x), px2y(o.y), M(pr ? 2 : 4), Math.PI / 2); setI(inst.btnTop, o.i, px2x(o.x), px2y(o.y), M((pr ? 2 : 4) - 2.2), Math.PI / 2);
+        if (o.lamp) setLampC(o.lamp, col, 0xa9b0bb);
+        chM = chC = true;
       } else if (o.kind === 'lev') {
         const sv = d.querySelector('.lev'), m = /rotate\((-?[\d.]+)deg\)/.exec(sv && sv.getAttribute('style') || ''), deg = m ? +m[1] : 0;
-        o.lev.rotation.z += (-deg * DEG - o.lev.rotation.z) * 0.5;
-        const lps = d.querySelectorAll('.lp'); setLamp(o.lamp, lps[0] ? lps[0].classList : { contains: () => false }, blink); setLamp(o.lampR, lps[1] ? lps[1].classList : { contains: () => false }, blink);
+        const lps = d.querySelectorAll('.lp'), c1 = o.lamp ? lampCol(lps[0] ? lps[0].classList : NOCLS, blink) : null, c2 = o.lampR ? lampCol(lps[1] ? lps[1].classList : NOCLS, blink) : null;
+        st = `${deg}|${c1}|${c2}`; if (st === panelState[k]) return; panelState[k] = st;
+        o.target = -deg * DEG; if (o.rot === null) o.rot = o.target; levAnim = true;
+        if (o.lamp) setLampC(o.lamp, c1, 0xd8c8b8); if (o.lampR) setLampC(o.lampR, c2, 0xd8c8b8);
+        chC = true;
       } else if (o.kind === 'lamp') {
-        const lp = d.querySelector('.lp'); setLamp(o.lamp, lp.classList, blink);
+        const c1 = lampCol(d.querySelector('.lp').classList, blink); st = String(c1); if (st === panelState[k]) return; panelState[k] = st;
+        setLampC(o.lamp, c1, 0xd8c8b8); chC = true;
       }
+    });
+    if (chM) for (const k in inst) inst[k].instanceMatrix.needsUpdate = true;
+    if (chC) for (const k in inst) if (inst[k].instanceColor) inst[k].instanceColor.needsUpdate = true;
+    if (chM || chC) markDirty();
+  }
+  function animLevers() {
+    let moving = false;
+    for (const o of cellObjs) if (o.kind === 'lev' && o.rot !== null) {
+      const dd = o.target - o.rot; o.rot = Math.abs(dd) < 0.01 ? o.target : o.rot + dd * 0.3; if (o.rot !== o.target) moving = true;
+      const a = o.blue ? inst.levB : inst.lev, b = o.blue ? inst.knobB : inst.knob;
+      setI(a, o.i, px2x(o.x), px2y(o.y), M(3), 0, o.rot); setI(b, o.i, px2x(o.x), px2y(o.y), M(3 + 7), Math.PI / 2, o.rot);
     }
+    for (const k of ['lev', 'knob', 'levB', 'knobB']) if (inst[k]) inst[k].instanceMatrix.needsUpdate = true;
+    levAnim = moving; markDirty();
   }
   function cellAt(px, py) { if (!layout) return null; for (const c of layout.cells) if (px >= c.x && px < c.x + c.w && py >= c.y && py < c.y + c.h) { const d = domCell(c); if (d && !d.classList.contains('empty') && !d.classList.contains('title')) return d; } return null; }
 
@@ -7546,7 +7581,7 @@ const R3 = (() => {
   let phLast = '';
   function drawPhone(now) {
     const ring = S.ringing || S.trains.some(t => t.called && !t.callAck) || S.ints.some(x => x.state === 'pending' && !x.ack), blink = Math.floor(now / 400) % 2 === 0;
-    phoneLed.material.emissive.setHex(ring && blink ? 0xff2a1a : 0x000000);
+    const led = ring && blink ? 0xff2a1a : 0x000000; if (phoneLed.material.emissive.getHex() !== led) { phoneLed.material.emissive.setHex(led); markDirty(); }
     const key = fmtM(S.simT) + ring + blink;
     if (key === phLast) return; phLast = key;
     const c = phoneScr.image, g = c.getContext('2d'), w = c.width, h = c.height;
@@ -7558,7 +7593,7 @@ const R3 = (() => {
     for (let r = 0; r < 6; r++) { g.fillStyle = '#5b5f64'; g.fillRect(400, 30 + r * 58, 90, 36); g.fillStyle = '#3ad16a'; g.fillRect(470, 40 + r * 58, 10, 10); }
     for (let r = 0; r < 4; r++) { g.fillStyle = '#5b5f64'; g.fillRect(380 - 0, 380, 0, 0); g.fillRect(20 + r * 30, 380, 24, 30); }
     g.fillStyle = '#c33'; g.fillRect(400, 386, 90, 30);
-    phoneScr.needsUpdate = true;
+    phoneScr.needsUpdate = true; markDirty();
   }
 
   // ---------- schermo intero dei monitor ----------
@@ -7599,24 +7634,28 @@ const R3 = (() => {
     dig(60, y0, Math.floor(hh / 10)); dig(260, y0, hh % 10); dig(580, y0, Math.floor(mm / 10)); dig(780, y0, mm % 10);
     g.fillStyle = sec % 2 ? '#ff2a14' : '#3a0a06';
     for (const yy of [130, 230]) { g.beginPath(); g.arc(495, y0 + yy - 45, 16, 0, 7); g.fill(); }
-    clockTex.needsUpdate = true;
+    clockTex.needsUpdate = true; markDirty();
   }
 
   // ---------- ciclo giorno/notte ----------
   const sunF = h => (h < 6 || h > 18.25) ? 0 : h < 7.5 ? (h - 6) / 1.5 : h > 16.75 ? (18.25 - h) / 1.5 : 1;
   const C3 = (a, b, k) => new THREE.Color(a).lerp(new THREE.Color(b), k);
+  let lastSun = null, lastLampOn = null;
   function light() {
     if (!built) return;
+    if (lastLampOn !== lampOn) { lastLampOn = lampOn; renderer.shadowMap.needsUpdate = true; }
+    markDirty();
     const h = (S.simT % 86400) / 3600, d = sunF(h), tw = d > 0 && d < 1 ? 1 - Math.abs(d - 0.5) * 2 : 0;
     // sole: arco da sud-est a sud-ovest, sempre dal lato della finestra
     const p = Math.min(1, Math.max(0, (h - 6) / 12.25)), az = (-70 + 140 * p) * DEG, el = Math.max(0.04, Math.sin(p * Math.PI) * 38 * DEG);
     const sd = new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.sin(el), -Math.cos(el) * Math.sin(az)).normalize();
+    if (!lastSun || lastSun.angleTo(sd) > 0.01) { lastSun = sd.clone(); renderer.shadowMap.needsUpdate = true; }
     sun.position.copy(sd).multiplyScalar(15); sun.target.position.set(0.8, 0, -0.4);
     sun.intensity = 2.4 * d; sun.color.copy(C3(0xffb070, 0xfff4e0, Math.min(1, d * 1.6)));
     skyMat.uniforms.top.value.copy(C3(0x0b1026, 0x6fb0ea, d)); skyMat.uniforms.bot.value.copy(C3(0x1a2240, 0xd5e6f4, d)).lerp(new THREE.Color(0xf09060), tw * 0.75);
     skyMat.uniforms.stars.value = Math.max(0, 1 - d * 3); skyMat.uniforms.sunDir.value.copy(sd); skyMat.uniforms.sunOn.value = d > 0 ? 1 : 0;
     const on = g => g === 'A' ? ceilA : ceilB, cf = ceilOnF();
-    for (const l of ceilLights) l.intensity = on(l.userData.grp) ? 2.2 : 0;
+    for (const l of ceilLights) { l.intensity = on(l.userData.grp) ? 2.4 : 0; l.visible = l.intensity > 0; }
     for (const m of ceilMats) { const o = on(m.userData.grp); m.emissiveIntensity = o ? 1.6 : 0; m.color.setHex(o ? 0xffffff : 0x9a9a94); }
     hemi.intensity = 0.02 + cf * 0.16 + d * 0.18;
     scene.environmentIntensity = 0.02 + cf * 0.14 + d * 0.14;
@@ -7624,7 +7663,7 @@ const R3 = (() => {
     for (const p of switchMesh) p.parent.rotation.x = on(p.userData.sw) ? -0.12 : 0.12;
     const og = 0.08 + 0.92 * d; mats.grass.color.setScalar(og); mats.leaf.color.setRGB(0.24 * og, 0.35 * og, 0.2 * og); mats.trunk.color.setRGB(0.29 * og, 0.23 * og, 0.16 * og);
     const night = 1 - Math.min(1, cf + d);
-    for (const l of monLights) l.intensity = 0.25 + night * 0.6;
+    for (const l of monLights) l.intensity = 0.08 + night * 0.25;
     qlMesh.material.emissiveIntensity = 0.9 + night * 0.6;
     bloom.strength = 0.25 + night * 0.4;
   }
@@ -7634,9 +7673,10 @@ const R3 = (() => {
   const PRE = { pano: { x: -1550, y: 2100, z: 1450, yaw: 36, pitch: -21 }, pano2: { x: 2450, y: 2050, z: 1450, yaw: -44, pitch: -17 }, seat: SEAT };
   let C = Object.assign({}, SEAT), tw = null;
   function applyCam() {
+    view.classList.add('moving'); clearTimeout(applyCam._t); applyCam._t = setTimeout(() => { view.classList.remove('moving'); camDirty = true; }, 220);
     if (!built) return;
     camera.position.set(M(C.x), M(C.y), M(C.z)); camera.rotation.set(C.pitch * DEG, -C.yaw * DEG, 0);
-    cssCam.position.set(C.x, C.y, C.z); cssCam.rotation.copy(camera.rotation);
+    cssCam.position.set(C.x, C.y, C.z); cssCam.rotation.copy(camera.rotation); camDirty = true;
   }
   function dirOf(c) { const p = c.pitch * DEG, y = c.yaw * DEG; return [Math.cos(p) * Math.sin(y), Math.sin(p), -Math.cos(p) * Math.cos(y)]; }
   function target(t) {
@@ -7661,15 +7701,15 @@ const R3 = (() => {
   const hist = [];
   function focus(name) {
     if (name === 'back') { go(hist.length ? hist.pop() : SEAT); return; }
-    if (name === 'q') { quality = quality === 'alta' ? 'bassa' : 'alta'; saveLS(); applyQuality(); return; }
+    if (name === 'q') { quality = { alta: 'media', media: 'bassa', bassa: 'alta' }[quality] || 'media'; saveLS(); applyQuality(); return; }
     hist.push(Object.assign({}, C)); if (hist.length > 20) hist.shift();
     if (PRE[name]) go(PRE[name]); else if (T[name]) go(target(T[name]));
   }
   function applyQuality() {
     if (!built) return;
-    const hi = quality === 'alta';
-    renderer.setPixelRatio(hi ? Math.min(2, devicePixelRatio || 1) : 1);
-    renderer.shadowMap.enabled = hi; sun.castShadow = hi; lampSpot.castShadow = hi;
+    const hi = quality !== 'bassa';
+    renderer.setPixelRatio(quality === 'alta' ? Math.min(1.5, devicePixelRatio || 1) : 1);
+    renderer.shadowMap.enabled = hi; renderer.shadowMap.needsUpdate = true; sun.castShadow = hi; lampSpot.castShadow = hi;
     scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
     const b = document.querySelector('.hud3 [data-v=q]'); if (b) b.textContent = 'Qualità: ' + quality;
     size();
@@ -7681,7 +7721,7 @@ const R3 = (() => {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hits = ray.intersectObjects([...pulsGroup.children.filter(o => o.isMesh), qlMesh, ...switchMesh, ...phoneHit, ...lampHit.children.filter(o => o.isMesh)], false);
+    const hits = ray.intersectObjects([...pulsGroup.children.filter(o => o.isMesh && !o.isInstancedMesh), qlMesh, ...switchMesh, ...phoneHit, ...lampHit.children.filter(o => o.isMesh)], false);
     if (!hits.length) return null;
     const h0 = hits[0];
     if (h0.object.userData.sw) return { t: 'sw', k: h0.object.userData.sw };
@@ -7799,13 +7839,17 @@ const R3 = (() => {
 
   // ---------- ciclo di disegno ----------
   let lightT = 0;
+  let fpsN = 0, fpsT = 0, fpsEl = null;
   function frame(now) {
     if (!running) return;
     requestAnimationFrame(frame);
     updateQL(now); updatePanel(now); drawClock(); drawPhone(now); walk(now);
     if (now - lightT > 500) { lightT = now; light(); const mc = document.querySelector('#r3m1 .mclk'); if (mc) mc.textContent = fmt(S.simT); }
-    if (quality === 'alta') composer.render(); else renderer.render(scene, camera);
-    css.render(cssScene, cssCam);
+    if (!dirty && !camDirty) return;
+    if (quality !== 'bassa') composer.render(); else renderer.render(scene, camera);
+    if (camDirty) css.render(cssScene, cssCam);
+    dirty = camDirty = false; fpsN++;
+    if (now - fpsT > 1000) { if (!fpsEl) fpsEl = document.querySelector('.hud3 .fps'); if (fpsEl) fpsEl.textContent = `${Math.round(fpsN * 1000 / (now - fpsT))} fps`; fpsN = 0; fpsT = now; }
   }
 
   // ---------- passaggio 2D <-> 3D ----------
@@ -7835,7 +7879,7 @@ const R3 = (() => {
     renderTG();
   }
   $('b3d').addEventListener('click', () => running ? leave() : enter());
-  return { enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
+  return { get _dbg() { return { scene, renderer, composer }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
     _cellXY(sel) { const d = $('tab').querySelector(sel) || $('pls').querySelector(sel); const c = layout.cells.find(c => domCell(c) === d); const v = new THREE.Vector3(px2x(c.x + c.w / 2), px2y(c.y + c.h / 2), 0).applyMatrix4(pulsGroup.matrixWorld).project(camera); const r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 })();
 try { if (localStorage.getItem('cs-latisana-view') === '3d') R3.enter(); } catch (e) { }
