@@ -485,7 +485,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '1.10.0';
+window.SIM_BUILD = '1.25.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5236,15 +5236,26 @@ function genDay(d) {
 // ======================= MATERIALE ROTABILE =======================
 // lunghezze reali (m): E464 15,75 · Vivalto: E464+4+pilota 164,5 · Rock ETR 621 163,4 · Minuetto 52 · ETR 700 / ETR 1000 / AGV ~200 · ETR 500 ~328
 const STOCK = {
-  MDVC: { name: 'E464 + 5 MDVC + pilota Mazinga', len: 175 }, VIV: { name: 'E464 + 4 Vivalto + pilota Vivalto', len: 164 },
+  MDVC: { name: 'E464 + 5 MDVC + pilota Mazinga', len: 175 }, VIV: { name: 'E464 + 4 Vivalto + pilota Vivalto', len: 146 },
   MIN: { name: 'Minuetto ALe 501', len: 52 }, ROCK: { name: 'Rock ETR 621', len: 163 }, CAF: { name: 'CAF Civity ETR 563', len: 90 },
-  ICZ: { name: 'E401 + 7 UIC-Z + pilota UIC-Z', len: 227 },
+  ICZ: { name: 'E401 + 7 UIC-Z + pilota UIC-Z', len: 230 },
   E500: { name: 'ETR 500', len: 328 }, E1000: { name: 'ETR 1000', len: 202 }, E700: { name: 'ETR 700', len: 201 },
   AGV: { name: 'AGV ETR 575', len: 200 }, E675: { name: 'ETR 675 (Pendolino Evo)', len: 187 },
 };
 const STOCK_CAT = { R: ['MIN', 'CAF', 'ROCK', 'MDVC', 'CAF', 'MIN'], RV: ['ROCK', 'VIV', 'MDVC', 'ROCK'], IC: ['ICZ'], FR: ['E500', 'E1000', 'E700', 'E1000'], ITA: ['AGV', 'E675'] };
-const LOCO_LEN = { E464: 15.75, E401: 15.4, E191: 19, E193: 19, E189: 19.6, E483: 18.9, E494: 18.9, E652: 17.8, E412: 19.5, E405: 19.4 };
-const WAGONS = { EANOS: { name: 'carri Eanos', len: 15.7 }, CIST: { name: 'ferrocisterne', len: 15.5 }, INT: { name: 'carri intermodali (container/casse mobili)', len: 19.7 }, TRAM: { name: 'carri tramoggia (cereali)', len: 15.2 }, PIAN: { name: 'pianali', len: 19.9 } };
+const LOCO_LEN = { E464: 15.75, E401: 18.9, E191: 19, E193: 19, E189: 19.6, E483: 18.9, E494: 18.9, E652: 17.8, E412: 19.5, E405: 19.4 };
+// lunghezza fuori respingenti (m)
+const WAGONS = {
+  EANOS: { name: 'carri aperti Eanos', len: 15.74 }, GABS: { name: 'carri coperti Gabs', len: 18.04 }, HABB: { name: 'carri a pareti scorrevoli Habbins', len: 23.26 },
+  SHIM: { name: 'carri telonati Shimmns (coils)', len: 12.04 }, PIAN: { name: 'pianali Rils/Res', len: 19.9 }, SAMM: { name: 'pianali pesanti Samms', len: 15.2 },
+  LAE: { name: 'carri bisarca Laaers', len: 27.0 }, INT: { name: 'carri intermodali Sgns', len: 19.74 }, INT2: { name: 'carri intermodali articolati Sggmrss', len: 29.6 },
+  TRAM: { name: 'carri tramoggia Tadns', len: 12.8 }, TAGN: { name: 'carri tramoggia per cereali Tagnpps', len: 16.24 },
+  CIST: { name: 'ferrocisterne Zans', len: 16.6 }, GAS: { name: 'carri cisterna per gas Zags', len: 21.0 },
+};
+const WAG_RID = { CIST: 1, GAS: 1 };
+// treni a blocco (tipo e peso) e carri dei treni misti
+const WAG_BLOCK = [['INT', 16], ['INT2', 9], ['EANOS', 10], ['CIST', 9], ['GAS', 3], ['SHIM', 8], ['HABB', 6], ['GABS', 3], ['TRAM', 4], ['TAGN', 4], ['PIAN', 4], ['SAMM', 2], ['LAE', 5], ['MIX', 17]];
+const WAG_MIX = ['EANOS', 'EANOS', 'GABS', 'HABB', 'HABB', 'SHIM', 'SHIM', 'PIAN', 'SAMM', 'CIST', 'TRAM', 'TAGN'];
 function assignStock(t) {
   const h = (n, k) => { let x = Math.imul(n ^ 0x9e37, 2654435761) >>> 0; x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; return (x >>> (k || 0)) / 4294967296 * (1 << (k || 0)) % 1; };
   const r = (k) => h(t.num * 7 + (t.arr / 86400 | 0) * (CATS[t.cat].pax ? 0 : 131) + k * 977, 0);
@@ -5252,10 +5263,12 @@ function assignStock(t) {
   if (t.cat === 'MRC') {
     const mir = t.impresa === 'MIR', L = mir ? ['E652', 'E483', 'E412', 'E405', 'E494'] : ['E191', 'E193', 'E189', 'E483', 'E494'];
     t.loco = L[Math.floor(r(2) * L.length)];
-    const q = r(3); t.wag = q < 0.27 ? 'INT' : q < 0.47 ? 'EANOS' : q < 0.66 ? 'CIST' : q < 0.82 ? 'TRAM' : q < 0.92 ? 'PIAN' : 'MIX';
-    t.rid = t.wag === 'CIST' || (t.wag === 'MIX' && r(4) < 0.5);
-    const wl = t.wag === 'MIX' ? 17.5 : WAGONS[t.wag].len, n = Math.max(4, Math.floor((t.len - LOCO_LEN[t.loco]) / wl));
-    t.nWag = n; t.len = Math.round(LOCO_LEN[t.loco] + n * wl);
+    let q = r(3) * WAG_BLOCK.reduce((a, b) => a + b[1], 0), k = 0; while (q > WAG_BLOCK[k][1]) { q -= WAG_BLOCK[k][1]; k++; } t.wag = WAG_BLOCK[k][0];
+    const room = t.len - LOCO_LEN[t.loco], list = [];
+    for (let i = 0, used = 0; ; i++) { const w = t.wag === 'MIX' ? WAG_MIX[Math.floor(h(t.num * 31 + i * 7 + 5, 0) * WAG_MIX.length)] : t.wag; if (used + WAGONS[w].len > room && list.length >= 4) break; list.push(w); used += WAGONS[w].len; if (list.length > 40) break; }
+    t.wagList = list; t.rid = list.some(w => WAG_RID[w]);
+    const n = list.length, wl = list.reduce((a, w) => a + WAGONS[w].len, 0);
+    t.nWag = n; t.len = Math.round(LOCO_LEN[t.loco] + wl);
     t.matName = `${t.loco} + ${n} ${t.wag === 'MIX' ? 'carri misti' : WAGONS[t.wag].name}`; return;
   }
   if (t.cat === 'LIS') { const L = ['E464', 'E464', 'E401', 'E402B']; t.loco = L[Math.floor(r(2) * L.length)] === 'E402B' ? 'E401' : L[Math.floor(r(2) * L.length)]; t.nLoco = t.len >= 35 ? 2 : 1; t.len = Math.round(LOCO_LEN[t.loco] * t.nLoco); t.matName = `${t.nLoco === 2 ? '2 × ' : ''}${t.loco} isolata`; return; }
@@ -7793,9 +7806,19 @@ const R3 = (() => {
   // un veicolo: { L, kind: 'coach'|'loco'|'emu'|'hs'|'wag', liv, dd, cabF, cabR, nose, wag, panto, col }
   function vehicle(v) {
     const g = new THREE.Group(), L = v.L * 1000, Wd = 2850;
-    const bog = (z) => { const b = new THREE.Mesh(geoCache.bog || (geoCache.bog = new THREE.BoxGeometry(M(2400), M(700), M(2900))), BOGIE()); b.position.set(0, M(RAIL + 450), M(z)); g.add(b); };
+    const bog = (z) => { const b = new THREE.Mesh(bogieGeo(v.kind === 'loco' ? 625 : 445, v.kind === 'loco' ? 2800 : 2500), BOGIE()); b.position.z = M(z); g.add(b); };
     { const sh = aoBlob(g, 0, RAIL + 8, 0, 3800, L + 1200, 0.85); sh.position.y = M(RAIL - 140); }
     if (v.kind === 'wag') return wagon(v, g, L);
+    if (v.liv === 'rock') return rockCar(v, g);
+    if (v.loco === 'E464') return e464Car(v, g);
+    if (v.loco === 'E401') return e401Car(v, g);
+    if (LT[v.loco]) return locoCar(v, g);
+    if (v.liv === 'uicz') return uiczCar(v, g);
+    if (v.liv === 'vivalto') return vivCar(v, g);
+    if (v.hs) return hsCar(v, g);
+    if (v.liv === 'mdvc') return mdvcCar(v, g);
+    if (v.liv === 'min') return emuCar(v, g, MIN_S);
+    if (v.liv === 'cafv') return emuCar(v, g, CAF_S);
     const low = v.dd ? 500 : v.kind === 'loco' ? 1100 : 1000, Hh = v.dd ? 3900 : v.kind === 'loco' ? 3150 : v.kind === 'hs' ? 2900 : 3000;
     const lv = typeof v.liv === 'string' ? LIV[v.liv] : v.liv, lk = typeof v.liv === 'string' ? v.liv : JSON.stringify(v.liv);
     const wins = v.kind === 'loco' ? null : v.dd ? [[0.2, 0.38, 9, 18], [0.52, 0.7, 9, 18]] : v.kind === 'hs' ? null : [[0.3, 0.55, 10, 20]];
@@ -7821,20 +7844,1046 @@ const R3 = (() => {
     if (v.panto) { const pm = cmat('panto', () => mat({ color: 0x23272b, metalness: 0.6, roughness: 0.4 })); const pg2 = new THREE.Group(); pg2.position.set(0, M(RAIL + low + Hh + 50), M(L / 4)); const a = new THREE.Mesh(geoCache.pa || (geoCache.pa = new THREE.BoxGeometry(M(60), M(60), M(1700))), pm); a.position.y = M(500); a.rotation.x = 0.5; pg2.add(a); const bb = new THREE.Mesh(geoCache.pb || (geoCache.pb = new THREE.BoxGeometry(M(1800), M(40), M(60))), pm); bb.position.y = M(1000); pg2.add(bb); g.add(pg2); }
     g.userData.top = RAIL + low + Hh; g.userData.low = low; return g;
   }
+  // ======================= ROCK (Hitachi ETR 521/621) =======================
+  // cassa a doppio piano ottenuta "estrudendo" una sezione con fianchi e spalle arrotondate;
+  // pavimento ribassato tra i carrelli, testate con muso sagomato. Livrea senza loghi.
+  const trainLit = [];          // materiali con finestrini illuminati di notte
+  // unisce più geometrie (con matrice) in una sola: meno oggetti da disegnare
+  function mergeG(parts) {
+    let n = 0; const ps = parts.map(([geo, m]) => { const q = geo.index ? geo.toNonIndexed() : geo.clone(); if (m) q.applyMatrix4(m); n += q.attributes.position.count; return q; });
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3); let o = 0;
+    for (const q of ps) { pos.set(q.attributes.position.array, o * 3); nor.set(q.attributes.normal.array, o * 3); o += q.attributes.position.count; }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); return g;
+  }
+  const MX = (x, y, z, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().compose(new THREE.Vector3(M(x), M(y), M(z)), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(1, 1, 1));
+  // carrello con telaio, sale e ruote (r = raggio ruota, p = passo)
+  function bogieGeo(r = 440, p = 2600, w = 2000) {
+    const k = `bg${r}|${p}|${w}`; if (geoCache[k]) return geoCache[k];
+    const parts = [], wheel = new THREE.CylinderGeometry(M(r), M(r), M(130), 18), axle = new THREE.CylinderGeometry(M(80), M(80), M(1600), 8);
+    for (const z of [-p / 2, p / 2]) {
+      for (const s of [-1, 1]) { parts.push([wheel, MX(s * 750, RAIL + r, z, 0, 0, Math.PI / 2)]); parts.push([new THREE.BoxGeometry(M(260), M(300), M(380)), MX(s * (w / 2 + 40), RAIL + r + 20, z)]); parts.push([new THREE.CylinderGeometry(M(130), M(130), M(260), 10), MX(s * (w / 2 + 40), RAIL + r + 300, z)]); }
+      parts.push([axle, MX(0, RAIL + r, z, 0, 0, Math.PI / 2)]);
+    }
+    for (const s of [-1, 1]) { parts.push([new THREE.BoxGeometry(M(200), M(320), M(p + 900)), MX(s * (w / 2 + 40), RAIL + r + 220, 0)]); parts.push([new THREE.CylinderGeometry(M(260), M(260), M(320), 12), MX(s * 900, RAIL + r + 500, 0)]); }
+    parts.push([new THREE.BoxGeometry(M(w - 200), M(260), M(700)), MX(0, RAIL + r + 260, 0)]);
+    parts.push([new THREE.BoxGeometry(M(w - 300), M(120), M(p - 600)), MX(0, RAIL + r + 120, 0)]);
+    return geoCache[k] = mergeG(parts);
+  }
+  // pantografo a mezzo braccio
+  function pantoGrp(y) {
+    const pm = cmat('panto', () => mat({ color: 0x2b2f33, metalness: 0.6, roughness: 0.4 })), ins = cmat('insul', () => mat({ color: 0x8a3a24, roughness: 0.6 }));
+    const gg = geoCache.panto2 || (geoCache.panto2 = mergeG([
+      [new THREE.BoxGeometry(M(1300), M(80), M(1600)), MX(0, 220, 0)],
+      [new THREE.BoxGeometry(M(70), M(70), M(1500)), MX(0, 260 + 520, 300, -0.75)],
+      [new THREE.BoxGeometry(M(50), M(50), M(1500)), MX(0, 260 + 1280, 280, 0.62)],
+      [new THREE.BoxGeometry(M(1950), M(50), M(120)), MX(0, 260 + 1880, -300)],
+      [new THREE.BoxGeometry(M(1300), M(40), M(60)), MX(0, 260 + 1820, -300)],
+    ]));
+    const g = new THREE.Group(); g.add(new THREE.Mesh(gg, pm)); for (const [x, z] of [[-500, -650], [500, -650], [-500, 650], [500, 650]]) { const c = new THREE.Mesh(geoCache.ins || (geoCache.ins = new THREE.CylinderGeometry(M(60), M(70), M(180), 8)), ins); c.position.set(M(x), M(90), M(z)); g.add(c); }
+    g.position.y = M(y); return g;
+  }
+  // sezione del Rock (mm sopra il piano del ferro), metà destra dal basso al colmo
+  const RKP = [[1370, 350], [1392, 700], [1400, 1200], [1396, 2000], [1384, 2800], [1360, 3400], [1330, 3640], [1268, 3860], [1160, 4040], [990, 4170], [740, 4255], [420, 4300], [0, 4315]];
+  function profOf(HP) {
+    const full = HP.map(([x, y]) => [-x, y]).concat(HP.slice(0, -1).reverse()), s = [0];
+    for (let i = 1; i < full.length; i++) s.push(s[i - 1] + Math.hypot(full[i][0] - full[i - 1][0], full[i][1] - full[i - 1][1]));
+    const tot = s[s.length - 1], half = tot / 2;
+    // arco dal basso in funzione dell'altezza (fianco)
+    const arcY = (y) => { for (let i = 1; i < HP.length; i++) if (y <= HP[i][1] || i === HP.length - 1) { const a = HP[i - 1], b = HP[i], t = Math.max(0, Math.min(1, (y - a[1]) / (b[1] - a[1]))); return s[i - 1] + t * (s[i] - s[i - 1]); } return half; };
+    return { full, s, tot, half, arcY, top: HP[HP.length - 1][1] };
+  }
+  const RK = profOf(RKP);
+  // estrusione: per ogni stazione z la sezione viene trasformata da fn(x, y) → [x, y]
+  function sweepGeo(stations, uvf, PR = RK) {
+    const P = PR.full, nP = P.length, pos = [], uv = [], idx = [];
+    stations.forEach((st, j) => P.forEach(([x, y], i) => { const [x2, y2] = st.fn(x, y); pos.push(M(x2), M(RAIL + y2), M(st.z)); const [u, v] = uvf(i, j, st, x2, y2); uv.push(u, v); }));
+    for (let j = 0; j < stations.length - 1; j++) for (let i = 0; i < nP - 1; i++) { const a = j * nP + i, b = a + 1, c = a + nP, d = c + 1; idx.push(a, c, b, b, c, d); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  }
+  // chiusura piana di una sezione (testata o frontale)
+  function capGeo(st, cy, uvf, PR = RK) {
+    const P = PR.full.map(([x, y]) => st.fn(x, y)), pos = [0, M(RAIL + cy), M(st.z)], uv = uvf ? uvf(0, cy) : [0.5, 0.5], idx = [];
+    P.forEach(([x, y]) => { pos.push(M(x), M(RAIL + y), M(st.z)); uv.push(...(uvf ? uvf(x, y) : [0.5, 0.5])); });
+    P.push(P[0]); for (let i = 1; i < P.length - 1; i++) idx.push(0, i, i + 1); idx.push(0, P.length - 1, 1);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  }
+  const RC = { grey: '#8a9198', grey2: '#7d848b', navy: '#262d39', roof: '#454b55', yel: '#f2bd22', door: '#f0ab1c', blue: '#1f4fb3', glass: '#16202a', red: '#c8202a' };
+  // fiancata: W px = lunghezza della cassa; righe = arco della sezione (0 = basso, 1 = colmo)
+  function rockSideTex(kind, Lb, em) {
+    const key = 'rk' + kind + Lb + (em ? 'e' : ''); if (texCache[key]) return texCache[key];
+    const W = 2048, H = 512, X = m => m / Lb * W, R = y => (1 - RK.arcY(y) / RK.half) * H, RA = a => (1 - a / RK.half) * H;
+    const t = ctex(W, H, (g) => {
+      const win = em ? '#ffd9a0' : RC.glass, base = em ? '#000' : null;
+      const rect = (z0, z1, y0, y1, c, r = 0) => { g.fillStyle = c; g.beginPath(); g.roundRect(X(z0), R(y1), X(z1) - X(z0), R(y0) - R(y1), r); g.fill(); };
+      if (em) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
+      else {
+        g.fillStyle = RC.grey; g.fillRect(0, 0, W, H);
+        const gr = g.createLinearGradient(0, R(2400), 0, R(350)); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(30,30,25,.28)'); g.fillStyle = gr; g.fillRect(0, R(2400), W, R(350) - R(2400));
+        g.fillStyle = '#353b43'; g.fillRect(0, R(560), W, H - R(560));
+        g.fillStyle = RC.roof; g.fillRect(0, 0, W, R(3700));
+        g.fillStyle = RC.navy; g.fillRect(0, RA(RK.arcY(3700) + 520), W, R(3700) - RA(RK.arcY(3700) + 520));
+        g.fillStyle = RC.yel; g.fillRect(0, R(3700), W, R(3615) - R(3700));
+        g.fillStyle = RC.blue; g.fillRect(0, R(3615), W, R(3555) - R(3615));
+        // lamiera: giunti verticali leggeri
+        g.fillStyle = 'rgba(0,0,0,.08)'; for (let z = 1.2; z < Lb; z += 2.4) g.fillRect(X(z), R(3540), 1, R(600) - R(3540));
+      }
+      // porte (doppia anta scorrevole con due finestrini alti)
+      const door = (zc) => { const z0 = zc - 0.65, z1 = zc + 0.65;
+        if (!em) { rect(z0 - 0.04, z1 + 0.04, 570, 2760, '#2c3138', 3); rect(z0, z1, 590, 2740, RC.door, 3); g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(X(zc) - 1, R(2740), 2, R(590) - R(2740)); }
+        for (const a of [z0 + 0.12, zc + 0.08]) rect(a, a + 0.45, 1250, 2500, win, 4); };
+      const lowWins = (a, b) => { if (b - a < 1) return; if (!em) rect(a, b, 980, 1880, '#2b333c', 3); const n = Math.max(1, Math.round((b - a) / 2.05)), w = (b - a) / n; for (let i = 0; i < n; i++) rect(a + i * w + 0.05, a + (i + 1) * w - 0.05, 1010, 1850, win, 3); };
+      const upWins = (a, b) => { if (b - a < 1) return; const n = Math.max(1, Math.round((b - a) / 2.05)), w = (b - a) / n; for (let i = 0; i < n; i++) { if (!em) rect(a + i * w + 0.12, a + (i + 1) * w - 0.12, 2390, 3360, '#2b333c', 8); rect(a + i * w + 0.16, a + (i + 1) * w - 0.16, 2420, 3330, win, 7); } };
+      const mezz = (a, b) => { if (!em) rect(a - 0.04, b + 0.04, 1720, 2620, '#2b333c', 6); rect(a, b, 1750, 2590, win, 6); };
+      if (kind === 'mid') {
+        door(4.45); door(Lb - 4.45); mezz(1.0, 2.6); mezz(Lb - 2.6, Lb - 1.0);
+        lowWins(5.35, Lb - 5.35); upWins(5.35, Lb - 5.35);
+      } else {   // carrozza di testa: cabina verso Lb
+        const dF = Lb - 3.25; door(4.45); door(dF); mezz(1.0, 2.6);
+        lowWins(5.35, dF - 0.9); upWins(5.35, dF - 0.9);
+        if (!em) {
+          // zona blu notte della cabina con il "baffo" giallo e blu
+          const zb = (y) => Lb - 0.35 - (y - 560) / (3700 - 560) * 2.05;   // confine (m) all'altezza y
+          const curve = (dz) => { g.beginPath(); g.moveTo(X(Lb + 1), R(3700)); g.lineTo(X(zb(3700) + dz), R(3700)); for (let y = 3600; y >= 560; y -= 160) g.lineTo(X(zb(y) + dz + 0.25 * Math.sin((y - 560) / 3140 * Math.PI)), R(y)); g.lineTo(X(zb(560) + dz), H); g.lineTo(X(Lb + 1), H); g.closePath(); g.fill(); };
+          g.fillStyle = RC.blue; curve(-0.16); g.fillStyle = RC.yel; curve(-0.07); g.fillStyle = RC.navy; curve(0);
+          g.fillStyle = '#353b43'; g.fillRect(X(zb(560) - 0.2), R(560), W, H - R(560));
+          // pannello giallo sulla spalla dietro la cabina
+          g.fillStyle = RC.yel; g.beginPath(); g.moveTo(X(zb(3700) - 1.55), R(3700)); g.lineTo(X(zb(3700) - 0.12), R(3700)); g.lineTo(X(zb(3700) + 0.15), RA(RK.arcY(3700) + 380)); g.lineTo(X(zb(3700) - 1.4), RA(RK.arcY(3700) + 380)); g.closePath(); g.fill();
+          g.fillStyle = RC.navy; g.fillRect(X(zb(3700)), 0, W, R(3700));
+        }
+      }
+      if (!em) { grime(g, W, H, 64, 0.08, 3); speck(g, W, H, 3000, 0.08, true); }
+    });
+    t.anisotropy = 8; if (em) t.colorSpace = THREE.SRGBColorSpace; return texCache[key] = t;
+  }
+  // muso: u = arco della sezione, v = avanzamento verso la punta
+  const NOSE = 3300;
+  const nTop = f => { const k = [[0, 4315], [0.12, 4250], [0.22, 4080], [0.4, 3620], [0.6, 3080], [0.8, 2640], [0.88, 2500], [1, 2410]]; for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const t = (f - k[i - 1][0]) / (k[i][0] - k[i - 1][0]); return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]); } return 2410; };
+  const nW = f => 1 - 0.07 * f * f - 0.24 * Math.max(0, (f - 0.68) / 0.32) ** 2;
+  const nBot = f => f < 0.6 ? 1150 : 470;
+  const nFn = f => (x, y) => { const tp = nTop(f); let y2 = y <= 1200 ? y : 1200 + (y - 1200) * (tp - 1200) / (4315 - 1200); y2 = Math.max(y2, nBot(f)); const lowK = y2 < 1300 ? 1 - 0.06 * f : 1; return [x * nW(f) * lowK, y2]; };
+  const hexC = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  // texture del muso calcolata punto per punto: colf(f, x, y, metà larghezza) → [r, g, b]
+  function noseTex(key, PR, fnF, wF, colf, W = 512, H = 256) {
+    if (texCache[key]) return texCache[key];
+    const img = new Uint8ClampedArray(W * H * 4);
+    for (let py = 0; py < H; py++) { const f = 1 - (py + 0.5) / H, fn = fnF(f), hw = 1400 * wF(f);
+      for (let px = 0; px < W; px++) { const a = (px + 0.5) / W * PR.tot; let i = 1; while (i < PR.s.length - 1 && PR.s[i] < a) i++; const t = (a - PR.s[i - 1]) / (PR.s[i] - PR.s[i - 1]), x0 = PR.full[i - 1][0] + t * (PR.full[i][0] - PR.full[i - 1][0]), y0 = PR.full[i - 1][1] + t * (PR.full[i][1] - PR.full[i - 1][1]);
+        const [x, y] = fn(x0, y0), col = colf(f, x, y, hw), o = (py * W + px) * 4; img[o] = col[0]; img[o + 1] = col[1]; img[o + 2] = col[2]; img[o + 3] = 255; } }
+    return texCache[key] = ctex(W, H, (g) => { g.putImageData(new ImageData(img, W, H), 0, 0); grime(g, W, H, 32, 0.06, 2); });
+  }
+  function rockNoseTex() {
+    const navy = hexC(RC.navy), gl = hexC('#2a3c4a'), gl2 = hexC('#8aa2b4'), red = hexC(RC.red), dk = hexC('#1b1f25'), amb = hexC('#3a2a10');
+    return noseTex('rkNose', RK, nFn, nW, (f, x, y, hw) => { const ax = Math.abs(x);
+      if (f > 0.25 && f < 0.87 && y > 2420 && ax < hw * 0.86) { const k = Math.min(1, Math.max(0, (y - 2420) / 1400 * 0.9 + (ax / hw) * 0.25)); if (y < 2480 || ax > hw * 0.82) return [12, 16, 20]; return [gl[0] + (gl2[0] - gl[0]) * k, gl[1] + (gl2[1] - gl[1]) * k, gl[2] + (gl2[2] - gl[2]) * k]; }
+      if (f > 0.2 && f <= 0.25 && ax < 650 && y > 3500) return amb;
+      if (f > 0.04 && f < 0.2 && y > 2650 && y < 3350 && ax > hw * 0.8) return gl;
+      if (f > 0.86 && y > 1450 && y < 1800) return red;
+      if (f > 0.6 && y < 1150) return dk;
+      return navy; });
+  }
+  function rockFrontTex() {
+    if (texCache.rkFront) return texCache.rkFront;
+    // u = x da -1400 a 1400, v = altezza da 400 a 2500
+    return texCache.rkFront = ctex(256, 256, (g, w, h) => {
+      const X = x => (x + 1400) / 2800 * w, Y = y => (1 - (y - 400) / 2100) * h;
+      g.fillStyle = RC.navy; g.fillRect(0, 0, w, h);
+      g.fillStyle = RC.red; g.fillRect(0, Y(1800), w, Y(1450) - Y(1800));
+      g.fillStyle = '#1b1f25'; g.fillRect(0, Y(1150), w, h);
+      g.fillStyle = '#2c3138'; for (const s of [-1, 1]) for (let y = 560; y < 1100; y += 55) g.fillRect(X(s > 0 ? 450 : -1150), Y(y + 25), X(700) - X(0), 3);
+      g.fillStyle = '#d9dcde'; g.fillRect(X(-300), Y(1130), X(300) - X(-300), Y(980) - Y(1130));
+      g.fillStyle = '#0e1216'; g.fillRect(X(-200), Y(980), X(200) - X(-200), Y(560) - Y(980));
+      g.fillStyle = '#10171e'; g.beginPath(); g.roundRect(X(-820), Y(2500), X(820) - X(-820), Y(2380) - Y(2500), 6); g.fill();
+    });
+  }
+  function rockCar(v, g) {
+    const L = v.L * 1000, cab = v.cabF || v.cabR, N = cab ? NOSE : 0, zA = -L / 2, zB = L / 2 - N, Lb = (zB - zA) / 1000;
+    const inner = new THREE.Group(); g.add(inner); if (v.cabR && !v.cabF) inner.rotation.y = Math.PI;
+    const kind = cab ? 'cab' : 'mid', side = rockSideTex(kind, Lb), sideE = rockSideTex(kind, Lb, true);
+    const bm = cmat('rkS' + kind + Lb, () => { const m = mat({ map: side, roughness: 0.48, metalness: 0.12, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: sideE, emissiveIntensity: 0 }); trainLit.push(m); return m; });
+    // stazioni: zone dei carrelli con il fondo alto, centro ribassato
+    const flat = (bot) => (x, y) => [x, Math.max(y, bot)], b1 = zA + 3600, b2 = cab ? zB - 2450 : zB - 3600;
+    const st = [{ z: zA, fn: flat(1150) }, { z: b1, fn: flat(1150) }, { z: b1 + 150, fn: flat(350) }, { z: b2 - 150, fn: flat(350) }, { z: b2, fn: flat(1150) }, { z: zB, fn: flat(1150) }];
+    const body = new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zA) / (zB - zA), Math.min(RK.s[i], RK.tot - RK.s[i]) / RK.half]), bm); inner.add(body);
+    const endM = cmat('rkEnd', () => mat({ color: 0x3a3f46, roughness: 0.7, side: THREE.DoubleSide })), dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 }));
+    inner.add(new THREE.Mesh(capGeo(st[0], 2700), endM));
+    // sottocassa: pianali scuri e casse apparecchiature
+    for (const [z0, z1, y] of [[zA, b1, 1150], [b1, b2, 350], [b2, zB + (cab ? 1900 : 0), 1150]]) { const p = new THREE.Mesh(geoCache['rkF' + (z1 - z0) + y] || (geoCache['rkF' + (z1 - z0) + y] = new THREE.BoxGeometry(M(2700), M(40), M(z1 - z0))), dkM); p.position.set(0, M(RAIL + y + 20), M((z0 + z1) / 2)); inner.add(p); }
+    // mantice di intercomunicazione
+    const bel = geoCache.rkBel || (geoCache.rkBel = new THREE.BoxGeometry(M(1900), M(2300), M(160)));
+    for (const s of cab ? [-1] : [-1, 1]) { const b = new THREE.Mesh(bel, dkM); b.position.set(0, M(RAIL + 1250 + 1150), M(s > 0 ? zB + 80 : zA - 80)); inner.add(b); }
+    if (!cab) inner.add(new THREE.Mesh(capGeo(st[5], 2700), endM));
+    else {
+      const fs = []; for (const f of [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.59, 0.61, 0.7, 0.8, 0.86, 0.9, 0.95, 0.98, 1]) fs.push({ z: zB + f * N, f, fn: nFn(f) });
+      const nm = cmat('rkN', () => mat({ map: rockNoseTex(), roughness: 0.3, metalness: 0.15, side: THREE.DoubleSide }));
+      inner.add(new THREE.Mesh(sweepGeo(fs, (i, j, s) => [RK.s[i] / RK.tot, s.f]), nm));
+      const fm = cmat('rkFr', () => mat({ map: rockFrontTex(), roughness: 0.35, metalness: 0.3, side: THREE.DoubleSide }));
+      inner.add(new THREE.Mesh(capGeo(fs[fs.length - 1], 1500, (x, y) => [(x + 1400) / 2800, (y - 400) / 2100]), fm));
+      const cp = new THREE.Mesh(geoCache.rkCpl || (geoCache.rkCpl = new THREE.BoxGeometry(M(380), M(330), M(420))), dkM); cp.position.set(0, M(RAIL + 1000), M(L / 2 + 120)); inner.add(cp);
+      g.userData.lamps = [[-880, 1630], [880, 1630]];
+    }
+    // tetto: carenature degli impianti di climatizzazione
+    const ac = geoCache.rkAc || (geoCache.rkAc = new RoundedBoxGeometry(M(1700), M(360), M(3000), 3, M(120))), acM = cmat('rkAc', () => mat({ color: 0x50565f, roughness: 0.55, metalness: 0.3 }));
+    for (const z of cab ? [zA + 1900] : [zA + 1900, zB - 1900]) { const a = new THREE.Mesh(ac, acM); a.position.set(0, M(RAIL + 4250), M(z)); inner.add(a); }
+    if (v.panto) { const p = pantoGrp(RAIL + 4330); p.position.z = M(cab ? zA + 5600 : (zA + zB) / 2); inner.add(p); }
+    const bg = bogieGeo(430, 2600); for (const z of [zA + 1800, cab ? zB - 700 : zB - 1800]) { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); inner.add(b); }
+    g.userData.top = RAIL + 4315; g.userData.low = 1230; return g;
+  }
+  // ======================= E464 (Bombardier TRAXX P160 DCP) =======================
+  // una sola cabina (lato +z); l'altra testata è piana con la porticina di servizio.
+  const E4P = [[1490, 1150], [1500, 1400], [1500, 2300], [1490, 3000], [1462, 3400], [1405, 3620], [1295, 3790], [1105, 3900], [800, 3965], [400, 3992], [0, 4000]];
+  const E4 = profOf(E4P), E4N = 1750;
+  const eTop = f => { const k = [[0, 4000], [0.22, 3960], [0.4, 3820], [0.52, 3560], [0.84, 2360], [1, 2260]]; for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const t = (f - k[i - 1][0]) / (k[i][0] - k[i - 1][0]); return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]); } return 2260; };
+  const eW = f => 1 - 0.06 * f * f - 0.2 * Math.max(0, (f - 0.55) / 0.45) ** 2;
+  const eFn = f => (x, y) => { const tp = eTop(f); const y2 = y <= 1300 ? y : 1300 + (y - 1300) * (tp - 1300) / (4000 - 1300); return [x * eW(f) * (1500 / 1400) / (1500 / 1400), y2]; };
+  const E4L = {
+    dpr: { base: '#8c9299', cab: '#2453c8', roof: '#2453c8', low: '#2453c8', line: '#f2a516', front: '#6f757b', swoosh: '#f2a516' },
+    xmpr: { base: '#c9cdd0', cab: '#1f8e98', roof: '#9da2a6', low: '#1f8e98', line: '#2a4aa0', front: '#d6d9da', swoosh: null },
+  };
+  function e464SideTex(lv, Lb) {
+    const key = 'e4s' + lv + Lb; if (texCache[key]) return texCache[key];
+    const c = E4L[lv], W = 1024, H = 512, X = d => (Lb - d) / Lb * W, R = y => (1 - E4.arcY(y) / E4.half) * H;
+    const t = ctex(W, H, (g) => {
+      const rect = (d0, d1, y0, y1, col, r = 0) => { g.fillStyle = col; g.beginPath(); g.roundRect(X(d1), R(y1), X(d0) - X(d1), R(y0) - R(y1), r); g.fill(); };
+      g.fillStyle = c.base; g.fillRect(0, 0, W, H);
+      g.fillStyle = c.roof; g.fillRect(0, 0, W, R(3480));
+      g.fillStyle = c.low; g.fillRect(0, R(1420), W, H - R(1420));
+      g.fillStyle = c.line; g.fillRect(0, R(1530), W, R(1440) - R(1530));
+      // feritoie orizzontali della sala macchine
+      const r0 = 3.0, r1 = Lb - 1.5;
+      for (let y = 1700; y < 3330; y += 165) { g.fillStyle = 'rgba(0,0,0,.30)'; g.fillRect(X(r1), R(y + 18), X(r0) - X(r1), 3); g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(X(r1), R(y + 18) + 3, X(r0) - X(r1), 2); }
+      g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2; g.strokeRect(X(r1), R(3350), X(r0) - X(r1), R(1650) - R(3350));
+      // zona cabina con il confine obliquo
+      const dB = y => 2.7 - (3480 - y) / (3480 - 1420) * 2.0;
+      g.fillStyle = c.cab; g.beginPath(); g.moveTo(X(dB(3480)), R(3480)); for (let y = 3400; y >= 1420; y -= 100) g.lineTo(X(dB(y) - 0.15 * Math.sin((y - 1420) / 2060 * Math.PI)), R(y)); g.lineTo(X(-1), R(1420)); g.lineTo(X(-1), R(3480)); g.closePath(); g.fill();
+      if (c.swoosh) { // falce arancione che sale verso la cabina
+        g.fillStyle = c.swoosh; g.beginPath(); const N2 = 24;
+        for (let i = 0; i <= N2; i++) { const s2 = i / N2, d = 4.2 - s2 * 4.2, y = 1500 + 520 * s2 * s2, th = 50 + 130 * Math.sin(s2 * Math.PI) ** 0.7; g[i ? 'lineTo' : 'moveTo'](X(d), R(y + th)); }
+        for (let i = N2; i >= 0; i--) { const s2 = i / N2, d = 4.2 - s2 * 4.2, y = 1500 + 520 * s2 * s2; g.lineTo(X(d), R(y - 40)); }
+        g.closePath(); g.fill();
+      }
+      // finestrino laterale della cabina, porta cabina, porticina posteriore
+      rect(0.45, 1.25, 2520, 3330, '#2b3036', 10); rect(0.5, 1.2, 2560, 3290, '#1a242c', 8);
+      g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.strokeRect(X(2.35), R(3260), X(1.65) - X(2.35), R(1300) - R(3260));
+      rect(1.75, 2.25, 2700, 3150, '#1a242c', 6);
+      g.strokeRect(X(Lb - 0.35), R(3260), X(Lb - 1.0) - X(Lb - 0.35), R(1300) - R(3260)); rect(Lb - 0.9, Lb - 0.45, 2700, 3100, '#1a242c', 4);
+      // corrimano
+      g.fillStyle = 'rgba(40,40,40,.7)'; for (const d of [1.55, 2.45, Lb - 1.1, Lb - 0.25]) g.fillRect(X(d) - 1, R(2900), 3, R(1350) - R(2900));
+      grime(g, W, H, 48, 0.08, 3); speck(g, W, H, 2000, 0.08, true);
+      // griglie sul tetto
+      g.fillStyle = 'rgba(0,0,0,.35)'; for (let d = 3.4; d < Lb - 2; d += 1.25) for (let k = 0; k < 5; k++) g.fillRect(X(d + 0.9) + 0, RAarc(E4, 3700 + 0) + k * 6, X(d) - X(d + 0.9), 3);
+    });
+    t.anisotropy = 8; return texCache[key] = t;
+  }
+  function RAarc(PR, y) { return (1 - (PR.arcY(y) + 200) / PR.half) * 512; }
+  function e464NoseTex(lv) {
+    const c = E4L[lv], cab = hexC(c.cab), mask = hexC('#3b4046'), gl = hexC('#2a3a46'), gl2 = hexC('#8ea4b4'), red = hexC('#c91f2e'), fr = hexC(c.front), dk = hexC('#202428'), low = hexC(c.low);
+    return noseTex('e4n' + lv, E4, eFn, eW, (f, x, y, hw0) => { const hw = hw0 * 1500 / 1400, ax = Math.abs(x);
+      if (f > 0.5 && y > 2620 && y < 3420 && ax < hw * 0.8) { if (ax < 25) return dk; const k = Math.min(1, (y - 2620) / 900 + ax / hw * 0.2); return [gl[0] + (gl2[0] - gl[0]) * k, gl[1] + (gl2[1] - gl[1]) * k, gl[2] + (gl2[2] - gl[2]) * k]; }
+      if (f > 0.42 && ax < hw * 0.88 && y < 3520 && y > 2120 + 520 * Math.min(1, ax / (hw * 0.88)) ** 1.6) return mask;
+      if (f > 0.8 && y > 1380 && y < 1760) return red;
+      if (f > 0.8 && y <= 1380) return fr;
+      if (y < 1420) return low;
+      return cab; });
+  }
+  function e464Car(v, g) {
+    const L = v.L * 1000, lv = v.e4 || 'dpr', c = E4L[lv], zR = -L / 2 + 600, zF = L / 2 - 600 - E4N, Lb = (zF - zR) / 1000;
+    const inner = new THREE.Group(); g.add(inner); if (v.flip) inner.rotation.y = Math.PI;
+    const bm = cmat('e4s' + lv + Lb, () => mat({ map: e464SideTex(lv, Lb), roughness: 0.4, metalness: 0.2, side: THREE.DoubleSide }));
+    const fl = (x, y) => [x, y], st = [{ z: zR, fn: fl }, { z: zF, fn: fl }];
+    inner.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zR) / (zF - zR), Math.min(E4.s[i], E4.tot - E4.s[i]) / E4.half], E4), bm));
+    // testata posteriore piana con porticina
+    const rT = texCache['e4r' + lv] || (texCache['e4r' + lv] = ctex(256, 256, (g2, w, h) => { const Y = y => (1 - (y - 1150) / 2850) * h, Xx = x => (x + 1500) / 3000 * w; g2.fillStyle = c.base; g2.fillRect(0, 0, w, h); g2.fillStyle = c.roof; g2.fillRect(0, 0, w, Y(3480)); g2.fillStyle = c.low; g2.fillRect(0, Y(1420), w, h); g2.fillStyle = c.line; g2.fillRect(0, Y(1530), w, Y(1440) - Y(1530)); g2.strokeStyle = 'rgba(0,0,0,.5)'; g2.lineWidth = 2; g2.strokeRect(Xx(-350), Y(3250), Xx(350) - Xx(-350), Y(1300) - Y(3250)); g2.fillStyle = '#1a242c'; g2.fillRect(Xx(-230), Y(3100), Xx(230) - Xx(-230), Y(2600) - Y(3100)); }));
+    const rM = cmat('e4r' + lv, () => mat({ map: rT, roughness: 0.5, metalness: 0.2, side: THREE.DoubleSide }));
+    inner.add(new THREE.Mesh(capGeo(st[0], 2500, (x, y) => [(x + 1500) / 3000, (y - 1150) / 2850], E4), rM));
+    // muso
+    const fs = []; for (const f of [0, 0.12, 0.25, 0.35, 0.45, 0.52, 0.6, 0.7, 0.8, 0.84, 0.9, 0.95, 0.98, 1]) fs.push({ z: zF + f * E4N, f, fn: eFn(f) });
+    const nm = cmat('e4n' + lv, () => mat({ map: e464NoseTex(lv), roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide }));
+    inner.add(new THREE.Mesh(sweepGeo(fs, (i, j, s) => [E4.s[i] / E4.tot, s.f], E4), nm));
+    const fT = texCache['e4f' + lv] || (texCache['e4f' + lv] = ctex(256, 128, (g2, w, h) => { const Y = y => (1 - (y - 1150) / 1150) * h; g2.fillStyle = c.front; g2.fillRect(0, 0, w, h); g2.fillStyle = c.cab; g2.fillRect(0, 0, w, Y(1760)); g2.fillStyle = '#c91f2e'; g2.fillRect(0, Y(1760), w, Y(1380) - Y(1760)); g2.fillStyle = '#3b4046'; g2.beginPath(); g2.moveTo(w * 0.22, 0); g2.lineTo(w * 0.78, 0); g2.lineTo(w * 0.56, Y(2120)); g2.lineTo(w * 0.44, Y(2120)); g2.closePath(); g2.fill(); g2.fillStyle = '#1a1d20'; g2.fillRect(w * 0.38, Y(1380), w * 0.24, Y(1150) - Y(1380)); }));
+    const fM = cmat('e4f' + lv, () => mat({ map: fT, roughness: 0.35, metalness: 0.2, side: THREE.DoubleSide }));
+    inner.add(new THREE.Mesh(capGeo(fs[fs.length - 1], 1700, (x, y) => [(x + 1500) / 3000, (y - 1150) / 1150], E4), fM));
+    // sottocassa, traverse, respingenti e aggancio
+    const dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 })), stM = cmat('e4st', () => mat({ color: 0x2c3034, roughness: 0.6, metalness: 0.5 })), chM = cmat('chrome', () => mat({ color: 0xb8bdc2, roughness: 0.25, metalness: 0.9 }));
+    const bx = (w, h, d, x, y, z, m) => { const k = `bx${w}|${h}|${d}`, b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(w), M(h), M(d))), m); b.position.set(M(x), M(RAIL + y), M(z)); inner.add(b); return b; };
+    bx(2900, 60, zF + E4N - zR, 0, 1170, (zF + E4N + zR) / 2, dkM);
+    bx(2300, 520, 4200, 0, 880, 0, dkM); bx(900, 420, 1400, -600, 900, -1200, stM);
+    for (const zE of [zR, zF + E4N]) buffers(inner, zE, zE > 0 ? 1 : -1, zE > 0);
+    // tetto: due pantografi, interruttore e griglie
+    for (const z of [-3300, 2600]) { const p = pantoGrp(RAIL + 3990); p.position.z = M(z); inner.add(p); }
+    bx(1500, 220, 2600, 0, 3990, -350, cmat('e4roofeq', () => mat({ color: new THREE.Color(c.roof), roughness: 0.5, metalness: 0.3 })));
+    const bg = bogieGeo(550, 2850, 2100); for (const z of [-4100, 4100]) { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); inner.add(b); }
+    const lz = L / 2 - 600 + 20; g.userData.lampZ = lz;
+    g.userData.lamps = [[-770, 1570], [770, 1570], [0, 2180]]; g.userData.lampsT = [[-770, 1570], [770, 1570]];
+    if (v.flip) g.userData.lampsFlip = true;
+    g.userData.top = RAIL + 4000; g.userData.low = 1150; return g;
+  }
+  // ======================= MDVC (Media Distanza a Vestiboli Centrali) + pilota "Mazinga" =======================
+  const MDP = [[1380, 650], [1400, 900], [1412, 1600], [1412, 2600], [1402, 3100], [1382, 3350], [1335, 3550], [1245, 3720], [1085, 3860], [800, 3962], [420, 4030], [0, 4050]];
+  const MD = profOf(MDP), MDN = 950;
+  const MDL = {
+    xmpr: { base: '#e6e9e8', roof: '#9ca3a8', top: ['#1d8f8f', 3180, 3430], low: '#1d8f8f', lowTop: 1560, stripes: [['#2348a8', 1620, 1730]], door: '#2f5fb8', cab: '#1d8f8f', frontLow: '#1d8f8f', frame: '#c9cdcf' },
+    grigio: { base: '#b7bcc1', roof: '#a5aaaf', low: '#2649a6', lowTop: 1450, stripes: [['#f2b521', 1490, 1555], ['#2649a6', 1555, 1600]], door: '#5cbc45', cab: '#a9aeb4', frontLow: '#2649a6', frame: '#8d9399', white: 1 },
+    revamp: { base: '#c4c8cc', roof: '#2c3646', band: ['#3a4048', 1850, 3330], low: '#2346a0', lowTop: 1250, stripes: [['#2346a0', 1580, 1640], ['#e8862a', 1640, 1705]], door: '#8cc63f', cab: '#3a4048', frontLow: '#c4c8cc', frame: '#8e959c' },
+    verde: { base: '#efcd06', roof: '#2c3238', band: ['#33383c', 1850, 3250], top: ['#efcd06', 3250, 3430], low: '#33383c', lowTop: 1200, stripes: [], door: '#5fc23a', cab: '#33383c', frontLow: '#33383c', frame: '#7f868c', green: '#69bf2c' },
+  };
+  // respingenti, traversa e aggancio a una testata (zE = filo cassa, sg = verso esterno)
+  // testata: traversa, respingenti a contatto con quelli del veicolo vicino (testa a 150 mm oltre la sagoma),
+  // gancio a vite con tenditore e condotte; "auto" = gancio automatico (solo frontale E464)
+  function buffers(par, zE, sg, auto) {
+    const stM = cmat('e4st', () => mat({ color: 0x2c3034, roughness: 0.6, metalness: 0.5 })), chM = cmat('chrome', () => mat({ color: 0xb8bdc2, roughness: 0.25, metalness: 0.9 })), hoM = cmat('hose', () => mat({ color: 0x1c1c1c, roughness: 0.8 }));
+    const bx = (w, h, d, x, y, z, m) => { const k = `bx${w}|${h}|${d}`, b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(w), M(h), M(d))), m); b.position.set(M(x), M(RAIL + y), M(z)); par.add(b); return b; };
+    bx(2700, 480, 260, 0, 900, zE - sg * 60, stM);
+    const reach = 750;                      // dal filo cassa alla testa del respingente
+    for (const xs of [-875, 875]) { const b = new THREE.Mesh(geoCache.buf3 || (geoCache.buf3 = new THREE.CylinderGeometry(M(105), M(130), M(reach - 40), 10)), stM); b.rotation.x = Math.PI / 2; b.position.set(M(xs), M(RAIL + 1060), M(zE + sg * (reach - 40) / 2)); par.add(b);
+      const h2 = new THREE.Mesh(geoCache.bufH || (geoCache.bufH = new THREE.CylinderGeometry(M(230), M(230), M(40), 18)), chM); h2.rotation.x = Math.PI / 2; h2.position.set(M(xs), M(RAIL + 1060), M(zE + sg * (reach - 20))); par.add(h2); }
+    if (auto) { bx(300, 260, 560, 0, 1000, zE + sg * 300, cmat('cplR', () => mat({ color: 0xa8202a, roughness: 0.6 }))); return; }
+    bx(150, 150, 300, 0, 1060, zE + sg * 150, stM);                                   // gancio
+    bx(90, 90, reach + 150, 0, 1060, zE + sg * (reach + 150) / 2, stM);               // tenditore verso il veicolo vicino
+    for (const xs of [-330, 330]) { const hz = bx(70, 70, reach, xs, 880, zE + sg * reach / 2, hoM); hz.rotation.x = sg * 0.12; }   // condotte freno/riscaldamento
+  }
+  // fiancata MDVC: z in metri dalla testata posteriore; per la pilota la cabina è a Lb
+  function mdvcSideTex(lv, Lb, pilot, em) {
+    const key = 'md' + lv + Lb + (pilot ? 'p' : '') + (em ? 'e' : ''); if (texCache[key]) return texCache[key];
+    const c = MDL[lv], W = 2048, H = 512, X = z => z / Lb * W, R = y => (1 - MD.arcY(y) / MD.half) * H;
+    const t = ctex(W, H, (g) => {
+      const rect = (z0, z1, y0, y1, col, r = 0) => { g.fillStyle = col; g.beginPath(); g.roundRect(X(z0), R(y1), X(z1) - X(z0), R(y0) - R(y1), r); g.fill(); };
+      const glass = em ? '#ffdcaa' : '#1b2630';
+      if (em) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
+      else {
+        g.fillStyle = c.base; g.fillRect(0, 0, W, H);
+        if (c.band) rect(-1, Lb + 1, c.band[1], c.band[2], c.band[0]);
+        if (c.top) rect(-1, Lb + 1, c.top[1], c.top[2], c.top[0]);
+        g.fillStyle = c.roof; g.fillRect(0, 0, W, R(3430));
+        g.fillStyle = 'rgba(0,0,0,.18)'; for (let a = MD.arcY(3500); a < MD.half; a += 90) g.fillRect(0, (1 - a / MD.half) * H, W, 2);
+        rect(-1, Lb + 1, 0, c.lowTop, c.low);
+        for (const [col, y0, y1] of c.stripes) rect(-1, Lb + 1, y0, y1, col);
+        if (c.white) rect(-1, Lb + 1, 1600, 1625, '#eef0f0');
+        if (c.green) { g.fillStyle = c.green; for (let z = 1.5; z < Lb; z += 6.5) { g.beginPath(); g.moveTo(X(z), R(1200)); g.lineTo(X(z + 2.2), R(1200)); g.lineTo(X(z + 3.6), R(1850)); g.lineTo(X(z + 1.4), R(1850)); g.closePath(); g.fill(); } }
+      }
+      const win = (z0, z1, y0 = 1950, y1 = 2900) => { if (!em) rect(z0 - 0.06, z1 + 0.06, y0 - 60, y1 + 60, c.frame, 12); rect(z0, z1, y0, y1, glass, 9); if (!em) { g.fillStyle = 'rgba(160,170,175,.6)'; g.fillRect(X(z0), R(2520), X(z1) - X(z0), 2); } };
+      const door = (zc) => { const z0 = zc - 0.68, z1 = zc + 0.68; if (!em) { rect(z0 - 0.03, z1 + 0.03, 680, 2980, '#2a2f34', 3); rect(z0, z1, 700, 2960, c.door, 3); g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(X(zc) - 1, R(2960), 2, R(700) - R(2960)); } for (const a of [z0 + 0.14, zc + 0.12]) rect(a, a + 0.42, 1850, 2850, glass, 14); };
+      const grille = (z0) => { if (em) return; rect(z0, z0 + 0.7, 2100, 2850, 'rgba(0,0,0,.25)', 4); g.fillStyle = 'rgba(0,0,0,.35)'; for (let z = z0 + 0.05; z < z0 + 0.65; z += 0.07) g.fillRect(X(z), R(2820), 2, R(2130) - R(2820)); };
+      const row = (a, b, n) => { const w = (b - a) / n; for (let i = 0; i < n; i++) win(a + i * w + 0.13, a + (i + 1) * w - 0.13); };
+      if (!pilot) {
+        grille(1.0); row(2.0, 8.05, 4); door(8.95); row(9.85, 17.4, 5); door(18.3); row(19.2, 24.3, 3); win(24.75, 25.4, 2250, 2900);
+      } else {
+        // cabina verso Lb (d = distanza dal frontale)
+        const Z = d => Lb - d;
+        win(0.4, 1.0, 1950, 2900); row(1.5, 7.0, 4); door(7.9); row(8.8, 16.3, 5); door(Lb - 7.35);
+        row(Lb - 6.45, Lb - 4.2, 2);
+        if (!em) {
+          g.fillStyle = c.cab; g.fillRect(X(Z(2.95)), 0, W, H);
+          if (lv === 'xmpr') { for (const [d0, d1, col] of [[2.95, 3.55, '#2348a8'], [3.55, 3.8, '#4f86d6']]) { g.fillStyle = col; g.beginPath(); g.moveTo(X(Z(d0)), R(3430)); g.lineTo(X(Z(d1)), R(3430)); g.lineTo(X(Z(d1 - 0.45)), R(1560)); g.lineTo(X(Z(d0 - 0.45)), R(1560)); g.closePath(); g.fill(); } rect(Z(2.95), Lb + 1, 1100, 1180, '#e6e9e8'); }
+          if (lv === 'grigio') { g.fillStyle = '#2649a6'; g.fillRect(X(Z(2.95)), R(1450), W, H - R(1450)); g.fillStyle = '#eef0f0'; g.fillRect(X(Z(2.95)), R(3050), W, R(2950) - R(3050)); }
+          if (lv === 'verde') { g.fillStyle = c.base; g.fillRect(X(Z(2.95)), R(3430), W, R(3250) - R(3430)); }
+        }
+        rect(Z(1.95), Z(0.45), 2450, 3250, em ? '#000' : '#2a2f34', 8); if (!em) rect(Z(1.9), Z(0.5), 2490, 3210, '#1b2630', 6);
+        if (!em) { g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 2; g.strokeRect(X(Z(2.8)), R(3000), X(Z(2.15)) - X(Z(2.8)), R(1150) - R(3000)); rect(Z(2.7), Z(2.25), 2050, 2900, '#1b2630', 6); }
+      }
+      if (!em) { grime(g, W, H, 64, 0.07, 3); speck(g, W, H, 2500, 0.07, true); g.fillStyle = 'rgba(40,35,30,.25)'; g.fillRect(0, R(1000), W, H - R(1000)); }
+    });
+    t.anisotropy = 8; return texCache[key] = t;
+  }
+  const mTop = f => { const k = [[0, 4050], [0.25, 4010], [0.42, 3880], [0.86, 2720], [1, 2680]]; for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const t = (f - k[i - 1][0]) / (k[i][0] - k[i - 1][0]); return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]); } return 2680; };
+  const mW = f => 1 - 0.04 * f - 0.16 * Math.max(0, (f - 0.35) / 0.65) ** 1.3;
+  const mFn = f => (x, y) => { const tp = mTop(f); const y2 = Math.max(1100, y <= 1300 ? y : 1300 + (y - 1300) * (tp - 1300) / (4050 - 1300)); return [x * mW(f), y2]; };
+  function mdvcNoseTex(lv) {
+    const c = MDL[lv], cab = hexC(c.cab), gl = hexC('#2a3a46'), gl2 = hexC('#8ea4b4'), red = hexC('#df4a2c'), low = hexC(c.frontLow), dk = hexC('#202428');
+    return noseTex('mdn' + lv, MD, mFn, mW, (f, x, y, hw0) => { const hw = hw0 * 1412 / 1400, ax = Math.abs(x);
+      if (f > 0.42 && y > 2800 && y < 3780 && ax < hw * 0.86) { if (ax < 30 || y < 2850 || y > 3730) return dk; const k = Math.min(1, (y - 2800) / 1000 + ax / hw * 0.2); return [gl[0] + (gl2[0] - gl[0]) * k, gl[1] + (gl2[1] - gl[1]) * k, gl[2] + (gl2[2] - gl[2]) * k]; }
+      if (f > 0.82 && y > 1500 && y < 1900) return red;
+      if (f > 0.82 && y <= 1500) return low;
+      if (lv === 'grigio' && f > 0.82 && y > 2000 && y < 2120) return [238, 240, 240];
+      return cab; });
+  }
+  function mdvcCar(v, g) {
+    const L = v.L * 1000, lv = v.md || 'xmpr', c = MDL[lv], pilot = !!(v.cabF || v.cabR), N = pilot ? MDN : 0;
+    const zA = -L / 2 + 600, zB = L / 2 - 600 - N, Lb = (zB - zA) / 1000;
+    const inner = new THREE.Group(); g.add(inner); if (v.cabR && !v.cabF) inner.rotation.y = Math.PI;
+    const side = mdvcSideTex(lv, Lb, pilot), sideE = mdvcSideTex(lv, Lb, pilot, true);
+    const bm = cmat('md' + lv + Lb + pilot, () => { const m = mat({ map: side, roughness: 0.45, metalness: 0.15, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: sideE, emissiveIntensity: 0 }); trainLit.push(m); return m; });
+    const flat = (bot) => (x, y) => [x, Math.max(y, bot)], e1 = zA + 4700, e2 = zB - 4700;
+    const st = [{ z: zA, fn: flat(1100) }, { z: e1, fn: flat(1100) }, { z: e1 + 600, fn: flat(650) }, { z: e2 - 600, fn: flat(650) }, { z: e2, fn: flat(1100) }, { z: zB, fn: flat(1100) }];
+    inner.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zA) / (zB - zA), Math.min(MD.s[i], MD.tot - MD.s[i]) / MD.half], MD), bm));
+    const endM = cmat('rkEnd', () => mat({ color: 0x3a3f46, roughness: 0.7, side: THREE.DoubleSide })), dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 }));
+    inner.add(new THREE.Mesh(capGeo(st[0], 2500, null, MD), endM));
+    const fl = (w, h, d, y, z, m) => { const k = `bx${w}|${h}|${d}`, b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(w), M(h), M(d))), m); b.position.set(0, M(RAIL + y), M(z)); inner.add(b); };
+    fl(2700, 40, e1 - zA, 1120, (zA + e1) / 2, dkM); fl(2700, 40, e2 - e1, 670, (e1 + e2) / 2, dkM); fl(2700, 40, zB - e2 + N, 1120, (e2 + zB + N) / 2, dkM);
+    fl(1900, 380, 2400, 860, (e1 + e2) / 2 - 2500, dkM); fl(1500, 300, 1600, 900, (e1 + e2) / 2 + 3200, dkM);
+    const bel = geoCache.mdBel || (geoCache.mdBel = new THREE.BoxGeometry(M(1150), M(2150), M(750)));
+    { const b = new THREE.Mesh(bel, dkM); b.position.set(0, M(RAIL + 1150 + 1075), M(zA - 375)); inner.add(b); } buffers(inner, zA, -1);
+    if (!pilot) { inner.add(new THREE.Mesh(capGeo(st[5], 2500, null, MD), endM)); const b = new THREE.Mesh(bel, dkM); b.position.set(0, M(RAIL + 1150 + 1075), M(zB + 375)); inner.add(b); buffers(inner, zB, 1); }
+    else {
+      const fs = []; for (const f of [0, 0.15, 0.3, 0.42, 0.55, 0.7, 0.82, 0.86, 0.93, 1]) fs.push({ z: zB + f * N, f, fn: mFn(f) });
+      const nm = cmat('mdn' + lv, () => mat({ map: mdvcNoseTex(lv), roughness: 0.32, metalness: 0.15, side: THREE.DoubleSide }));
+      inner.add(new THREE.Mesh(sweepGeo(fs, (i, j, s) => [MD.s[i] / MD.tot, s.f], MD), nm));
+      const fT = texCache['mdf' + lv] || (texCache['mdf' + lv] = ctex(256, 128, (g2, w, h) => { const Y = y => (1 - (y - 1100) / 1600) * h; g2.fillStyle = c.cab; g2.fillRect(0, 0, w, h); g2.fillStyle = '#df4a2c'; g2.fillRect(0, Y(1900), w, Y(1500) - Y(1900)); g2.fillStyle = c.frontLow; g2.fillRect(0, Y(1500), w, h); if (lv === 'grigio') { g2.fillStyle = '#eef0f0'; g2.fillRect(0, Y(2120), w, Y(2000) - Y(2120)); } g2.fillStyle = '#202428'; g2.fillRect(w * 0.36, Y(1500), w * 0.28, h); }));
+      const fM = cmat('mdf' + lv, () => mat({ map: fT, roughness: 0.35, metalness: 0.2, side: THREE.DoubleSide }));
+      inner.add(new THREE.Mesh(capGeo(fs[fs.length - 1], 1900, (x, y) => [(x + 1412) / 2824, (y - 1100) / 1600], MD), fM));
+      buffers(inner, zB + N, 1, false);
+      const bc = new THREE.Mesh(geoCache.beacon || (geoCache.beacon = new THREE.CylinderGeometry(M(130), M(150), M(170), 12)), cmat('beacon', () => mat({ color: 0x8b9095, metalness: 0.6, roughness: 0.3 }))); bc.position.set(0, M(RAIL + 4100), M(zB + 0.2 * N)); inner.add(bc);
+      g.userData.lampZ = L / 2 - 600 + 20; g.userData.lamps = [[-830, 1700], [830, 1700], [0, 4110, 0.8 * N]]; g.userData.lampsT = [[-560, 1700], [560, 1700]];
+    }
+    const bg = bogieGeo(430, 2560, 2000); for (const z of [zA + 3400, zB - 3400 + (pilot ? 300 : 0)]) { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); inner.add(b); }
+    g.userData.top = RAIL + 4050; g.userData.low = 1300; return g;
+  }
+  // ======================= ELETTROTRENI ARTICOLATI: Minuetto e CAF Civity (carrelli Jacobs) =======================
+  // S = specifica: profilo, muso (lunghezza, top, larghezza, fondo), colori del muso e pittura della fiancata
+  function emuNoseFn(S) { return f => (x, y) => { const tp = S.top(f), T = S.PR.top; const y2 = y <= 1300 ? y : 1300 + (y - 1300) * (tp - 1300) / (T - 1300); return [x * S.w(f), Math.max(y2, S.bot(f))]; }; }
+  function emuSideTex(S, lv, kind, Lb, em) {
+    const key = 'em' + S.id + lv + kind + Lb + (em ? 'e' : ''); if (texCache[key]) return texCache[key];
+    const PR = S.PR, W = 2048, H = 512, X = d => d / Lb * W, R = y => (1 - PR.arcY(y) / PR.half) * H;
+    const t = ctex(W, H, (g) => {
+      const rect = (d0, d1, y0, y1, col, r = 0) => { g.fillStyle = col; g.beginPath(); g.roundRect(X(d0), R(y1), X(d1) - X(d0), R(y0) - R(y1), r); g.fill(); };
+      if (em) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
+      S.paint(g, { X, R, W, H, Lb, kind, lv, em, rect, win: em ? '#ffd9a0' : '#17212a' });
+      if (!em) { grime(g, W, H, 64, 0.07, 3); speck(g, W, H, 2500, 0.07, true); }
+    });
+    t.anisotropy = 8; return texCache[key] = t;
+  }
+  function emuCar(v, g, S) {
+    const L = v.L * 1000, lv = v.lv || S.liv0, cab = !!(v.cabF || v.cabR), N = cab ? S.N : 0, kind = cab ? 'cab' : 'mid';
+    const zA = -L / 2, zB = L / 2 - N, Lb = (zB - zA) / 1000, PR = S.PR, fn = emuNoseFn(S);
+    const inner = new THREE.Group(); g.add(inner); if (v.cabR && !v.cabF) inner.rotation.y = Math.PI;
+    const side = emuSideTex(S, lv, kind, Lb), sideE = emuSideTex(S, lv, kind, Lb, true);
+    const bm = cmat('emS' + S.id + lv + kind + Lb, () => { const m = mat({ map: side, roughness: 0.4, metalness: 0.2, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: sideE, emissiveIntensity: 0 }); trainLit.push(m); return m; });
+    const flat = b => (x, y) => [x, Math.max(y, b)], hi = 1150, lo = S.low, e1 = zA + 1900, e2 = cab ? zB : zB - 1900;
+    const st = [{ z: zA, fn: flat(hi) }, { z: e1, fn: flat(hi) }, { z: e1 + 400, fn: flat(lo) }];
+    if (cab) st.push({ z: zB, fn: flat(lo) }); else st.push({ z: e2 - 400, fn: flat(lo) }, { z: e2, fn: flat(hi) }, { z: zB, fn: flat(hi) });
+    inner.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zA) / (zB - zA), Math.min(PR.s[i], PR.tot - PR.s[i]) / PR.half], PR), bm));
+    const dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 })), endM = cmat('rkEnd', () => mat({ color: 0x3a3f46, roughness: 0.7, side: THREE.DoubleSide }));
+    const bx = (w, h, d, x, y, z, m, par = inner) => { const k = `bx${w}|${h}|${d}`, b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(w), M(h), M(d))), m); b.position.set(M(x), M(RAIL + y), M(z)); par.add(b); return b; };
+    inner.add(new THREE.Mesh(capGeo(st[0], 2400, null, PR), endM));
+    if (!cab) inner.add(new THREE.Mesh(capGeo(st[st.length - 1], 2400, null, PR), endM));
+    bx(2700, 40, e1 - zA, 0, hi + 20, (zA + e1) / 2, dkM); bx(2700, 40, e2 - e1, 0, lo + 20, (e1 + e2) / 2, dkM); if (!cab) bx(2700, 40, zB - e2, 0, hi + 20, (zB + e2) / 2, dkM);
+    bx(1700, 300, Math.min(4000, (e2 - e1) * 0.4), 0, lo - 150, (e1 + e2) / 2, dkM);
+    if (cab) {
+      const fs = []; for (const f of S.fs) fs.push({ z: zB + f * N, f, fn: fn(f) });
+      const nm = cmat('emN' + S.id + lv, () => mat({ map: noseTex('emN' + S.id + lv, PR, fn, S.w, (f, x, y, hw) => S.nose(lv, f, x, y, hw * 1450 / 1400)), roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide }));
+      inner.add(new THREE.Mesh(sweepGeo(fs, (i, j, s) => [PR.s[i] / PR.tot, s.f], PR), nm));
+      const last = fs[fs.length - 1], hw1 = 1450 * S.w(1), yb = S.bot(1), yt = S.top(1);
+      const fT = texCache['emF' + S.id + lv] || (texCache['emF' + S.id + lv] = (() => { const Wc = 128, Hc = 128, img = new Uint8ClampedArray(Wc * Hc * 4); for (let py = 0; py < Hc; py++) for (let px = 0; px < Wc; px++) { const x = -hw1 + (px + 0.5) / Wc * 2 * hw1, y = yt - (py + 0.5) / Hc * (yt - yb), c = S.nose(lv, 1, x, y, hw1), o = (py * Wc + px) * 4; img[o] = c[0]; img[o + 1] = c[1]; img[o + 2] = c[2]; img[o + 3] = 255; } return ctex(Wc, Hc, g2 => g2.putImageData(new ImageData(img, Wc, Hc), 0, 0)); })());
+      const fM = cmat('emF' + S.id + lv, () => mat({ map: fT, roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide }));
+      inner.add(new THREE.Mesh(capGeo(last, (yb + yt) / 2, (x, y) => [(x + hw1) / (2 * hw1), (y - yb) / (yt - yb)], PR), fM));
+      bx(330, 300, 500, 0, 950, L / 2 + 120, cmat('cplR', () => mat({ color: 0xa8202a, roughness: 0.6 })));
+      g.userData.lamps = S.lamps; g.userData.lampsT = S.lampsT || S.lamps; g.userData.lampZ = L / 2 + 15;
+    }
+    // mantice verso il veicolo successivo (lato -z del gruppo esterno)
+    if (!v.cabR) bx(2000, 2500, 320, 0, 1250 + 1250, -L / 2 - 150, dkM, g);
+    // tetto: carenature e pantografo
+    const acM = cmat('emAc' + S.id, () => mat({ color: new THREE.Color(S.roofEq), roughness: 0.55, metalness: 0.3 }));
+    const ac = geoCache['emAc' + S.id] || (geoCache['emAc' + S.id] = new RoundedBoxGeometry(M(1800), M(380), M(2800), 3, M(120)));
+    for (const z of cab ? [zA + 4500] : [zA + 3500]) { const a = new THREE.Mesh(ac, acM); a.position.set(0, M(RAIL + PR.top - 40 + 190), M(z)); inner.add(a); }
+    if (v.panto) { const p = pantoGrp(RAIL + PR.top + 10); p.position.z = M(cab ? zA + 8000 : 1500); inner.add(p); }
+    // carrelli: Jacobs condivisi alle giunzioni + carrelli sotto le cabine
+    const bg = bogieGeo(420, 2500); const addB = z => { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); g.add(b); };
+    addB(v.cabR ? -L / 2 + 2000 : -L / 2 - 150); if (v.cabF) addB(L / 2 - 2000);
+    g.userData.top = RAIL + PR.top; g.userData.low = 1100; return g;
+  }
+  // ---- Minuetto (ALe 501): 3 casse, muso Giugiaro ----
+  const lerpC = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  const glassAt = (y, y0, ax, hw) => lerpC(hexC('#25343f'), hexC('#8ea3b2'), Math.min(1, Math.max(0, (y - y0) / 1300 + ax / hw * 0.2)));
+  const MINL = {
+    dpr: { base: '#858c93', nose: '#a7adb2', side: '#2552c4', roof: '#a6abb0', door: '#93c83c', mask: '#1c2025' },
+    rv: { base: '#94cf3a', nose: '#94cf3a', side: '#94cf3a', roof: '#2c3238', door: '#3fae3c', mask: '#1f2833' },
+    xmpr: { base: '#eceeee', nose: '#eceeee', side: '#2b55b5', roof: '#b5babd', door: '#3366c4', mask: '#24804f' },
+  };
+  const MIN_S = {
+    id: 'min', liv0: 'dpr', PR: profOf([[1370, 450], [1430, 800], [1450, 1400], [1440, 2400], [1400, 3000], [1330, 3350], [1200, 3600], [1000, 3750], [700, 3830], [350, 3860], [0, 3870]]),
+    N: 2700, low: 480, roofEq: '#6f767c', fs: [0, 0.12, 0.24, 0.36, 0.48, 0.6, 0.7, 0.8, 0.88, 0.94, 0.98, 1],
+    top: f => { const k = [[0, 3870], [0.2, 3800], [0.34, 3560], [0.76, 2250], [0.9, 1900], [1, 1780]]; for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const t = (f - k[i - 1][0]) / (k[i][0] - k[i - 1][0]); return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]); } return 1780; },
+    w: f => 1 - 0.06 * f * f - 0.3 * Math.max(0, (f - 0.45) / 0.55) ** 2,
+    bot: f => f < 0.62 ? 1150 : 520,
+    lamps: [[-860, 1300], [860, 1300]], lampsT: [[-860, 1300], [860, 1300]],
+    nose(lv, f, x, y, hw) { const c = MINL[lv], ax = Math.abs(x);
+      if (f > 0.3 && y > 2280 && ax < hw * 0.8) return glassAt(y, 2280, ax, hw);
+      if (f > 0.26 && y > 2150 && ax < hw * 0.88) return hexC('#16191d');
+      if (lv === 'rv' && f > 0.22 && y > 1850 && ax < hw * 0.95) return hexC(c.mask);
+      if (lv === 'xmpr' && f > 0.2 && y > 1950) return hexC(c.mask);
+      if (y < 1050 && f > 0.6) return hexC(lv === 'rv' ? '#1f2833' : '#202428');
+      if (f > 0.84 && y > 1420 && y < 1580 && ax < hw * 0.55 && lv !== 'rv') return hexC('#d42a2e');
+      if (lv === 'dpr' && f > 0.12 && ax > hw * 0.78 && y > 1350) return hexC(c.side);
+      if (lv === 'dpr' && f < 0.3 && y > 2400 && y < 3300) return hexC(c.side);
+      return hexC(c.nose); },
+    paint(g, o) { const { X, R, W, H, Lb, kind, lv, em, rect, win } = o, c = MINL[lv];
+      const band = (y0, y1, col, d0 = -1, d1 = Lb + 1) => { g.fillStyle = col; g.fillRect(X(d0), R(y1), X(d1) - X(d0), R(y0) - R(y1)); };
+      if (!em) {
+        g.fillStyle = c.base; g.fillRect(0, 0, W, H); band(3350, 4000, c.roof);
+        if (lv === 'dpr') { band(0, 800, '#2552c4'); band(860, 930, '#f08d1e'); band(930, 980, '#2552c4'); if (kind === 'cab') { g.fillStyle = c.side; g.beginPath(); g.moveTo(X(Lb - 2.2), R(3350)); g.lineTo(X(Lb + 1), R(3350)); g.lineTo(X(Lb + 1), R(800)); g.lineTo(X(Lb - 0.6), R(800)); g.quadraticCurveTo(X(Lb - 2.6), R(2000), X(Lb - 2.2), R(3350)); g.fill(); } }
+        else if (lv === 'rv') { band(0, 900, '#1f2833'); g.fillStyle = '#3aa63c'; for (let d = -2; d < Lb + 2; d += 6.4) { g.beginPath(); g.moveTo(X(d), R(900)); g.lineTo(X(d + 2.4), R(900)); g.lineTo(X(d + 3.6), R(3350)); g.lineTo(X(d + 1.2), R(3350)); g.closePath(); g.fill(); } g.fillStyle = '#f0d21c'; for (let d = 1.5; d < Lb + 2; d += 6.4) { g.beginPath(); g.moveTo(X(d), R(900)); g.lineTo(X(d + 0.9), R(900)); g.lineTo(X(d + 1.4), R(2000)); g.lineTo(X(d + 0.5), R(2000)); g.closePath(); g.fill(); } }
+        else { band(2850, 3150, '#2b55b5'); band(880, 950, '#2b55b5'); band(0, 700, '#24804f'); }
+      }
+      const door = dc => { if (!em) { rect(dc - 0.68, dc + 0.68, 560, 2780, '#262b30', 3); rect(dc - 0.64, dc + 0.64, 580, 2760, c.door, 3); g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(X(dc) - 1, R(2760), 2, R(580) - R(2760)); } for (const a of [dc - 0.5, dc + 0.14]) rect(a, a + 0.36, 1350, 2550, win, 8); };
+      const wins = (a, b) => { if (b - a < 1) return; if (!em && lv === 'rv') rect(a - 0.1, b + 0.1, 1350, 2780, '#1f2833', 6); const n = Math.max(1, Math.round((b - a) / 1.75)), w = (b - a) / n; for (let i = 0; i < n; i++) { if (!em) rect(a + i * w + 0.06, a + (i + 1) * w - 0.06, 1400, 2700, '#22272c', 6); rect(a + i * w + 0.1, a + (i + 1) * w - 0.1, 1440, 2660, win, 5); } };
+      if (kind === 'cab') { door(3.3); wins(4.3, Lb - 2.6); wins(0.6, 2.3); }
+      else { door(3.3); door(Lb - 3.3); wins(4.3, Lb - 4.3); wins(0.6, 2.3); wins(Lb - 2.3, Lb - 0.6); }
+    },
+  };
+  // ---- CAF Civity ETR 563: 5 casse, bianco e blu ----
+  const CAF_S = {
+    id: 'caf', liv0: 'blu', PR: profOf([[1400, 480], [1440, 800], [1460, 1400], [1460, 2600], [1440, 3200], [1390, 3500], [1280, 3720], [1080, 3870], [760, 3940], [380, 3965], [0, 3975]]),
+    N: 2500, low: 500, roofEq: '#c9cdd0', fs: [0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.72, 0.8, 0.88, 0.94, 0.98, 1],
+    top: f => { const k = [[0, 3975], [0.22, 3900], [0.38, 3640], [0.8, 2300], [0.92, 2150], [1, 2060]]; for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const t = (f - k[i - 1][0]) / (k[i][0] - k[i - 1][0]); return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]); } return 2060; },
+    w: f => 1 - 0.05 * f * f - 0.24 * Math.max(0, (f - 0.5) / 0.5) ** 2,
+    bot: f => f < 0.6 ? 1150 : 560,
+    lamps: [[-900, 1820], [900, 1820]], lampsT: [[-900, 1820], [900, 1820]],
+    nose(lv, f, x, y, hw) { const ax = Math.abs(x);
+      if (f > 0.4 && y > 2420 && ax < hw * 0.8) return glassAt(y, 2420, ax, hw);
+      if (f > 0.34 && y > 2300 && ax < hw * 0.88) return hexC('#121518');
+      if (f > 0.1 && f < 0.42 && ax > hw * 0.82 && y > 1650 && y < 3150) return hexC('#2b5ec4');
+      const yc = 1900 + 420 * Math.min(1, ax / hw) ** 1.5; if (f > 0.55 && y > yc && y < yc + 240) return hexC('#d42a2e');
+      if (f > 0.8 && y < 1050 && ax < hw * 0.5) return hexC('#202428');
+      return hexC('#eef0f0'); },
+    paint(g, o) { const { X, R, W, H, Lb, kind, em, rect, win } = o;
+      const band = (y0, y1, col, d0 = -1, d1 = Lb + 1) => { g.fillStyle = col; g.fillRect(X(d0), R(y1), X(d1) - X(d0), R(y0) - R(y1)); };
+      if (!em) { g.fillStyle = '#eef0f0'; g.fillRect(0, 0, W, H); band(1080, 1130, '#2b5ec4'); band(3550, 4000, '#d9dcde');
+        const bEnd = kind === 'cab' ? Lb - 0.2 : Lb + 1; g.fillStyle = '#2b5ec4'; g.beginPath(); g.moveTo(X(-1), R(3150)); g.lineTo(X(bEnd), R(3150)); g.lineTo(X(bEnd - (kind === 'cab' ? 1.4 : 0)), R(1650)); g.lineTo(X(-1), R(1650)); g.closePath(); g.fill(); }
+      const door = dc => { if (!em) { rect(dc - 0.7, dc + 0.7, 600, 2800, '#9aa0a5', 3); rect(dc - 0.66, dc + 0.66, 620, 2780, '#dfe2e3', 3); g.fillStyle = '#2b5ec4'; for (let y = 650; y < 1000; y += 70) g.fillRect(X(dc - 0.6), R(y + 30), X(dc + 0.6) - X(dc - 0.6), R(y) - R(y + 30)); g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(X(dc) - 1, R(2780), 2, R(620) - R(2780)); } for (const a of [dc - 0.52, dc + 0.14]) rect(a, a + 0.38, 1350, 2600, win, 8); };
+      const wins = (a, b) => { if (b - a < 1) return; const n = Math.max(1, Math.round((b - a) / 1.55)), w = (b - a) / n; for (let i = 0; i < n; i++) rect(a + i * w + 0.12, a + (i + 1) * w - 0.12, 1720, 2900, win, 10); };
+      if (kind === 'cab') { door(3.6); wins(4.6, Lb - 1.8); wins(0.5, 2.6); } else { door(Lb / 2); wins(0.5, Lb / 2 - 1.0); wins(Lb / 2 + 1.0, Lb - 0.5); }
+    },
+  };
+  // ======================= INTERCITY: E401 + UIC-Z + pilota UIC-Z =======================
+  // texture di fiancata generica: d = metri dalla testata posteriore, y = altezza sul ferro
+  function sideCanvas(key, PR, Lb, paint, W = 2048, H = 512) {
+    if (texCache[key]) return texCache[key];
+    const X = d => d / Lb * W, R = y => (1 - PR.arcY(y) / PR.half) * H;
+    const t = ctex(W, H, g => {
+      const rect = (d0, d1, y0, y1, col, r = 0) => { g.fillStyle = col; g.beginPath(); g.roundRect(X(d0), R(y1), X(d1) - X(d0), R(y0) - R(y1), r); g.fill(); };
+      const band = (y0, y1, col, d0 = -1, d1 = Lb + 1) => { g.fillStyle = col; g.fillRect(X(d0), R(y1), X(d1) - X(d0), R(y0) - R(y1)); };
+      const poly = (pts, col) => { g.fillStyle = col; g.beginPath(); pts.forEach(([d, y], i) => g[i ? 'lineTo' : 'moveTo'](X(d), R(y))); g.closePath(); g.fill(); };
+      paint(g, { X, R, W, H, Lb, rect, band, poly });
+    });
+    t.anisotropy = 8; return texCache[key] = t;
+  }
+  // texture del frontale piatto campionando la stessa funzione colore del muso (f = 1)
+  function capTex(key, colf, hw1, yb, yt) {
+    if (texCache[key]) return texCache[key];
+    const Wc = 128, Hc = 128, img = new Uint8ClampedArray(Wc * Hc * 4);
+    for (let py = 0; py < Hc; py++) for (let px = 0; px < Wc; px++) { const x = -hw1 + (px + 0.5) / Wc * 2 * hw1, y = yt - (py + 0.5) / Hc * (yt - yb), c = colf(1, x, y, hw1), o = (py * Wc + px) * 4; img[o] = c[0]; img[o + 1] = c[1]; img[o + 2] = c[2]; img[o + 3] = 255; }
+    return texCache[key] = ctex(Wc, Hc, g2 => { g2.putImageData(new ImageData(img, Wc, Hc), 0, 0); grime(g2, Wc, Hc, 16, 0.05, 2); });
+  }
+  const interp = (k, f) => { for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const t = (f - k[i - 1][0]) / (k[i][0] - k[i - 1][0]); return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]); } return k[k.length - 1][1]; };
+  const ICB = '#2f86d6', ICD = '#4a5663', ICG = '#e1e4e6', ICR = '#d4202a';
+  // ---------- E401 ----------
+  const E1PR = profOf([[1480, 1150], [1500, 1400], [1500, 2500], [1490, 3100], [1460, 3450], [1400, 3650], [1250, 3820], [900, 3940], [450, 3985], [0, 4000]]), E1N = 1500;
+  const e1Top = f => interp([[0, 4000], [0.3, 3950], [0.5, 3760], [0.86, 2520], [1, 2420]], f), e1W = f => 1 - 0.15 * Math.max(0, (f - 0.4) / 0.6), e1Fn = f => (x, y) => [x * e1W(f), y <= 1300 ? y : 1300 + (y - 1300) * (e1Top(f) - 1300) / 2700];
+  const e1Col = lv => { const blue = hexC(ICB), dk = hexC(ICD), wh = hexC('#eceeee'), red = hexC(ICR), fr = hexC('#3c4248'), rc = hexC('#262c32');
+    return (f, x, y, hw0) => { const hw = hw0 * 1500 / 1400, ax = Math.abs(x);
+      if (f > 0.5 && y > 2600 && y < 3480 && ax < hw * 0.84) { if (ax < 30) return fr; return glassAt(y, 2600, ax, hw); }
+      if (f > 0.45 && y > 2500 && y < 3560 && ax < hw * 0.9) return fr;
+      if (f > 0.8 && y > 1600 && y < 1900 && ax > hw * 0.42 && ax < hw * 0.86) return rc;
+      if (lv === 'new') return y < 1450 ? dk : blue;
+      if (f > 0.8 && y > 1520 && y < 1950) return red;
+      return y < 1300 ? hexC('#5a6168') : wh; }; };
+  function e401Car(v, g) {
+    const L = v.L * 1000, lv = v.ic || 'new', zR = -L / 2 + 600, zF = L / 2 - 600 - E1N, Lb = (zF - zR) / 1000;
+    const inner = new THREE.Group(); g.add(inner); if (v.flip) inner.rotation.y = Math.PI;
+    const side = sideCanvas('e1s' + lv + Lb, E1PR, Lb, (g2, o) => { const { band, poly, rect, X, R, W, H } = o;
+      if (lv === 'new') { g2.fillStyle = ICG; g2.fillRect(0, 0, W, H); band(0, 1450, ICD); band(3350, 4100, '#5d6670'); band(2150, 2600, ICB);
+        poly([[3.2, 1450], [8.2, 1450], [9.6, 3200], [4.6, 3200]], ICB); poly([[Lb - 1.0, 3350], [Lb + 1, 3350], [Lb + 1, 1450], [Lb - 0.2, 1450]], ICB); }
+      else { g2.fillStyle = '#eceeee'; g2.fillRect(0, 0, W, H); band(0, 1300, '#5a6168'); band(1500, 1660, ICR); band(1750, 3150, '#9da3a8', 0.8, Lb - 2.8); band(3400, 4100, '#8d9399'); }
+      for (let d = 1.0; d < Lb - 3.0; d += 0.09) { g2.fillStyle = 'rgba(0,0,0,.16)'; g2.fillRect(X(d), R(3150), 2, R(1750) - R(3150)); }
+      g2.strokeStyle = 'rgba(0,0,0,.35)'; g2.lineWidth = 2; for (let d = 0.8; d < Lb - 2.8; d += 2.6) g2.strokeRect(X(d), R(3150), X(Math.min(d + 2.6, Lb - 2.8)) - X(d), R(1750) - R(3150));
+      g2.strokeRect(X(Lb - 2.35), R(3250), X(Lb - 1.65) - X(Lb - 2.35), R(1300) - R(3250)); rect(Lb - 2.25, Lb - 1.75, 2650, 3150, '#1a242c', 6);
+      rect(Lb - 1.3, Lb - 0.4, 2600, 3300, '#1a242c', 8); rect(0.3, 0.75, 2650, 3150, '#1a242c', 6);
+      grime(g2, W, H, 48, 0.08, 3); speck(g2, W, H, 2000, 0.08, true); });
+    const bm = cmat('e1s' + lv + Lb, () => mat({ map: side, roughness: 0.42, metalness: 0.2, side: THREE.DoubleSide }));
+    const st = [{ z: zR, fn: (x, y) => [x, y] }, { z: zF, fn: (x, y) => [x, y] }];
+    inner.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zR) / (zF - zR), Math.min(E1PR.s[i], E1PR.tot - E1PR.s[i]) / E1PR.half], E1PR), bm));
+    const col = e1Col(lv), endM = cmat('e1end' + lv, () => mat({ color: new THREE.Color(lv === 'new' ? '#5d6670' : '#8d9399'), roughness: 0.6, side: THREE.DoubleSide }));
+    inner.add(new THREE.Mesh(capGeo(st[0], 2500, null, E1PR), endM));
+    const fs = []; for (const f of [0, 0.15, 0.3, 0.42, 0.5, 0.6, 0.72, 0.86, 0.94, 1]) fs.push({ z: zF + f * E1N, f, fn: e1Fn(f) });
+    inner.add(new THREE.Mesh(sweepGeo(fs, (i, j, s) => [E1PR.s[i] / E1PR.tot, s.f], E1PR), cmat('e1n' + lv, () => mat({ map: noseTex('e1n' + lv, E1PR, e1Fn, e1W, col), roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide }))));
+    const hw1 = 1500 * e1W(1); inner.add(new THREE.Mesh(capGeo(fs[fs.length - 1], 1800, (x, y) => [(x + hw1) / (2 * hw1), (y - 1150) / (2420 - 1150)], E1PR), cmat('e1f' + lv, () => mat({ map: capTex('e1f' + lv, col, hw1, 1150, 2420), roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide }))));
+    const dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 }));
+    const bx = (w, h, d, y, z, m) => { const k = `bx${w}|${h}|${d}`, b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(w), M(h), M(d))), m); b.position.set(0, M(RAIL + y), M(z)); inner.add(b); };
+    bx(2900, 60, zF + E1N - zR, 1170, (zF + E1N + zR) / 2, dkM); bx(2300, 500, 4600, 880, 0, dkM);
+    bx(1700, 300, 4200, 4050, -400, cmat('e1roof', () => mat({ color: 0x5d6670, roughness: 0.5, metalness: 0.3 })));
+    buffers(inner, zR, -1); buffers(inner, zF + E1N, 1);
+    for (const z of [-5600, 4600]) { const p = pantoGrp(RAIL + 3990); p.position.z = M(z); inner.add(p); }
+    const bg = bogieGeo(625, 2650, 2150); for (const z of [-5000, 5000]) { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); inner.add(b); }
+    g.userData.lampZ = L / 2 - 600 + 20; g.userData.lamps = [[-820, 1750], [820, 1750]]; g.userData.lampsT = [[-820, 1750], [820, 1750]];
+    g.userData.top = RAIL + 4000; g.userData.low = 1150; return g;
+  }
+  // ---------- UIC-Z e pilota ----------
+  const UZPR = profOf([[1380, 1150], [1405, 1400], [1412, 2200], [1405, 2900], [1380, 3300], [1320, 3580], [1200, 3800], [1000, 3950], [700, 4030], [350, 4060], [0, 4070]]), UZN = 950;
+  const uzTop = f => interp([[0, 4070], [0.3, 4040], [0.6, 3880], [0.85, 3650], [1, 3560]], f), uzW = f => 1 - 0.1 * Math.max(0, (f - 0.3) / 0.7) ** 1.5, uzFn = f => (x, y) => [x * uzW(f), y <= 1300 ? y : 1300 + (y - 1300) * (uzTop(f) - 1300) / 2770];
+  const uzCol = lv => { const blue = hexC(ICB), dk = hexC(ICD), wh = hexC('#eef0f0'), red = hexC(ICR), fr = hexC('#2c3238'), gr = hexC('#a4aaaf');
+    return (f, x, y, hw0) => { const hw = hw0 * 1412 / 1400, ax = Math.abs(x);
+      if (f > 0.35 && y > 2580 && y < 3380 && ax < hw * 0.8) return glassAt(y, 2580, ax, hw);
+      if (f > 0.3 && y > 2480 && y < 3460 && ax < hw * 0.88) return fr;
+      if (f > 0.8 && y > 1500 && y < 1820 && ax > hw * 0.45 && ax < hw * 0.82) return fr;
+      if (lv === 'new') return y > 3460 ? wh : y < 1350 ? dk : blue;
+      if (f > 0.8 && y > 1450 && y < 1850) return red;
+      if (y < 1300) return hexC('#4b5056');
+      return f < 0.5 && y < 2400 && ax > hw * 0.8 ? gr : wh; }; };
+  function uiczSide(lv, Lb, pilot, em) {
+    return sideCanvas('uz' + lv + Lb + (pilot ? 'p' + pilot : '') + (em ? 'e' : ''), UZPR, Lb, (g2, o) => { const { band, poly, rect, W, H } = o, win = em ? '#ffd9a0' : '#1b2630';
+      const nw = lv === 'new', door = (d0, d1) => { if (em) { rect(d0 + 0.2, d1 - 0.2, 2200, 2850, win, 8); return; } rect(d0 - 0.04, d1 + 0.04, 1180, 3150, nw ? '#f2f3f3' : '#8a1a1f', 3); rect(d0, d1, 1200, 3120, nw ? ICD : ICR, 3); rect(d0 + 0.2, d1 - 0.2, 2200, 2850, win, 8); };
+      const wnd = (d0, d1, y0 = 1900, y1 = 2880) => { if (!em) rect(d0 - 0.05, d1 + 0.05, y0 - 50, y1 + 50, nw ? '#5a6570' : '#b8bdc1', 10); rect(d0, d1, y0, y1, win, 8); };
+      if (em) { g2.fillStyle = '#000'; g2.fillRect(0, 0, W, H); }
+      else if (nw) { g2.fillStyle = ICG; g2.fillRect(0, 0, W, H); band(0, 1350, ICD); band(1400, 1480, '#f4f5f5'); band(3300, 4200, '#56616d');
+        poly([[1.6, 1850], [Lb - 1.6, 1850], [Lb - 1.6, 3080], [1.6, 3080]], ICB); poly([[Lb * 0.22, 1850], [Lb * 0.45, 1850], [Lb * 0.49, 1500], [Lb * 0.27, 1500]], ICB); poly([[Lb * 0.62, 3080], [Lb * 0.8, 3080], [Lb * 0.84, 3250], [Lb * 0.66, 3250]], '#f4f5f5'); }
+      else { g2.fillStyle = '#eef0f0'; g2.fillRect(0, 0, W, H); band(0, 1250, '#4b5056'); band(1550, 1700, ICR); band(3500, 4200, '#9aa0a5'); if (lv === 'oldg') band(1820, 2960, '#9ba1a6', 1.6, Lb - 1.6); }
+      if (!pilot) { door(0.5, 1.35); door(Lb - 1.35, Lb - 0.5); wnd(1.75, 2.35, 2150, 2880); wnd(Lb - 2.35, Lb - 1.75, 2150, 2880); const n = 10, a = 2.85, w = (Lb - 2 * a) / n; for (let i = 0; i < n; i++) wnd(a + i * w + 0.17, a + (i + 1) * w - 0.17); }
+      else { door(0.5, 1.35); wnd(1.75, 2.35, 2150, 2880); door(Lb - 3.85, Lb - 3.05); const n = 8, a = 2.85, b = Lb - 4.3, w = (b - a) / n; for (let i = 0; i < n; i++) wnd(a + i * w + 0.17, a + (i + 1) * w - 0.17);
+        if (!em) { if (pilot === 'new') { band(1350, 2650, ICB, Lb - 2.95, Lb + 1); band(2650, 3300, '#eef0f0', Lb - 2.95, Lb + 1); band(2380, 3300, '#3d4650', Lb - 2.7, Lb - 0.9); }
+          else { band(1250, 3500, '#eef0f0', Lb - 2.95, Lb + 1); poly([[Lb - 2.95, 1300], [Lb - 0.9, 1300], [Lb - 0.4, 2500], [Lb - 2.0, 2500]], '#a4aaaf'); band(2380, 3300, '#4a5056', Lb - 2.7, Lb - 0.9); }
+          rect(Lb - 2.6, Lb - 1.85, 2450, 3220, '#1b2630', 6); rect(Lb - 1.75, Lb - 1.0, 2450, 3220, '#1b2630', 6); }
+      }
+      if (!em) { grime(g2, W, H, 64, 0.07, 3); speck(g2, W, H, 2500, 0.07, true); }
+    });
+  }
+  function uiczCar(v, g) {
+    const L = v.L * 1000, lv = v.ic || 'new', pl = v.cabF || v.cabR ? (v.icp || 'new') : null, N = pl ? UZN : 0;
+    const zR = -L / 2 + BUFZ, zF = L / 2 - BUFZ - N, Lb = (zF - zR) / 1000;
+    const inner = new THREE.Group(); g.add(inner); if (v.cabR && !v.cabF) inner.rotation.y = Math.PI;
+    const side = uiczSide(lv, Lb, pl), sideE = uiczSide(lv, Lb, pl, true);
+    const bm = cmat('uz' + lv + Lb + pl, () => { const m = mat({ map: side, roughness: 0.42, metalness: 0.15, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: sideE, emissiveIntensity: 0 }); trainLit.push(m); return m; });
+    const st = [{ z: zR, fn: (x, y) => [x, y] }, { z: zF, fn: (x, y) => [x, y] }];
+    inner.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zR) / (zF - zR), Math.min(UZPR.s[i], UZPR.tot - UZPR.s[i]) / UZPR.half], UZPR), bm));
+    const endM = cmat('uzEnd' + lv, () => mat({ color: new THREE.Color(lv === 'new' ? '#56616d' : '#b8bdc1'), roughness: 0.7, side: THREE.DoubleSide })), dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 }));
+    const bx = (w, h, d, y, z, m) => { const k = `bx${w}|${h}|${d}`, b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(w), M(h), M(d))), m); b.position.set(0, M(RAIL + y), M(z)); inner.add(b); };
+    inner.add(new THREE.Mesh(capGeo(st[0], 2500, null, UZPR), endM)); buffers(inner, zR, -1); bx(1300, 2300, BUFZ + 150, 2350, zR - (BUFZ + 150) / 2, dkM);
+    if (!pl) { inner.add(new THREE.Mesh(capGeo(st[1], 2500, null, UZPR), endM)); buffers(inner, zF, 1); bx(1300, 2300, BUFZ + 150, 2350, zF + (BUFZ + 150) / 2, dkM); }
+    else {
+      const col = uzCol(pl), fs = []; for (const f of [0, 0.2, 0.4, 0.6, 0.75, 0.88, 0.95, 1]) fs.push({ z: zF + f * N, f, fn: uzFn(f) });
+      inner.add(new THREE.Mesh(sweepGeo(fs, (i, j, s) => [UZPR.s[i] / UZPR.tot, s.f], UZPR), cmat('uzn' + pl, () => mat({ map: noseTex('uzn' + pl, UZPR, uzFn, uzW, col, 256, 64), roughness: 0.3, metalness: 0.15, side: THREE.DoubleSide }))));
+      const hw1 = 1412 * uzW(1); inner.add(new THREE.Mesh(capGeo(fs[fs.length - 1], 2300, (x, y) => [(x + hw1) / (2 * hw1), (y - 1150) / (3560 - 1150)], UZPR), cmat('uzf' + pl, () => mat({ map: capTex('uzf' + pl, col, hw1, 1150, 3560), roughness: 0.3, metalness: 0.15, side: THREE.DoubleSide }))));
+      buffers(inner, zF + N, 1);
+      const hm = cmat('horn', () => mat({ color: 0x9aa0a5, metalness: 0.6, roughness: 0.3 })); for (const xs of [-700, 700]) { const h2 = new THREE.Mesh(geoCache.horn || (geoCache.horn = new THREE.CylinderGeometry(M(70), M(110), M(250), 10)), hm); h2.rotation.x = Math.PI / 2; h2.position.set(M(xs), M(RAIL + 3900), M(zF + 0.4 * N)); inner.add(h2); }
+      g.userData.lampZ = L / 2 - BUFZ + 20; g.userData.lamps = [[-820, 1660], [820, 1660]]; g.userData.lampsT = [[-820, 1660], [820, 1660]];
+    }
+    bx(2800, 50, zF + N - zR, 1175, (zF + N + zR) / 2, dkM); for (const [z, d] of [[-3000, 2400], [1500, 1800], [5200, 1400]]) bx(2000, 420, d, 900, z, dkM);
+    bx(800, 120, 1300, 4050, zR + 3000, cmat('mdVent', () => mat({ color: 0x8d9296, roughness: 0.6, metalness: 0.3 })));
+    const bgG = bogieGeo(460, 2560, 2000); for (const z of [zR + 3200, zF + N - 3200]) { const b = new THREE.Mesh(bgG, BOGIE()); b.position.z = M(z); inner.add(b); }
+    g.userData.top = RAIL + 4070; g.userData.low = 1150; return g;
+  }
+  const BUFZ = 650;
+  // ======================= VIVALTO (doppio piano) + pilota =======================
+  const VVPR = profOf([[1380, 1150], [1395, 1400], [1400, 2600], [1395, 3400], [1375, 3800], [1320, 4020], [1200, 4180], [950, 4280], [600, 4320], [0, 4340]]), VVN = 1100;
+  const vvTop = f => interp([[0, 4340], [0.3, 4300], [0.6, 4180], [1, 3980]], f), vvW = f => 1 - 0.09 * Math.max(0, (f - 0.25) / 0.75) ** 1.4;
+  const vvFn = f => (x, y) => [x * vvW(f), y <= 1300 ? y : 1300 + (y - 1300) * (vvTop(f) - 1300) / 3040];
+  const VVL = { gr: { base: '#8e959b', dk: '#4b5158', blue: '#2f4fb8', door: '#a9d63c', roof: '#c9cdd0' }, rv: { base: '#9ad13e', dk: '#2a3238', blue: '#3aa63c', door: '#3fae3c', roof: '#2c3238' } };
+  const vvCol = lv => { const c = VVL[lv], blue = hexC(lv === 'gr' ? '#2f5ad0' : '#2a3238'), grey = hexC(lv === 'gr' ? '#9aa1a7' : '#2a3238'), red = hexC(lv === 'gr' ? '#d4262c' : '#2a3238'), dk = hexC('#2a2f35'), lime = hexC(c.base);
+    return (f, x, y, hw0) => { const hw = hw0 * 1400 / 1400, ax = Math.abs(x);
+      if (f > 0.35 && y > 2750 && y < 3620 && ax < hw * 0.78) { if (ax < 30) return dk; return glassAt(y, 2750, ax, hw); }
+      if (f > 0.3 && y > 2650 && y < 3700 && ax < hw * 0.86) return dk;
+      if (f > 0.8 && y > 1750 && y < 2050 && ax > hw * 0.45 && ax < hw * 0.8) return dk;
+      if (lv === 'rv') return ax > hw * 0.86 || f < 0.4 ? lime : blue;
+      if (y > 2650) return blue; if (y > 2100) return grey; if (y > 1650) return red; return dk; }; };
+  function vivSide(lv, Lb, pilot, em) {
+    return sideCanvas('vv' + lv + Lb + (pilot ? 'p' : '') + (em ? 'e' : ''), VVPR, Lb, (g2, o) => { const { band, poly, rect, W, H } = o, c = VVL[lv], win = em ? '#ffd9a0' : '#1b2a30';
+      const wnd = (d0, d1, y0, y1) => { if (!em) rect(d0 - 0.05, d1 + 0.05, y0 - 50, y1 + 50, '#c9ced2', 12); rect(d0, d1, y0, y1, win, 10); };
+      const door = dc => { if (!em) { rect(dc - 0.72, dc + 0.72, 1180, 3150, '#2a2f34', 3); rect(dc - 0.68, dc + 0.68, 1200, 3130, c.door, 3); rect(dc - 0.72, dc + 0.72, 3250, 3700, c.door); g2.fillStyle = 'rgba(0,0,0,.45)'; g2.fillRect(o.X(dc) - 1, o.R(3130), 2, o.R(1200) - o.R(3130)); } for (const a of [dc - 0.5, dc + 0.16]) rect(a, a + 0.34, 2050, 2950, win, 6); };
+      const mid0 = 4.25, mid1 = pilot ? Lb - 5.2 : Lb - 4.25;
+      if (em) { g2.fillStyle = '#000'; g2.fillRect(0, 0, W, H); }
+      else { g2.fillStyle = c.base; g2.fillRect(0, 0, W, H); band(3780, 4400, c.roof);
+        if (lv === 'gr') { band(3050, 3780, c.blue); band(780, 880, '#f0a224'); band(680, 780, c.blue); band(1200, 1290, '#f0a224', -1, mid0 - 0.2); band(1100, 1200, c.blue, -1, mid0 - 0.2); band(1200, 1290, '#f0a224', mid1 + 0.2); band(1100, 1200, c.blue, mid1 + 0.2);
+          rect(mid0 + 0.3, mid1 - 0.3, 950, 1900, c.dk, 4); for (let d = 1.5; d < Lb - 1; d += 0.42) rect(d, d + 0.3, 3880, 4000, '#2a3a8a'); }
+        else { band(0, 700, c.dk); g2.fillStyle = '#3aa63c'; for (let d = -3; d < Lb + 3; d += 7) poly([[d, 700], [d + 2.6, 700], [d + 4.2, 3780], [d + 1.6, 3780]], '#3aa63c'); for (let d = 0; d < Lb + 3; d += 7) poly([[d, 700], [d + 1, 700], [d + 1.8, 2200], [d + 0.8, 2200]], '#f0d21c'); rect(mid0 + 0.3, mid1 - 0.3, 950, 1900, c.dk, 4); rect(mid0 + 0.3, mid1 - 0.3, 2350, 3350, c.dk, 4); } }
+      door(3.3); if (!pilot) door(Lb - 3.3); else door(Lb - 4.4);
+      wnd(0.7, 2.25, 1950, 2750); if (!pilot) wnd(Lb - 2.25, Lb - 0.7, 1950, 2750);
+      { const n = 6, w = (mid1 - mid0 - 0.6) / n; for (let i = 0; i < n; i++) wnd(mid0 + 0.3 + i * w + 0.16, mid0 + 0.3 + (i + 1) * w - 0.16, 1050, 1800); }
+      { const n = pilot ? 6 : 7, a = 1.4, b = pilot ? Lb - 3.8 : Lb - 1.4, w = (b - a) / n; for (let i = 0; i < n; i++) wnd(a + i * w + 0.25, a + (i + 1) * w - 0.25, 2500, 3350); }
+      if (pilot && !em) { band(2600, 4400, lv === 'gr' ? '#2f5ad0' : '#2a3238', Lb - 3.0, Lb + 1); band(1200, 2600, lv === 'gr' ? '#9aa1a7' : c.base, Lb - 3.0, Lb + 1); if (lv === 'gr') { poly([[Lb - 7, 1200], [Lb - 3.0, 1200], [Lb - 3.0, 1600], [Lb - 4.5, 1600]], '#2f5ad0'); poly([[Lb - 6.2, 1600], [Lb - 3.0, 1600], [Lb - 3.0, 1850], [Lb - 4.2, 1850]], '#f0a224'); }
+        rect(Lb - 2.7, Lb - 1.0, 2750, 3550, '#1b2a30', 10); }
+      if (!em) { grime(g2, W, H, 64, 0.07, 3); speck(g2, W, H, 2500, 0.07, true); }
+    });
+  }
+  function vivCar(v, g) {
+    const L = v.L * 1000, lv = v.vv || 'gr', pl = !!(v.cabF || v.cabR), N = pl ? VVN : 0, zR = -L / 2 + BUFZ, zF = L / 2 - BUFZ - N, Lb = (zF - zR) / 1000;
+    const inner = new THREE.Group(); g.add(inner); if (v.cabR && !v.cabF) inner.rotation.y = Math.PI;
+    const side = vivSide(lv, Lb, pl), sideE = vivSide(lv, Lb, pl, true);
+    const bm = cmat('vv' + lv + Lb + pl, () => { const m = mat({ map: side, roughness: 0.42, metalness: 0.18, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: sideE, emissiveIntensity: 0 }); trainLit.push(m); return m; });
+    const flat = b => (x, y) => [x, Math.max(y, b)], a1 = zR + 4250, a2 = zF - (pl ? 5200 - N : 4250);
+    const st = [{ z: zR, fn: flat(1150) }, { z: a1, fn: flat(1150) }, { z: a1 + 300, fn: flat(450) }, { z: a2 - 300, fn: flat(450) }, { z: a2, fn: flat(1150) }, { z: zF, fn: flat(1150) }];
+    inner.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zR) / (zF - zR), Math.min(VVPR.s[i], VVPR.tot - VVPR.s[i]) / VVPR.half], VVPR), bm));
+    const endM = cmat('vvEnd' + lv, () => mat({ color: new THREE.Color(VVL[lv].dk), roughness: 0.7, side: THREE.DoubleSide })), dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 }));
+    const bx = (w, h, d, y, z, m) => { const k = `bx${w}|${h}|${d}`, b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(w), M(h), M(d))), m); b.position.set(0, M(RAIL + y), M(z)); inner.add(b); };
+    inner.add(new THREE.Mesh(capGeo(st[0], 2600, null, VVPR), endM)); buffers(inner, zR, -1); bx(1300, 2300, BUFZ + 150, 2350, zR - (BUFZ + 150) / 2, dkM);
+    if (!pl) { inner.add(new THREE.Mesh(capGeo(st[5], 2600, null, VVPR), endM)); buffers(inner, zF, 1); bx(1300, 2300, BUFZ + 150, 2350, zF + (BUFZ + 150) / 2, dkM); }
+    else {
+      const col = vvCol(lv), fs = []; for (const f of [0, 0.2, 0.4, 0.6, 0.75, 0.88, 0.95, 1]) fs.push({ z: zF + f * N, f, fn: vvFn(f) });
+      inner.add(new THREE.Mesh(sweepGeo(fs, (i, j, s) => [VVPR.s[i] / VVPR.tot, s.f], VVPR), cmat('vvn' + lv, () => mat({ map: noseTex('vvn' + lv, VVPR, vvFn, vvW, col, 256, 64), roughness: 0.3, metalness: 0.15, side: THREE.DoubleSide }))));
+      const hw1 = 1400 * vvW(1); inner.add(new THREE.Mesh(capGeo(fs[fs.length - 1], 2500, (x, y) => [(x + hw1) / (2 * hw1), (y - 1150) / (3980 - 1150)], VVPR), cmat('vvf' + lv, () => mat({ map: capTex('vvf' + lv, col, hw1, 1150, 3980), roughness: 0.3, metalness: 0.15, side: THREE.DoubleSide }))));
+      buffers(inner, zF + N, 1);
+      g.userData.lampZ = L / 2 - BUFZ + 20; g.userData.lamps = [[-800, 1900], [800, 1900], [0, 3800]]; g.userData.lampsT = [[-800, 1900], [800, 1900]];
+    }
+    bx(2800, 40, a1 - zR, 1170, (zR + a1) / 2, dkM); bx(2800, 40, a2 - a1, 470, (a1 + a2) / 2, dkM); bx(2800, 40, zF + N - a2, 1170, (zF + N + a2) / 2, dkM);
+    const bgG = bogieGeo(460, 2560, 2000); for (const z of [zR + 2500, zF + N - 2500]) { const b = new THREE.Mesh(bgG, BOGIE()); b.position.z = M(z); inner.add(b); }
+    g.userData.top = RAIL + 4340; g.userData.low = 1150; return g;
+  }
+  // ======================= ALTA VELOCITÀ: ETR 500, ETR 1000, ETR 700 =======================
+  const HSPR = profOf([[1330, 450], [1430, 800], [1455, 1500], [1450, 2600], [1405, 3200], [1300, 3600], [1060, 3880], [660, 4020], [0, 4060]]);
+  const FRR = '#d81e2c', FRG = '#b4bac0', FRD = '#1c2228', FRS = '#5d646b';
+  // nose: N lunghezza (mm), top/w/bot in funzione di f (0 = attacco, 1 = punta)
+  const HS = {
+    E1000: { N: 7200, top: f => interp([[0, 4060], [0.12, 4010], [0.3, 3650], [0.55, 2850], [0.8, 1850], [0.93, 1400], [1, 1180]], f), w: f => 1 - 0.08 * f - 0.47 * Math.max(0, (f - 0.55) / 0.45) ** 2, bot: f => f < 0.7 ? 450 : 520, glass: 2650 },
+    E500: { N: 5600, top: f => interp([[0, 4060], [0.12, 4000], [0.3, 3600], [0.6, 2750], [0.85, 2000], [1, 1550]], f), w: f => 1 - 0.07 * f - 0.38 * Math.max(0, (f - 0.55) / 0.45) ** 2, bot: f => f < 0.7 ? 450 : 520, glass: 2600 },
+    AGV: { N: 6800, top: f => interp([[0, 4060], [0.15, 3980], [0.4, 3300], [0.65, 2500], [0.82, 1950], [0.93, 1650], [1, 1450]], f), w: f => 1 - 0.06 * f - 0.38 * Math.max(0, (f - 0.6) / 0.4) ** 2, bot: f => f < 0.72 ? 450 : 520, glass: 2450 },
+    E675: { N: 6000, top: f => interp([[0, 4060], [0.15, 3990], [0.35, 3500], [0.6, 2750], [0.8, 2150], [0.92, 1750], [1, 1500]], f), w: f => 1 - 0.06 * f - 0.36 * Math.max(0, (f - 0.6) / 0.4) ** 2, bot: f => f < 0.7 ? 450 : 500, glass: 2550 },
+    E700: { N: 3600, top: f => interp([[0, 4060], [0.15, 3980], [0.45, 3150], [0.7, 2450], [0.9, 2180], [1, 2100]], f), w: f => 1 - 0.06 * f - 0.3 * Math.max(0, (f - 0.5) / 0.5) ** 2, bot: f => f < 0.6 ? 450 : 480, glass: 2450 },
+  };
+  const hsFn = S => f => (x, y) => [x * S.w(f), Math.max(S.bot(f), y <= 1300 ? y : 1300 + (y - 1300) * (S.top(f) - 1300) / 2760)];
+  function hsNoseCol(mk, lv) {
+    const S = HS[mk], red = hexC(FRR), gr = hexC(FRG), dk = hexC(FRD), sl = hexC('#d2d6d9'), lamp = hexC('#3a4048');
+    return (f, x, y, hw0) => { const hw = hw0 * 1455 / 1400, ax = Math.abs(x), tp = S.top(f);
+      if (mk === 'AGV') { const bo = hexC('#7a1426'), tip = hexC('#b01e33'), dk = hexC('#2e2a2d');
+        if (f > 0.12 && f < 0.58 && y > S.glass && ax < hw * 0.8) return glassAt(y, S.glass, ax, hw);
+        if (f > 0.68 && f < 0.84 && y > 1780 && y < 2080 && ax > hw * 0.15 && ax < hw * 0.8) return lamp;
+        if (f > 0.84 && y > 1560 && y < 1720) return tip;
+        if (f > 0.45 && y > 1720 + Math.max(0, 0.7 - f) * 1800 && ax < hw * (0.95 - Math.max(0, 0.7 - f))) return dk;
+        if (f < 0.6 && y > S.glass - 150 && ax < hw * 0.88) return dk;
+        if (y < 650 + Math.max(0, 0.5 - f) * 600) return dk;
+        return bo; }
+      if (mk === 'E675') { const ired = hexC('#a5162a'), ipk = hexC('#c8364a'), idk = hexC('#2f2b2e');
+        if (f > 0.12 && f < 0.6 && y > S.glass && ax < hw * 0.78) return glassAt(y, S.glass, ax, hw);
+        if (f > 0.68 && f < 0.82 && y > 1720 && y < 1950 && ax > hw * 0.3 && ax < hw * 0.82) return lamp;
+        if (f > 0.66 && y > 1660 && y < 1760) return ipk;
+        if (y > 1760 + Math.max(0, 0.66 - f) * 900) return idk;
+        if (y < 650 && f < 0.75) return idk;
+        return ired; }
+      // parabrezza
+      if (mk === 'E700' ? f > 0.15 && f < 0.72 && y > S.glass && ax < hw * 0.8 : f > 0.1 && f < 0.62 && y > S.glass && ax < hw * 0.82) { if (y > tp - 60 && f > 0.4) return red; return glassAt(y, S.glass, ax, hw); }
+      if (f > 0.08 && f < (mk === 'E700' ? 0.76 : 0.66) && y > S.glass - 120 && ax < hw * 0.9) return dk;
+      // fari
+      const ly = mk === 'E700' ? 1900 : mk === 'E500' ? 1450 : 1350, lf = mk === 'E700' ? 0.82 : 0.78;
+      if (f > lf && f < lf + 0.12 && Math.abs(y - ly) < 140 && ax > hw * 0.25 && ax < hw * 0.75) return lamp;
+      // vano aggancio ETR 700
+      if (mk === 'E700' && f > 0.9 && y < 1350 && ax < hw * 0.7) return dk;
+      if (y < 650) return hexC('#2a2f34');
+      // fasce argento
+      if (mk === 'E1000' && f > 0.45 && y > 850 && y < 1150) return sl;
+      if (mk === 'E1000' && f < 0.45 && y < 1150 && y > 650) return gr;
+      if (mk === 'E500' && lv === 'new' && f > 0.4 && y > 950 && y < 1200) return sl;
+      if (mk === 'E500' && lv === 'old' && y < 1700) return gr;
+      if (mk === 'E700' && f > 0.35 && f < 0.82 && y > 1450 && y < 1450 + (0.82 - f) * 2400) return gr;
+      if (mk === 'E700' && f > 0.82 && y > 1350 && y < 1500) return gr;
+      return red; };
+  }
+  function hsSide(mk, lv, kind, Lb, em) {
+    return sideCanvas('hs' + mk + lv + kind + Lb + (em ? 'e' : ''), HSPR, Lb, (g2, o) => { const { band, poly, rect, W, H } = o, win = em ? '#ffd9a0' : '#161c22';
+      const cab = kind === 'cab', pow = kind === 'pow', e0 = cab || pow ? 0.4 : 2.2, e1 = cab ? Lb - 3.5 : pow ? Lb : Lb - 2.2;
+      if (em) { g2.fillStyle = '#000'; g2.fillRect(0, 0, W, H); }
+      else {
+        g2.fillStyle = FRR; g2.fillRect(0, 0, W, H);
+        if (mk === 'AGV') { g2.fillStyle = '#7a1426'; g2.fillRect(0, 0, W, H); band(0, 700, '#2e2a2d'); band(1150, 1190, '#b08a3c'); band(3500, 4100, '#6e1222'); if (cab) poly([[Lb - 14, 700], [Lb + 1, 700], [Lb + 1, 1500], [Lb - 4, 1300], [Lb - 9, 900]], '#2e2a2d'); }
+        else if (mk === 'E675') { g2.fillStyle = '#a5162a'; g2.fillRect(0, 0, W, H); band(0, 750, '#2f2b2e'); band(1900, 3050, '#2f2b2e', -1, Lb + 1); band(3500, 4100, '#9c1528');
+          if (cab) poly([[Lb - 9, 3050], [Lb + 1, 3050], [Lb + 1, 4100], [Lb - 3.5, 4100], [Lb - 6, 3500]], '#2f2b2e'); if (cab) poly([[Lb - 13, 750], [Lb + 1, 750], [Lb + 1, 1100], [Lb - 9, 1100]], '#2f2b2e'); }
+        else if (mk === 'E1000') { band(0, 700, FRS); band(700, 1000, FRG); band(1880, 3020, FRG, -1, Lb + 1); band(3700, 4100, FRR); if (cab) poly([[Lb - 11, 1880], [Lb + 1, 1000], [Lb + 1, 700], [Lb - 12.5, 1880]], FRG); }
+        else if (mk === 'E700') { band(0, 950, FRS); band(950, 1080, FRG); band(1950, 2950, FRG, -1, Lb + 1); if (cab) { poly([[Lb - 8, 2950], [Lb - 5.5, 2950], [Lb - 2.0, 1450], [Lb + 1, 1450], [Lb + 1, 1180], [Lb - 3.0, 1180]], FRG); poly([[Lb - 6.5, 2600], [Lb - 4.5, 2600], [Lb - 5.5, 2050], [Lb - 8.5, 2050]], FRR); } }
+        else if (lv === 'old') { g2.fillStyle = FRG; g2.fillRect(0, 0, W, H); band(0, 650, FRS); band(1300, 1900, FRR); band(3550, 4100, '#c9cdd1'); if (pow) { band(1300, 4100, FRR, Lb - 4, Lb + 1); poly([[Lb - 9, 4100], [Lb - 4, 4100], [Lb - 4, 1900], [Lb - 6, 1900]], FRR); } }
+        else { band(0, 700, FRS); band(950, 1200, FRG); if (!pow) band(1880, 3000, FRG, -1, Lb + 1); if (pow || cab) { poly([[Lb - 10, 3600], [Lb - 8.6, 3600], [Lb - 4.5, 1200], [Lb - 5.9, 1200]], FRG); poly([[Lb - 10, 1200], [Lb - 8.6, 1200], [Lb - 6.4, 2400], [Lb - 7.8, 2400]], FRG); } }
+      }
+      if (pow) { if (!em) { for (let d = 2; d < Lb - 6; d += 0.12) { g2.fillStyle = 'rgba(0,0,0,.22)'; g2.fillRect(o.X(d), o.R(3100), 2, o.R(2000) - o.R(3100)); } rect(Lb - 5.2, Lb - 4.6, 1300, 3100, 'rgba(0,0,0,.35)', 3); } }
+      else {
+        if (!em) rect(e0 + 0.9, e1 - 0.9, 2020, 2880, '#0e1418', 6);
+        const n = Math.max(1, Math.round((e1 - e0 - 1.8) / 1.25)), w = (e1 - e0 - 1.8) / n; for (let i = 0; i < n; i++) rect(e0 + 0.9 + i * w + 0.08, e0 + 0.9 + (i + 1) * w - 0.08, 2060, 2840, win, 5);
+        if (!em) { for (const d of cab ? [e0 + 0.35] : [e0 + 0.35 - (mk === 'E500' ? 0 : 0), e1 - 0.35]) { rect(d - 0.42, d + 0.42, 900, 3150, 'rgba(0,0,0,.4)', 4); rect(d - 0.38, d + 0.38, 920, 3130, mk === 'E500' && lv === 'old' ? FRG : mk === 'E675' ? '#9c1528' : mk === 'AGV' ? '#6e1222' : '#b9bfc4', 4); rect(d - 0.2, d + 0.2, 2200, 2900, '#161c22', 5); } }
+      }
+      if (cab && !em) { rect(Lb - 2.6, Lb - 2.0, 2600, 3150, '#161c22', 6); }
+      if (!em) { grime(g2, W, H, 64, 0.06, 3); speck(g2, W, H, 2000, 0.06, true); }
+    });
+  }
+  function hsCar(v, g) {
+    const mk = v.hs, lv = v.fr || 'new', S = HS[mk], L = v.L * 1000, cab = !!(v.cabF || v.cabR), N = cab ? S.N : 0, kind = cab ? (mk === 'E500' ? 'pow' : 'cab') : 'mid';
+    const zA = -L / 2, zB = L / 2 - N, Lb = (zB - zA) / 1000, fn = hsFn(S);
+    const inner = new THREE.Group(); g.add(inner); if (v.cabR && !v.cabF) inner.rotation.y = Math.PI;
+    const side = hsSide(mk, lv, kind, Lb), sideE = hsSide(mk, lv, kind, Lb, true);
+    const bm = cmat('hs' + mk + lv + kind + Lb, () => { const m = mat({ map: side, roughness: 0.32, metalness: 0.25, side: THREE.DoubleSide, emissive: 0xffffff, emissiveMap: sideE, emissiveIntensity: 0 }); if (kind !== 'pow') trainLit.push(m); return m; });
+    const st = [{ z: zA, fn: (x, y) => [x, y] }, { z: zB, fn: (x, y) => [x, y] }];
+    inner.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zA) / (zB - zA), Math.min(HSPR.s[i], HSPR.tot - HSPR.s[i]) / HSPR.half], HSPR), bm));
+    const endM = cmat('rkEnd', () => mat({ color: 0x3a3f46, roughness: 0.7, side: THREE.DoubleSide })), dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 }));
+    inner.add(new THREE.Mesh(capGeo(st[0], 2400, null, HSPR), endM)); if (!cab) inner.add(new THREE.Mesh(capGeo(st[1], 2400, null, HSPR), endM));
+    if (cab) {
+      const col = hsNoseCol(mk, lv), fs = []; for (const f of [0, 0.06, 0.12, 0.2, 0.28, 0.36, 0.45, 0.55, 0.65, 0.75, 0.83, 0.9, 0.95, 0.98, 1]) fs.push({ z: zB + f * N, f, fn: fn(f) });
+      inner.add(new THREE.Mesh(sweepGeo(fs, (i, j, s) => [HSPR.s[i] / HSPR.tot, s.f], HSPR), cmat('hsn' + mk + lv, () => mat({ map: noseTex('hsn' + mk + lv, HSPR, fn, S.w, col), roughness: 0.25, metalness: 0.3, side: THREE.DoubleSide }))));
+      const hw1 = 1455 * S.w(1), yb = S.bot(1), yt = S.top(1);
+      inner.add(new THREE.Mesh(capGeo(fs[fs.length - 1], (yb + yt) / 2, (x, y) => [(x + hw1) / (2 * hw1), (y - yb) / (yt - yb)], HSPR), cmat('hsf' + mk + lv, () => mat({ map: capTex('hsf' + mk + lv, col, hw1, yb, yt), roughness: 0.25, metalness: 0.3, side: THREE.DoubleSide }))));
+      { const ly = mk === 'E700' ? 1850 : mk === 'E500' ? 1250 : mk === 'E675' ? 1300 : mk === 'AGV' ? 1350 : 950, lx = hw1 * 0.55; g.userData.lamps = [[-lx, ly], [lx, ly]]; g.userData.lampZ = L / 2 + 10; }
+    }
+    if (!v.cabR) { const k = 'hsBel', b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(2100), M(2700), M(340))), dkM); b.position.set(0, M(RAIL + 2450), M(-L / 2 - 160)); g.add(b); }
+    // carenature del tetto e pantografi
+    const acM = cmat('hsAc' + mk, () => mat({ color: new THREE.Color(mk === 'E500' && lv === 'old' ? '#c9cdd1' : mk === 'E675' || mk === 'AGV' ? '#2f2b2e' : '#9a2028'), roughness: 0.45, metalness: 0.3 }));
+    const ac = geoCache.hsAc || (geoCache.hsAc = new RoundedBoxGeometry(M(1900), M(240), M(3600), 3, M(110)));
+    { const a = new THREE.Mesh(ac, acM); a.position.set(0, M(RAIL + 4080), M(cab ? zA + 3500 : 0)); inner.add(a); }
+    if (v.panto) { const p = pantoGrp(RAIL + 4060); p.position.z = M(cab ? zA + 7000 : -L / 4); inner.add(p); }
+    const bg = bogieGeo(460, 2700, 2050);
+    if (mk === 'AGV') { const add = z => { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); g.add(b); }; if (!v.cabR) add(-L / 2 - 150); if (v.cabF) add(L / 2 - N * 0.75); if (v.cabR) add(-(L / 2 - N * 0.75)); }
+    else for (const z of [zA + 3000, cab ? zB - 1500 : zB - 3000]) { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); inner.add(b); }
+    g.userData.top = RAIL + 4060; g.userData.low = 1000; return g;
+  }
+  // ======================= LOCOMOTIVE MERCI (due cabine) =======================
+  const LKPR = profOf([[1470, 1150], [1490, 1400], [1490, 2500], [1480, 3150], [1450, 3500], [1380, 3720], [1230, 3880], [900, 3970], [450, 3995], [0, 4000]]);
+  // N = sporgenza del frontale, top/w alla punta, gl = parabrezza [y0, y1], E652 a due finestrini separati
+  const LT = {
+    E483: { N: 1100, tE: 3600, wE: 0.84, gl: [2600, 3380], lamp: 1500, nb: 2 },
+    E494: { N: 1300, tE: 3520, wE: 0.8, gl: [2550, 3350], lamp: 1550, nb: 2 },
+    E412: { N: 1800, tE: 3300, wE: 0.72, gl: [2500, 3220], lamp: 1500, nb: 2 },
+    E405: { N: 1800, tE: 3300, wE: 0.72, gl: [2500, 3220], lamp: 1500, nb: 2 },
+    E652: { N: 650, tE: 3720, wE: 0.93, gl: [2600, 3250], lamp: 1550, nb: 3, twin: 1 },
+    E193: { N: 900, tE: 3650, wE: 0.88, gl: [2600, 3400], lamp: 1500, nb: 2 },
+    E191: { N: 900, tE: 3650, wE: 0.88, gl: [2600, 3400], lamp: 1500, nb: 2 },
+    E189: { N: 1100, tE: 3550, wE: 0.85, gl: [2550, 3350], lamp: 1500, nb: 2 },
+  };
+  const ltTop = T => f => 4000 - (4000 - T.tE) * Math.min(1, f * 1.6) ** 1.3;
+  const ltW = T => f => 1 - (1 - T.wE) * f * f;
+  const ltFn = T => { const tp = ltTop(T), w = ltW(T); return f => (x, y) => [x * w(f), y <= 1300 ? y : 1300 + (y - 1300) * (tp(f) - 1300) / 2700]; };
+  // livree E483 delle imprese private (senza loghi): strip = fascia dei fari, panel = pannello frontale, nTop = fascia alta del frontale
+  const E483L = {
+    sg: { body: '#c8141e', cab: '#c8141e', fr: '#c8141e', nTop: [3420, '#1f9a4a'], panel: [1850, 2550, '#f2f2f2'] },
+    dp: { body: '#c9ccce', cab: '#e8762a', fr: '#d9dcde', strip: [1400, 1650, '#d62a2e'], low: '#5b6066' },
+    rt: { body: '#9aa0a5', cab: '#1fb39a', fr: '#1fb39a', strip: [1400, 1650, '#d62a2e'], panel: [1700, 2450, '#eeeeee'], diag: '#1fb39a' },
+    tg: { body: '#9aa0a5', cab: '#1fb39a', fr: '#1fb39a', strip: [1400, 1650, '#d62a2e'], panel: [1700, 2450, '#eeeeee'] },
+    gt: { body: '#2a2d31', cab: '#2a2d31', fr: '#2a2d31', low: '#1e2023', strip: [1400, 1700, '#c8141e'], sb: [[2350, 2850, '#e8762a']] },
+    cl: { body: '#9aa0a5', cab: '#c6e021', fr: '#c6e021' },
+    cs: { body: '#a9aeb2', cab: '#c6e021', fr: '#a9aeb2', strip: [1400, 1650, '#d62a2e'] },
+    ct: { body: '#c4c8cb', cab: '#2fb3a8', fr: '#2fb3a8', strip: [1400, 1650, '#d62a2e'], panel: [1700, 2450, '#eeeeee'], diag: '#2fb3a8' },
+    mw: { body: '#f2c300', cab: '#f2c300', fr: '#f2c300', nTop: [2450, '#7d848b'], roof: '#7d848b', low: '#5b6066', chev: '#f7d84a' },
+    wh: { body: '#eceeee', cab: '#eceeee', fr: '#eceeee', strip: [1400, 1650, '#d62a2e'] },
+  };
+  // livree Vectron (E191/E193) delle imprese private: vee = pannello a V del frontale, vs = colore delle righe sul pannello
+  const VECL = {
+    ad: { body: '#c6e021', cab: '#c6e021', fr: '#c6e021', vee: '#c6e021', vs: '#d62a2e', wp: '#eeeeee' },
+    mb: { body: '#1d1e20', cab: '#1d1e20', fr: '#1d1e20', vee: '#eeeeee', vs: '#d62a2e', sq: '#d62a2e', low: '#1d1e20' },
+    ev: { body: '#1d1e20', cab: '#1d1e20', fr: '#1d1e20', vee: '#eeeeee', vs: '#d62a2e', wp: '#f2f2f2', circ: 1, low: '#1d1e20' },
+    lk: { body: '#eeeeee', cab: '#eeeeee', fr: '#eeeeee', vee: '#eeeeee', vs: '#d62a2e', zeb: '#2a5bb5' },
+    rz: { body: '#eeeeee', cab: '#eeeeee', fr: '#eeeeee', vee: '#eeeeee', vs: '#d62a2e', zeb: '#7a1f2a' },
+    bc: { body: '#1d1e20', cab: '#1d1e20', fr: '#1d1e20', vee: '#d9dbdc', vs: '#d62a2e', sb: [[1550, 1650, '#f2c300']], low: '#1d1e20' },
+    cf: { body: '#a9aeb2', cab: '#a9aeb2', fr: '#a9aeb2', vee: '#e0201e', vs: '#b0141a', cdots: 1 },
+    g9: { body: '#1d1e20', cab: '#1d1e20', fr: '#1d1e20', vee: '#1d1e20', vs: '#e8401e', sb: [[2650, 3450, '#f07a1e']], low: '#1d1e20' },
+    mr: { body: '#2a2c2f', cab: '#2a2c2f', fr: '#2a2c2f', vee: '#d9dbdc', vs: '#d62a2e', low: '#2a2c2f' },
+    fm: { body: '#eef0f2', cab: '#2350b8', fr: '#2350b8', vee: '#d62a2e', vs: '#a8101a', nTop: [3420, '#d62a2e'], sb: [[1450, 1650, '#2350b8'], [3350, 3550, '#2350b8']] },
+    ir: { body: '#dfe2e5', cab: '#2a62c4', fr: '#dfe2e5', vee: '#dfe2e5', vs: '#d62a2e', diam: 1 },
+    ob: { body: '#d0101e', cab: '#d0101e', fr: '#d0101e', vee: '#d0101e', vs: '#2a2c2f', nTop: [3420, '#2a2c2f'], roof: '#2a2c2f', low: '#2a2c2f' },
+  };
+  // livree E189 (ES 64 F4)
+  const E189L = {
+    mb: { body: '#1d1e20', cab: '#1d1e20', fr: '#1d1e20', low: '#1d1e20', panel: [1950, 2500, '#eeeeee'], strip: [1550, 1850, '#d62a2e'] },
+    cf: { body: '#1d1e20', cab: '#1d1e20', fr: '#1d1e20', low: '#1d1e20', panel: [1950, 2500, '#eeeeee'], strip: [1550, 1850, '#d62a2e'], cdots: 1 },
+    me: { body: '#f2d21c', cab: '#f2d21c', fr: '#2a2c2f', low: '#5b6066', panel: [1950, 2500, '#c9cdd0'], strip: [1550, 1850, '#d62a2e'], wave: '#1f3f9a' },
+    lz: { body: '#eeeeee', cab: '#eeeeee', fr: '#eeeeee', panel: [1950, 2500, '#eeeeee'], strip: [1550, 1850, '#d62a2e'], zeb: '#8a1a2e' },
+    ey: { body: '#f2d21c', cab: '#f2d21c', fr: '#2a2c2f', low: '#5b6066', panel: [1950, 2500, '#eeeeee'], strip: [1550, 1850, '#d62a2e'], sb: [[2000, 2200, '#2a2c2f'], [2400, 2600, '#7d848b'], [2800, 3000, '#2a2c2f']] },
+  };
+  // livree E494 (TRAXX 3)
+  const E494L = {
+    c4: { body: '#bfc3c6', cab: '#bfc3c6', fr: '#d62a2e', strip: [1450, 1650, '#d62a2e'], cdots: 1 },
+    cp: { body: '#b4b9bd', cab: '#c6e021', fr: '#b4b9bd', strip: [1400, 1550, '#c6e021'] },
+    rp: { body: '#d9dcdf', cab: '#d9dcdf', fr: '#d9dcdf', strip: [1400, 1650, '#d62a2e'], sb: [[1500, 3450, '#2a62c4']], sbEnd: 1 },
+    g4: { body: '#1d1e20', cab: '#1d1e20', fr: '#1d1e20', low: '#1d1e20', strip: [1450, 1600, '#c8141e'], sb: [[2650, 3350, '#f07a1e']] },
+    s4: { body: '#c9cdd0', cab: '#d62a2e', fr: '#eeeeee', nTop: [3380, '#1f9a4a'], strip: [1450, 1650, '#d62a2e'], sb: [[1450, 1650, '#d62a2e']] },
+    d4: { body: '#c9cdd0', cab: '#f0a224', fr: '#c9cdd0', nTop: [3380, '#f0a224'], low: '#5b6066' },
+    o4: { body: '#d9367a', cab: '#d9367a', fr: '#d9367a', strip: [1450, 1650, '#eeeeee'], sb: [[1500, 1800, '#eeeeee'], [2350, 2650, '#d01e2a']] },
+    m4: { body: '#f2c300', cab: '#f2c300', fr: '#f2c300', nTop: [3380, '#f2c300'], low: '#5b6066', strip: [1400, 1500, '#7d848b'], sb: [[3200, 3500, '#7d848b']] },
+  };
+  const OWN = {
+    E189: { CFI: ['cf'], RTC: ['lz', 'me'] },
+    E494: { CFI: ['c4'], Captrain: ['cp'], GTS: ['g4'], OceanoGate: ['o4'], Medway: ['m4'] },
+  };
+  function pickLiv(v, tab, own, pre) { const h = ((v.seed || 0) * 2654435761) >>> 0, pool = Object.keys(tab), k = own && h % 3 !== 0 ? own[(h >>> 4) % own.length] : pool[(h >>> 7) % pool.length];
+    return Object.assign({ v2: 1, k: pre + k, acc: '#d62a2e', roof: '#4a4f55', low: '#3a3e43' }, tab[k]); }
+  // livrea: body = cassa, cab = testate, low = fondo, fr = pannello frontale, acc = filetto
+  function locoLiv(v) {
+    if (v.imp === 'MIR') { if (v.loco === 'E652') return ((v.seed || 0) % 3 === 0) ? { body: '#e8eaea', cab: '#1f8e98', low: '#1f8e98', fr: '#e8eaea', acc: '#2a4aa0', roof: '#9da2a6', xm: 1 } : { body: '#8f959b', cab: '#d62a2e', low: '#5b6066', fr: '#8f959b', acc: '#d62a2e', roof: '#6b7177' };
+      return { body: '#c4c8cb', cab: '#d62a2e', low: '#5b6066', fr: v.loco === 'E483' ? '#eef0f0' : '#c4c8cb', acc: '#d62a2e', roof: '#80868c' }; }
+    if (v.imp === 'DB Cargo') {
+      if (v.loco === 'E494') return { body: '#c9ccce', cab: '#c9ccce', low: '#34383d', fr: '#c9ccce', acc: '#c9ccce', roof: '#3a3e43', dots: 1, k: 'ak' };
+      if (v.loco === 'E189' && (v.seed || 0) % 4 === 0) return { body: '#1d1e20', cab: '#1d1e20', low: '#1d1e20', fr: '#1d1e20', acc: '#d82a1e', roof: '#2a2c2f', mrce: 1, k: 'mr' };
+      return { body: '#c8141e', cab: '#c8141e', low: '#3a3e43', fr: '#c8141e', acc: '#c8141e', roof: '#4a4f55', db: 1, k: 'db' }; }
+    if (v.loco === 'E191' || v.loco === 'E193') {
+      const own = { Adriafer: ['ad', 'mb'], 'EVM Rail': ['ev'], RTC: ['lk', 'rz'], GTS: ['g9'], CFI: ['cf'], InRail: ['ir'], 'Rail Cargo Italia (ÖBB)': ['ob'] }[v.imp], h = ((v.seed || 0) * 2654435761) >>> 0;
+      const pool = Object.keys(VECL), k = own && h % 3 !== 0 ? own[(h >>> 4) % own.length] : pool[(h >>> 7) % pool.length];
+      return Object.assign({ v2: 1, k: 'v' + k, acc: '#d62a2e', roof: '#4a4f55', low: '#3a3e43' }, VECL[k]);
+    }
+    if (v.loco === 'E189') return pickLiv(v, E189L, OWN.E189[v.imp], '9');
+    if (v.loco === 'E494') return pickLiv(v, E494L, OWN.E494[v.imp], '4');
+    if (v.loco === 'E483') {
+      const own = { Captrain: ['cl', 'cs', 'ct'], Medway: ['mw'], GTS: ['gt'], RTC: ['rt'], OceanoGate: ['wh'] }[v.imp], h = ((v.seed || 0) * 2654435761) >>> 0;
+      const pool = Object.keys(E483L), k = own && h % 3 !== 0 ? own[(h >>> 4) % own.length] : pool[(h >>> 7) % pool.length];
+      return Object.assign({ v2: 1, k, acc: '#d62a2e', roof: '#5a6066', low: '#3a3e43' }, E483L[k]);
+    }
+    const [c1, c2] = IFCOL[v.imp] || ['#c0392b', '#e0e0e0'];
+    return { body: c1, cab: c1, low: '#3a3e43', fr: c1, acc: c2, roof: '#5a6066' };
+  }
+  function locoNoseCol(v, T) {
+    const c = locoLiv(v), cab = hexC(c.cab), fr = hexC(c.fr), dk = hexC('#26292d'), low = hexC(c.low), acc = hexC(c.acc), lamp = hexC('#3a4048');
+    return (f, x, y, hw0) => { const hw = hw0 * 1490 / 1400, ax = Math.abs(x);
+      if (f > 0.45 && y > T.gl[0] && y < T.gl[1] && (T.twin ? ax > 90 && ax < hw * 0.82 : ax < hw * 0.8)) return glassAt(y, T.gl[0], ax, hw);
+      if (f > 0.4 && y > T.gl[0] - 90 && y < T.gl[1] + 90 && ax < hw * 0.86) return dk;
+      if (f > 0.7 && Math.abs(y - T.lamp) < 130 && ax > hw * 0.45 && ax < hw * 0.82) return lamp;
+      if (c.v2) { if (y < 1350) return low;
+        if (c.nTop && f > 0.5 && y > c.nTop[0]) return hexC(c.nTop[1]);
+        if (f > 0.7 && c.vee) { const vw = hw * (0.18 + 0.4 * Math.max(0, Math.min(1, (y - 1500) / 900))); if (y > 1500 && y < 2450 && ax < vw) { if ((y > 1580 && y < 1660) || (y > 1740 && y < 1820) || (y > 1900 && y < 1960)) return ax > hw * 0.08 ? hexC(c.vs) : hexC(c.vee); return hexC(c.vee); } }
+        if (f > 0.7 && c.strip && y > c.strip[0] && y < c.strip[1]) return hexC(c.strip[2]);
+        if (f > 0.7 && c.panel && y > c.panel[0] && y < c.panel[1] && ax < hw * 0.82) return hexC(c.panel[2]);
+        return f > 0.7 ? fr : cab; }
+      if (y < 1350) return low;
+      if (c.db && f > 0.7 && y > 2150 && y < 2330 && ax > hw * 0.18 && ax < hw * 0.72) return hexC('#f2f2f2');
+      if (c.mrce && f > 0.7) { if (y > 1950 && y < 2480 && ax < hw * 0.8) return hexC('#eeeeee'); if (y > 1600 && y < 1850 && ax < hw * 0.35) return acc; }
+      if (c.dots && f > 0.7 && y > 1700 && y < 2500) return fr;
+      if (f > 0.7 && v.imp === 'MIR' && v.loco === 'E483' && y > 1780 && y < 2420) return fr;
+      if (f > 0.7 && v.imp === 'MIR' && v.loco !== 'E483' && v.loco !== 'E652' && ax < hw * 0.72 && y > 1700) return fr;
+      if (f > 0.7 && v.imp !== 'MIR' && y > 1700 && y < 1900) return acc;
+      return cab; };
+  }
+  function locoSide(v, Lb) {
+    const c = locoLiv(v), T = LT[v.loco];
+    return sideCanvas('lk' + v.loco + v.imp + (c.xm ? 'x' : c.k || '') + Lb, LKPR, Lb, (g2, o) => { const { band, poly, rect, W, H, X, R } = o;
+      g2.fillStyle = c.body; g2.fillRect(0, 0, W, H); band(3500, 4100, c.roof); band(0, 1450, c.low);
+      if (c.xm) band(1450, 1550, c.acc);
+      for (const e of [0, 1]) { const sg = e ? -1 : 1, d0 = e ? Lb : 0, w = v.loco === 'E652' ? 0.9 : 2.1;
+        poly([[d0, 1450], [d0 + sg * (w - 0.5), 1450], [d0 + sg * w, 4100], [d0, 4100]], c.cab);
+        rect(Math.min(d0 + sg * 0.55, d0 + sg * 1.15), Math.max(d0 + sg * 0.55, d0 + sg * 1.15), 2650, 3300, '#1a242c', 8);
+        const dd = d0 + sg * (w + 0.5); g2.strokeStyle = 'rgba(0,0,0,.4)'; g2.lineWidth = 2; g2.strokeRect(X(Math.min(dd, dd + sg * 0.75)), R(3250), Math.abs(X(dd + sg * 0.75) - X(dd)), R(1500) - R(3250)); }
+      for (const [y0, y1, cc] of c.sbEnd ? [] : c.sb || []) band(y0, y1, cc, 2.4, Lb - 2.4);
+      if (c.diag) poly([[2.0, 1450], [Lb * 0.42, 1450], [Lb * 0.3, 3500], [2.0, 3500]], c.diag);
+      if (c.chev) { poly([[Lb * 0.62, 1450], [Lb * 0.64, 1450], [Lb * 0.68, 2500], [Lb * 0.64, 3500], [Lb * 0.62, 3500], [Lb * 0.66, 2500]], c.chev); }
+      if (c.wp) poly([[Lb * 0.18, 1700], [Lb * 0.24, 1450], [Lb * 0.76, 1450], [Lb * 0.82, 1700], [Lb * 0.76, 3450], [Lb * 0.24, 3450]].map(([d, y]) => [d, y === 1700 ? 2450 : y]), c.wp);
+      if (c.wave) { g2.fillStyle = c.wave; g2.beginPath(); g2.moveTo(X(2.5), R(1500)); for (let d = 2.5; d <= Lb - 2.5; d += 0.25) g2.lineTo(X(d), R(2900 + 450 * Math.sin(d * 0.55))); g2.lineTo(X(Lb - 2.5), R(1500)); g2.closePath(); g2.fill(); g2.fillStyle = '#eeeeee'; for (let d = 2.5; d <= Lb - 2.5; d += 0.1) g2.fillRect(X(d), R(2950 + 450 * Math.sin(d * 0.55)), 3, 4); }
+      if (c.sbEnd) band(1450, 3500, '#2a62c4', Lb - 3.5, Lb - 2.2);
+      if (c.circ) { for (const [d, y, r, cc] of [[0.2, 2900, 0.5, '#2a62c4'], [0.27, 2100, 0.35, '#3aa63c'], [0.74, 2800, 0.45, '#8fd16a'], [0.8, 2000, 0.4, '#2a62c4'], [0.68, 2200, 0.3, '#eeeeee']]) { g2.fillStyle = cc; g2.beginPath(); g2.ellipse(X(Lb * d), R(y), X(r) - X(0), R(y - r * 1000) - R(y), 0, 0, 7); g2.fill(); } }
+      if (c.zeb) { g2.fillStyle = c.zeb; for (let i = 0; i < 16; i++) { const d = Lb * 0.12 + i * 0.32; poly([[d, 1500], [d + 0.12, 1500], [d + 0.9 + (i % 3) * 0.2, 3450], [d + 0.7, 3450]], c.zeb); } }
+      if (c.sq) { for (let i = 0; i < 11; i++) rect(Lb * 0.36 + i * 0.32, Lb * 0.36 + i * 0.32 + 0.24, 2150, 2330, c.sq); band(1650, 1720, '#8a8e92', 2.4, Lb - 2.4); rect(Lb * 0.18, Lb * 0.3, 2100, 3250, '#5a5e62'); }
+      if (c.cdots) { for (const [d, cc] of [[0.42, '#e0201e'], [0.5, '#eeeeee'], [0.56, '#3aa63c']]) { g2.fillStyle = cc; g2.beginPath(); g2.ellipse(X(Lb * d), R(2500), X(0.5) - X(0), R(2000) - R(2500), 0, 0, 7); g2.fill(); } }
+      if (c.diam) { poly([[Lb * 0.3, 2500], [Lb * 0.38, 3300], [Lb * 0.46, 2500], [Lb * 0.38, 1700]], '#d62a2e'); poly([[Lb * 0.38, 3300], [Lb * 0.46, 2500], [Lb * 0.38, 1700], [Lb * 0.5, 2500]], '#2a62c4'); }
+      if (c.dots) { g2.fillStyle = '#d6202a'; for (const [d, y, r] of [[Lb * 0.36, 3080, 0.3], [Lb * 0.36, 2380, 0.3], [Lb * 0.31, 1780, 0.3]]) { g2.beginPath(); g2.ellipse(X(d), R(y), X(r) - X(0), R(y - r * 1000) - R(y), 0, 0, 7); g2.fill(); } }
+      if (v.loco === 'E652' || v.loco === 'E412' || v.loco === 'E405') { for (let d = 3.2; d < Lb - 3.2; d += 0.08) { g2.fillStyle = 'rgba(0,0,0,.12)'; g2.fillRect(X(d), R(3300), 1, R(1600) - R(3300)); } }
+      if (v.loco === 'E652') for (const d of [4, 5.4, Lb - 5.4, Lb - 4]) rect(d, d + 0.9, 1800, 3200, 'rgba(0,0,0,.28)', 3);
+      for (let d = 2.8; d < Lb - 2.8; d += 1.2) rect(d, d + 1.0, 3560, 3760, 'rgba(0,0,0,.3)');
+      grime(g2, W, H, 48, 0.08, 3); speck(g2, W, H, 2000, 0.08, true);
+    });
+  }
+  function locoCar(v, g) {
+    const T = LT[v.loco], L = v.L * 1000, N = T.N, zR = -L / 2 + 600 + N, zF = L / 2 - 600 - N, Lb = (zF - zR) / 1000, fn = ltFn(T);
+    const inner = new THREE.Group(); g.add(inner);
+    const bm = cmat('lk' + v.loco + v.imp + Lb + (locoLiv(v).xm ? 'x' : locoLiv(v).k || ''), () => mat({ map: locoSide(v, Lb), roughness: 0.42, metalness: 0.25, side: THREE.DoubleSide }));
+    const st = [{ z: zR, fn: (x, y) => [x, y] }, { z: zF, fn: (x, y) => [x, y] }];
+    inner.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zR) / (zF - zR), Math.min(LKPR.s[i], LKPR.tot - LKPR.s[i]) / LKPR.half], LKPR), bm));
+    const col = locoNoseCol(v, T), key = 'lkn' + v.loco + v.imp + (locoLiv(v).xm ? 'x' : locoLiv(v).k || '');
+    const nm = cmat(key, () => mat({ map: noseTex(key, LKPR, fn, ltW(T), col, 256, 128), roughness: 0.32, metalness: 0.2, side: THREE.DoubleSide }));
+    const hw1 = 1490 * T.wE, fm = cmat(key + 'f', () => mat({ map: capTex(key + 'f', col, hw1, 1150, T.tE), roughness: 0.32, metalness: 0.2, side: THREE.DoubleSide }));
+    for (const sg of [1, -1]) {
+      const z0 = sg > 0 ? zF : zR, fs = []; for (const f of [0, 0.2, 0.4, 0.6, 0.8, 1]) fs.push({ z: z0 + sg * f * N, f, fn: fn(f) });
+      const ng = sweepGeo(sg > 0 ? fs : fs.slice().reverse(), sg > 0 ? (i, j, s) => [LKPR.s[i] / LKPR.tot, s.f] : (i, j, s) => [LKPR.s[i] / LKPR.tot, s.f], LKPR);
+      inner.add(new THREE.Mesh(ng, nm));
+      const cap = new THREE.Mesh(capGeo(fs[fs.length - 1], 2000, (x, y) => [(sg > 0 ? x + hw1 : hw1 - x) / (2 * hw1), (y - 1150) / (T.tE - 1150)], LKPR), fm); inner.add(cap);
+      buffers(inner, sg * (L / 2 - 600), sg);
+    }
+    const dkM = cmat('rkDk', () => mat({ color: 0x1e2226, roughness: 0.9 }));
+    const bx = (w, h, d, y, z, m) => { const k = `bx${w}|${h}|${d}`, b = new THREE.Mesh(geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(M(w), M(h), M(d))), m); b.position.set(0, M(RAIL + y), M(z)); inner.add(b); };
+    bx(2950, 60, L - 1200, 1170, 0, dkM); bx(2200, 520, Math.min(4500, L * 0.25), 880, 0, dkM);
+    bx(1600, 220, L * 0.45, 4020, 0, cmat('lkRoofEq', () => mat({ color: 0x5d646b, roughness: 0.5, metalness: 0.4 })));
+    for (const z of [-L / 2 + 4300, L / 2 - 4300]) { const p = pantoGrp(RAIL + 3990); p.position.z = M(z); inner.add(p); }
+    const bg = bogieGeo(625, T.nb === 3 ? 2200 : 2650, 2150), bz = T.nb === 3 ? [-L / 2 + 3600, 0, L / 2 - 3600] : [-L / 2 + 4700, L / 2 - 4700];
+    for (const z of bz) { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); inner.add(b); }
+    g.userData.lampZ = L / 2 - 600 + 20; g.userData.lamps = [[-820, T.lamp], [820, T.lamp], [0, T.gl[1] + 200]]; g.userData.lampsT = [[-820, T.lamp], [820, T.lamp]];
+    g.userData.top = RAIL + 4000; g.userData.low = 1150; return g;
+  }
+  // ======================= CARRI MERCI =======================
+  const WCOL = {
+    EANOS: ['#7a3f2c', '#7a3f2c', '#6b3526', '#d8d6cf', '#2f3f8f', '#7d8287'], GABS: ['#7a3f2c', '#6e3a29'], HABB: ['#6e4a35', '#7a3f2c', '#5d6a78'],
+    SHIM: ['#a7aaab', '#26408f', '#a8322b', '#8a4a32'], PIAN: ['#c8321e', '#b8301f', '#6b3a2a'], SAMM: ['#c8321e', '#7a3f2c'], LAE: ['#d0321f'],
+    INT: ['#e2b21c', '#7a3f2c', '#4a4d50'], INT2: ['#e2b21c', '#7a3f2c'], TRAM: ['#7a3f2c', '#8a4a32'], TAGN: ['#f0a21e', '#c9cdd0', '#7a3f2c'],
+    CIST: ['#2e2f31', '#d8d8d4', '#9ca1a5', '#2e2f31'], GAS: ['#e9e9e6'],
+  };
+  const CONT = ['#b3261e', '#1f5fa8', '#2e7d32', '#d9a400', '#6d4c41', '#cfd3d6', '#e65100', '#455a64', '#8e1b2a', '#1d6f8f'];
+  // fiancata dei carri: costole verticali, correnti orizzontali, sporco
+  function wTex(key, base, o = {}) {
+    if (texCache[key]) return texCache[key];
+    return texCache[key] = ctex(1024, 256, (g, w, h) => {
+      g.fillStyle = base; g.fillRect(0, 0, w, h);
+      for (const [y0, y1, c] of o.bands || []) { g.fillStyle = c; g.fillRect(0, y0 * h, w, (y1 - y0) * h); }
+      if (o.ribs) for (let x = o.ribs / 2; x < w; x += o.ribs) { g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(x, 0, 5, h); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(x + 5, 0, 2, h); }
+      if (o.fine) for (let x = 0; x < w; x += o.fine) { g.fillStyle = 'rgba(0,0,0,.14)'; g.fillRect(x, 0, 2, h); }
+      for (const y of o.hl || []) { g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(0, y * h, w, 4); g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(0, y * h + 4, w, 2); }
+      for (const [x0, x1, c] of o.doors || []) { g.fillStyle = c; g.fillRect(x0 * w, 0.04 * h, (x1 - x0) * w, 0.92 * h); g.fillStyle = 'rgba(0,0,0,.25)'; for (let x = x0 * w; x < x1 * w; x += 9) g.fillRect(x, 0.04 * h, 3, 0.92 * h); }
+      if (o.folds) for (let x = 0; x < w; x += 20 + rnd() * 25) { g.fillStyle = `rgba(0,0,0,${0.08 + rnd() * 0.12})`; g.fillRect(x, 0, 6 + rnd() * 8, h); }
+      if (o.plate) { g.fillStyle = '#ff7a00'; g.fillRect(o.plate * w, 0.55 * h, 34, 26); g.strokeStyle = '#000'; g.lineWidth = 2; g.strokeRect(o.plate * w, 0.55 * h, 34, 26); }
+      grime(g, w, h, 48, o.rust ? 0.3 : 0.14, 3); speck(g, w, h, 3000, 0.12, true);
+      if (o.rust) { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(90,40,20,0)'); gr.addColorStop(1, 'rgba(90,40,20,.35)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+    });
+  }
   function wagon(v, g, L) {
-    const c = v.col || '#6b3a2a', bogs = () => { for (const z of [L / 2 - 2000, -L / 2 + 2000]) { const b = new THREE.Mesh(geoCache.bog2 || (geoCache.bog2 = new THREE.BoxGeometry(M(2300), M(650), M(2400))), BOGIE()); b.position.set(0, M(RAIL + 420), M(z)); g.add(b); } };
-    const frame = (h = 250, y = 1000) => { const f = new THREE.Mesh(new THREE.BoxGeometry(M(2700), M(h), M(L - 200)), cmat('frame', () => mat({ color: 0x2b2d2f, roughness: 0.7, metalness: 0.4 }))); f.position.y = M(RAIL + y + h / 2); g.add(f); };
-    bogs();
-    if (v.wag === 'EANOS') { frame(); const t = sideTex('eanos' + c, { base: c, ribs: 48, grime: 1 }); const m = cmat('ea' + c, () => mat({ map: t, roughness: 0.85, metalness: 0.2 })); const b = new THREE.Mesh(new THREE.BoxGeometry(M(2900), M(2000), M(L - 300)), [m, m, cmat('eaIn', () => mat({ color: 0x3a2a20, roughness: 1 })), m, m, m]); b.position.y = M(RAIL + 1250 + 1000); g.add(b); }
-    else if (v.wag === 'CIST') { frame(); const cm = cmat('ci' + c, () => mat({ color: new THREE.Color(c), roughness: 0.4, metalness: 0.3 })); const cy = new THREE.Mesh(new THREE.CylinderGeometry(M(1350), M(1350), M(L - 1200), 24), cm); cy.rotation.x = Math.PI / 2; cy.position.y = M(RAIL + 2650); g.add(cy); for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(M(1350), 20, 10), cm); e.scale.z = 0.35; e.position.set(0, M(RAIL + 2650), M(s * (L - 1200) / 2)); g.add(e); }
-      const pl = cmat('ridPl', () => mat({ color: 0xff7a00, roughness: 0.5 })); for (const s of [-1, 1]) { const p = new THREE.Mesh(geoCache.rp || (geoCache.rp = new THREE.BoxGeometry(M(20), M(300), M(400))), pl); p.position.set(s * M(1380), M(RAIL + 1900), M(L / 2 - 1500)); g.add(p); }
-      const dome = new THREE.Mesh(geoCache.dome || (geoCache.dome = new THREE.CylinderGeometry(M(350), M(350), M(300), 16)), cm); dome.position.y = M(RAIL + 4050); g.add(dome); }
-    else if (v.wag === 'INT') { frame(250, 1000); let z = -L / 2 + 300; const cols = ['#b3261e', '#1f5fa8', '#2e7d32', '#d9a400', '#6d4c41', '#cfd3d6', '#e65100', '#455a64'];
-      for (const ln of v.boxes || [12200, 6058]) { if (z + ln > L / 2 - 200) break; const cc = cols[(v.seed + Math.round(z)) & 7 % cols.length] || cols[0]; const t = sideTex('ct' + cc, { base: cc, ribs: 26, grime: 1 }); const m = cmat('ct' + cc, () => mat({ map: t, roughness: 0.7, metalness: 0.3 })); const b = new THREE.Mesh(new THREE.BoxGeometry(M(2440), M(2590), M(ln)), m); b.position.set(0, M(RAIL + 1250 + 1295), M(z + ln / 2)); g.add(b); z += ln + 200; } }
-    else if (v.wag === 'TRAM') { frame(200, 900); const t = sideTex('tram' + c, { base: c, ribs: 64, grime: 1 }); const m = cmat('tr' + c, () => mat({ map: t, roughness: 0.6, metalness: 0.5 })); const b = new THREE.Mesh(new THREE.BoxGeometry(M(3000), M(2900), M(L - 600)), m); b.position.y = M(RAIL + 1100 + 1450); g.add(b); }
-    else if (v.wag === 'PIAN') { frame(300, 1000); if (v.load) { const cm = cmat('coil', () => mat({ color: 0x8d9399, metalness: 0.9, roughness: 0.35 })); for (let z = -L / 2 + 2500; z < L / 2 - 2000; z += 3000) { const cy = new THREE.Mesh(geoCache.coil || (geoCache.coil = new THREE.CylinderGeometry(M(900), M(900), M(1500), 18)), cm); cy.rotation.z = Math.PI / 2; cy.position.set(0, M(RAIL + 1300 + 900), M(z)); g.add(cy); } } }
-    else if (v.wag === 'CAN') { frame(300, 1000); const ym = cmat('canY', () => mat({ color: 0xf2b705, roughness: 0.5 })); const b = new THREE.Mesh(new THREE.BoxGeometry(M(2700), M(v.cab ? 2600 : 1200), M(v.cab ? L * 0.5 : L * 0.7)), ym); b.position.set(0, M(RAIL + 1300 + (v.cab ? 1300 : 600)), M(v.cab ? L * 0.2 : 0)); g.add(b); }
-    g.userData.top = RAIL + 3500; return g;
+    const kind = v.wag, sd = v.seed || 0, pk = a => a[(sd * 7 + 3) % a.length], c = v.col || pk(WCOL[kind] || ['#6b3a2a']);
+    const fM = cmat('frame', () => mat({ color: 0x2b2d2f, roughness: 0.7, metalness: 0.4 }));
+    const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(M(x), M(RAIL + y), M(z)); g.add(o); return o; };
+    const B = (w, h, d, x, y, z, m) => add(geoCache[`bx${w}|${h}|${d}`] || (geoCache[`bx${w}|${h}|${d}`] = new THREE.BoxGeometry(M(w), M(h), M(d))), m, x, y + h / 2, z);
+    const mc = (k, o) => cmat(k, () => mat(o));
+    const bog = (p = 1800, zs) => { const bg = bogieGeo(460, p); for (const z of zs || [L / 2 - 2700, -L / 2 + 2700]) { const b = new THREE.Mesh(bg, BOGIE()); b.position.z = M(z); g.add(b); } };
+    const ends = () => { buffers(g, L / 2 - 750, 1); buffers(g, -L / 2 + 750, -1); };
+    const frame = (y = 1000, h = 260, sole) => { B(2700, h, L - 1500, 0, y, 0, sole ? mc('sole' + sole, { color: new THREE.Color(sole), roughness: 0.6, metalness: 0.3 }) : fM); };
+    const Lb = L - 1500;           // lunghezza della cassa (senza respingenti)
+    ends();
+    if (kind === 'CAN') { bog(); frame(); const ym = mc('canY', { color: 0xf2b705, roughness: 0.5 }); B(2700, v.cab ? 2600 : 1200, v.cab ? L * 0.5 : L * 0.7, 0, 1260, v.cab ? L * 0.2 : 0, ym); g.userData.top = RAIL + 3500; return g; }
+    if (kind === 'EANOS') { bog(1800); frame(1000, 220);
+      const t = wTex('wEa' + c, c, { ribs: 64, hl: [0.35, 0.7], rust: c === '#7a3f2c' || c === '#6b3526', bands: c === '#d8d6cf' ? [[0.9, 1, '#c8321e']] : [] });
+      const m = mc('wEa' + c, { map: t, roughness: 0.85, metalness: 0.2 }), inn = mc('wIn', { color: 0x3a2a20, roughness: 1 });
+      const b = new THREE.Mesh(geoCache['ea' + Lb] || (geoCache['ea' + Lb] = new THREE.BoxGeometry(M(2950), M(2050), M(Lb))), [m, m, inn, inn, m, m]); b.position.y = M(RAIL + 1220 + 1025); g.add(b);
+      if (sd % 3 === 0) B(2700, 400, Lb - 300, 0, 2900, 0, mc('scrap', { color: 0x4a4440, roughness: 1, metalness: 0.4 }));
+    }
+    else if (kind === 'GABS' || kind === 'HABB') { bog(kind === 'HABB' ? 1800 : 1800, kind === 'HABB' ? [L / 2 - 3500, -L / 2 + 3500] : null); frame();
+      const hh = kind === 'HABB' ? 2800 : 2500, t = kind === 'HABB' ? wTex('wHa' + c, c, { ribs: 26, hl: [0.06], rust: 1 }) : wTex('wGa' + c, c, { doors: [[0.33, 0.62, '#5a5650']], ribs: 120, rust: 1 });
+      const m = mc('wG' + kind + c, { map: t, roughness: 0.8, metalness: 0.25 }), em = mc('wGe' + c, { color: new THREE.Color(c).multiplyScalar(0.85), roughness: 0.8 });
+      const b = new THREE.Mesh(geoCache['gb' + Lb + hh] || (geoCache['gb' + Lb + hh] = new THREE.BoxGeometry(M(2900), M(hh), M(Lb))), [m, m, em, em, em, em]); b.position.y = M(RAIL + 1260 + hh / 2); g.add(b);
+      const r = new THREE.Mesh(geoCache['gr' + Lb] || (geoCache['gr' + Lb] = new THREE.CylinderGeometry(M(1700), M(1700), M(Lb), 24, 1, false, -0.98, 1.96)), mc('wRoof' + kind, { color: kind === 'HABB' ? new THREE.Color(c).multiplyScalar(0.9) : 0x8a8a84, roughness: 0.8, metalness: 0.3 }));
+      r.rotation.set(-Math.PI / 2, 0, 0); r.position.y = M(RAIL + 1260 + hh + 250 - 1700);
+    }
+    else if (kind === 'SHIM') { bog(1800, [L / 2 - 2300, -L / 2 + 2300]); frame(1000, 300);
+      const PR = profOf([[1500, 1300], [1520, 1600], [1480, 2600], [1300, 3300], [950, 3780], [500, 3970], [0, 4020]]);
+      const t = wTex('wSh' + c, c, { folds: 1 }), m = mc('wSh' + c, { map: t, roughness: 0.9, side: THREE.DoubleSide });
+      const zA = -Lb / 2 + 350, zB = Lb / 2 - 350, st = [{ z: zA, fn: (x, y) => [x, y] }, { z: zB, fn: (x, y) => [x, y] }];
+      const hood = new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zA) / (zB - zA) * 3, PR.s[i] / PR.tot], PR), m); hood.position.y = 0; g.add(hood);
+      const em = mc('wShE' + c, { color: c === '#a7aaab' ? 0x6e3a29 : new THREE.Color(c).multiplyScalar(0.75), roughness: 0.7, metalness: 0.3, side: THREE.DoubleSide });
+      for (const st2 of [st[0], st[1]]) { const cp = new THREE.Mesh(capGeo(st2, 2600, null, PR), em); g.add(cp); }
+      for (const z of [zA, zB]) B(3000, 2700, 300, 0, 1300, z + (z > 0 ? 150 : -150), em);
+    }
+    else if (kind === 'PIAN' || kind === 'SAMM') { bog(kind === 'SAMM' ? 3000 : 1800); const red = mc('wPi' + c, { color: new THREE.Color(c), roughness: 0.7, metalness: 0.3 });
+      B(2850, 380, L - 1500, 0, 950, 0, red); B(2850, 40, L - 1600, 0, 1330, 0, mc('deck', { color: 0x5a4a3a, roughness: 0.9 }));
+      if (kind === 'PIAN') { for (let z = -Lb / 2 + 600; z < Lb / 2; z += 2400) for (const s of [-1, 1]) B(140, 1350, 140, s * 1380, 1330, z, red);
+        const ld = sd % 3; if (ld === 0) { const sm = mc('steel', { color: 0x3c3a38, metalness: 0.7, roughness: 0.5 }); for (let k = 0; k < 4; k++) B(2400, 160, Lb - 400, 0, 1370 + k * 170, 0, sm); }
+        else if (ld === 1) { const cm = mc('coil', { color: 0x8d9399, metalness: 0.9, roughness: 0.35 }); for (let z = -Lb / 2 + 2000; z < Lb / 2 - 1500; z += 2800) { const cy = add(geoCache.coil || (geoCache.coil = new THREE.CylinderGeometry(M(900), M(900), M(1500), 18)), cm, 0, 1370 + 900, z); cy.rotation.z = Math.PI / 2; } } }
+      else { for (const s of [-1, 1]) B(2850, 900, 200, 0, 1330, s * (Lb / 2 - 100), red); if (sd % 2) B(2200, 1200, 4500, 0, 1370, 0, mc('steelB', { color: 0x4d4b48, metalness: 0.6, roughness: 0.6 })); }
+    }
+    else if (kind === 'LAE') { bog(1800, [L / 2 - 2000, -L / 2 + 2000]); const red = mc('wLa', { color: 0xd0321f, roughness: 0.6, metalness: 0.3 });
+      B(2900, 260, L - 1500, 0, 1000, 0, red); B(2900, 120, L - 1700, 0, 2950, 0, red);
+      for (let z = -Lb / 2 + 300; z <= Lb / 2; z += Lb / 6) for (const s of [-1, 1]) B(120, 2900, 120, s * 1400, 1260, z, red);
+      for (const s of [-1, 1]) { B(80, 80, L - 1700, s * 1400, 3700, 0, red); B(80, 80, L - 1700, s * 1400, 2000, 0, red); }
+      const car = geoCache.car || (geoCache.car = new RoundedBoxGeometry(M(1750), M(750), M(4300), 3, M(200))), cab = geoCache.carC || (geoCache.carC = new RoundedBoxGeometry(M(1550), M(600), M(2400), 3, M(200))), gls = mc('carGl', { color: 0x1a2128, roughness: 0.1, metalness: 0.6 });
+      for (const [yy, n0] of [[1260, 0], [3070, 2]]) for (let k = 0; k < 5; k++) { const z = -Lb / 2 + 2600 + k * (Lb - 5200) / 4; const cc = ['#e0e2e4', '#2a2c2f', '#7d848b', '#a8101a', '#1f3f87', '#c9cdd0'][(sd + k * 3 + n0) % 6]; add(car, mc('car' + cc, { color: new THREE.Color(cc), roughness: 0.25, metalness: 0.6 }), 0, yy + 525, z); add(cab, gls, 0, yy + 1100, z - 200); for (const zw of [-1350, 1350]) for (const sx of [-1, 1]) { const wh = add(geoCache.carW || (geoCache.carW = new THREE.CylinderGeometry(M(320), M(320), M(200), 12)), fM, sx * 760, yy + 320, z + zw); wh.rotation.z = Math.PI / 2; } }
+    }
+    else if (kind === 'INT' || kind === 'INT2') {
+      const sole = c, fr = mc('wIn' + c, { color: new THREE.Color(c), roughness: 0.6, metalness: 0.3 });
+      if (kind === 'INT2') { bog(1800, [L / 2 - 2200, 0, -L / 2 + 2200]); } else bog(1800, [L / 2 - 3000, -L / 2 + 3000]);
+      B(2600, 300, L - 1500, 0, 900, 0, fr); for (const s of [-1, 1]) B(200, 120, L - 1500, s * 1250, 1200, 0, fr);
+      const box = (ln, z, hh, cc, swap) => { const t = sideTex('ct' + cc + (swap ? 's' : ''), { base: cc, ribs: swap ? 0 : 26, grime: 1 }); const m = mc('ct' + cc + (swap ? 's' : ''), { map: t, roughness: 0.7, metalness: 0.3 }); const b = new THREE.Mesh(geoCache['ct' + ln + hh] || (geoCache['ct' + ln + hh] = new THREE.BoxGeometry(M(2440), M(hh), M(ln))), m); b.position.set(0, M(RAIL + 1320 + hh / 2), M(z)); g.add(b); };
+      const halves = kind === 'INT2' ? [[-L / 4 + 150, L / 2 - 1100], [L / 4 - 150, L / 2 - 1100]] : [[0, L - 1500]];
+      halves.forEach(([zc, room], hi) => { const q = (sd * 5 + hi * 3) % 5, col = i => CONT[(sd * 3 + hi * 7 + i * 5) % CONT.length];
+        if (q === 0 && room >= 12500) box(12192, zc, 2896, col(0));                     // 40' high cube
+        else if (q === 1 && room >= 12500) { box(6058, zc - 3150, 2591, col(0)); box(6058, zc + 3150, 2591, col(1)); }
+        else if (q === 2 && room >= 13000) box(13600, zc, 2900, sd % 2 ? '#eeeeee' : '#c9cdd0', 1);   // cassa mobile / semirimorchio
+        else if (q === 3 && room >= 12500) { box(6058, zc - 3150, 2591, col(2)); const tk = add(geoCache.tc || (geoCache.tc = new THREE.CylinderGeometry(M(1150), M(1150), M(5600), 18)), mc('tankC', { color: 0xd8d8d4, metalness: 0.6, roughness: 0.4 }), 0, 1320 + 1250, zc + 3150); tk.rotation.x = Math.PI / 2; const tf = mc('tankF', { color: 0x3a6fb0, roughness: 0.6, metalness: 0.4 }); for (const e of [-1, 1]) B(2440, 2590, 150, 0, 1320, zc + 3150 + e * 2950, tf); B(2440, 150, 6058, 0, 1320, zc + 3150, tf); }
+        else if (room >= 12500) box(12192, zc, 2591, col(3));
+      });
+    }
+    else if (kind === 'TRAM' || kind === 'TAGN') { bog(1800, [L / 2 - 2200, -L / 2 + 2200]);
+      const cer = kind === 'TAGN', PR = cer ? profOf([[600, 900], [1450, 1500], [1500, 2000], [1500, 3500], [1400, 3950], [1000, 4150], [0, 4200]]) : profOf([[700, 1000], [1450, 1700], [1500, 2400], [1500, 3500], [1300, 3700], [0, 3720]]);
+      const t = wTex('wTr' + kind + c, c, { ribs: cer ? 0 : 80, hl: cer ? [] : [0.15], rust: !cer || c === '#7a3f2c' }), m = mc('wTr' + kind + c, { map: t, roughness: cer ? 0.5 : 0.8, metalness: 0.3, side: THREE.DoubleSide });
+      const zA = -Lb / 2 + (cer ? 900 : 500), zB = Lb / 2 - (cer ? 900 : 500), st = [{ z: zA, fn: (x, y) => [x, y] }, { z: zB, fn: (x, y) => [x, y] }];
+      g.add(new THREE.Mesh(sweepGeo(st, (i, j, s) => [(s.z - zA) / (zB - zA), PR.s[i] / PR.tot], PR), m));
+      for (const s2 of st) g.add(new THREE.Mesh(capGeo(s2, 2500, null, PR), m));
+      frame(950, 200); if (cer) for (const s of [-1, 1]) B(2600, 80, 700, 0, 1350, s * (Lb / 2 - 400), fM);
+    }
+    else if (kind === 'CIST' || kind === 'GAS') { bog(1800, kind === 'GAS' ? [L / 2 - 3000, -L / 2 + 3000] : null); frame(1000, 280, kind === 'GAS' ? null : null);
+      const gas = kind === 'GAS', R2 = gas ? 1500 : 1350, Lc = Lb - (gas ? 2400 : 1400), cm = mc('ci' + kind + c, { color: new THREE.Color(c), roughness: gas ? 0.5 : 0.4, metalness: 0.3 }), yc = gas ? 2900 : 2650;
+      const cy = add(geoCache['cy' + R2 + Lc] || (geoCache['cy' + R2 + Lc] = new THREE.CylinderGeometry(M(R2), M(R2), M(Lc), 28)), cm, 0, yc, 0); cy.rotation.x = Math.PI / 2;
+      for (const s of [-1, 1]) { const e = add(geoCache['ce' + R2] || (geoCache['ce' + R2] = new THREE.SphereGeometry(M(R2), 24, 12)), cm, 0, yc, s * Lc / 2); e.scale.z = gas ? 0.55 : 0.35; }
+      if (gas) { const ob = add(geoCache['cyb' + Lc] || (geoCache['cyb' + Lc] = new THREE.CylinderGeometry(M(R2 + 8), M(R2 + 8), M(Lc), 28, 1, true, Math.PI * 0.42, Math.PI * 0.16)), mc('gasBand', { color: 0xf0a020, roughness: 0.5, side: THREE.DoubleSide }), 0, yc, 0); ob.rotation.x = Math.PI / 2; const ob2 = ob.clone(); ob2.rotation.y = Math.PI; g.add(ob2); }
+      else { add(geoCache.dome || (geoCache.dome = new THREE.CylinderGeometry(M(350), M(350), M(300), 16)), cm, 0, yc + R2 + 100, 0); B(700, 40, 3000, 0, yc + R2 - 60, 0, mc('walk', { color: 0x6d7073, metalness: 0.6, roughness: 0.5 })); }
+      if (v.rid !== false) { const pl = mc('ridPl', { color: 0xff7a00, roughness: 0.5 }); for (const s of [-1, 1]) { const p = add(geoCache.rp || (geoCache.rp = new THREE.BoxGeometry(M(20), M(300), M(400))), pl, s * 1420, 1600, L / 2 - 2200); } }
+    }
+    g.userData.top = RAIL + 4000; return g;
   }
   // composizione del treno
   function consist(t) {
@@ -7842,40 +8891,46 @@ const R3 = (() => {
     const U = [], push = (n, f) => { for (let i = 0; i < n; i++) U.push(f(i, n)); };
     const coach = (L, liv, extra) => Object.assign({ L, kind: 'coach', liv }, extra);
     const emu = (n, L, liv, nose, extra) => push(n, (i, nn) => Object.assign({ L, kind: 'emu', liv, cabF: i === 0, cabR: i === nn - 1, nose, panto: i === 1 || i === nn - 2 }, extra));
-    const loco = (type, liv) => ({ L: LOCO_LEN[type] || 19, kind: 'loco', liv, cabF: true, cabR: true, panto: true, nose: type === 'E464' || type === 'E401' ? 0 : 0 });
+    const e4liv = ((t.num || 0) * 2654435761 >>> 0) % 5 < 3 ? 'dpr' : 'xmpr';
+    const loco = (type, liv) => ({ L: LOCO_LEN[type] || 19, kind: 'loco', liv, loco: type, e4: e4liv, ic: ((t.num || 0) * 40503 >>> 0) % 10 < 6 ? 'new' : 'old', cabF: true, cabR: true, panto: true, nose: type === 'E464' || type === 'E401' ? 0 : 0 });
     let pushPull = false;
     switch (t.mat) {
-      case 'MDVC': U.push(loco('E464', 'reg')); push(5, () => coach(26.4, 'reg')); U.push(coach(26.4, 'reg', { cabR: true })); pushPull = true; break;
-      case 'VIV': U.push(loco('E464', 'reg')); push(4, () => coach(29.7, 'viv', { dd: true })); U.push(coach(29.7, 'viv', { dd: true, cabR: true })); pushPull = true; break;
-      case 'ICZ': U.push(loco('E401', 'ic')); push(7, () => coach(26.4, 'ic')); U.push(coach(26.4, 'ic', { cabR: true })); pushPull = true; break;
-      case 'MIN': emu(3, 17.3, 'reg', 2.2); break;
+      case 'MDVC': { const h = ((t.num || 0) * 2246822519 >>> 0) % 10, md = h < 4 ? 'xmpr' : h < 6 ? 'grigio' : h < 9 ? 'revamp' : 'verde', mix = md !== 'verde' && ((t.num || 0) * 40503 >>> 0) % 3 === 0, LV = ['xmpr', 'grigio', 'revamp']; U.push(Object.assign(loco('E464', 'reg'), { e4: ((t.num || 0) * 69069 >>> 0) % 4 === 0 ? (md === 'xmpr' ? 'dpr' : 'xmpr') : md === 'xmpr' ? 'xmpr' : 'dpr' })); push(5, (i) => coach(26.1, 'mdvc', { md: mix ? LV[((t.num || 0) * 7 + i * 13 + (i * i)) % 3] : md })); U.push(coach(26.1, 'mdvc', { md, cabR: true })); pushPull = true; break; }
+      case 'VIV': { const h = (t.num || 0) * 2246822519 >>> 0, vv = h % 10 < 7 ? 'gr' : 'rv', mix = vv === 'gr' && (h >>> 6) % 4 === 0;
+        U.push(Object.assign(loco('E464', 'reg'), { e4: vv === 'gr' && (h >>> 9) % 3 === 0 ? 'xmpr' : 'dpr' })); push(4, i => coach(26.1, 'vivalto', { vv: mix && i === 3 ? 'rv' : vv })); U.push(coach(26.1, 'vivalto', { cabR: true, vv })); pushPull = true; break; }
+      case 'ICZ': { const h = (t.num || 0) * 2654435761 >>> 0, OLD = ['old', 'oldg'], base = h % 20 < 11 ? 'new' : OLD[(h >>> 5) & 1], mix = (h >>> 8) % 3 === 0;
+        const pick = i => mix ? ['new', 'old', 'oldg', 'new'][((h >>> 11) + i * 7 + i * i) % 4] : base;
+        U.push(Object.assign(loco('E401', 'ic'), { ic: (h >>> 14) % 10 < 6 ? 'new' : 'old' })); push(7, i => coach(26.4, 'uicz', { ic: pick(i) })); U.push(coach(26.4, 'uicz', { cabR: true, ic: pick(7), icp: (h >>> 17) % 10 < 6 ? 'new' : 'old' })); pushPull = true; break; }
+      case 'MIN': { const h = ((t.num || 0) * 2246822519 >>> 0) % 10; emu(3, 17.3, 'min', 0, { lv: h < 5 ? 'dpr' : h < 8 ? 'rv' : 'xmpr' }); break; }
       case 'ROCK': emu(6, 27.2, 'rock', 2.4, { dd: true }); break;
-      case 'CAF': emu(5, 18, 'caf', 2); break;
-      case 'E500': U.push({ L: 20.4, kind: 'hs', liv: 'fr', cabF: true, nose: 5, panto: true }); push(11, () => ({ L: 26.1, kind: 'emu', liv: 'fr' })); U.push({ L: 20.4, kind: 'hs', liv: 'fr', cabR: true, nose: 5, panto: true }); break;
-      case 'E1000': push(8, (i, n) => ({ L: 25.25, kind: i === 0 || i === n - 1 ? 'hs' : 'emu', liv: 'fr', cabF: i === 0, cabR: i === n - 1, nose: 6, panto: i === 2 || i === 5 })); break;
-      case 'E700': push(8, (i, n) => ({ L: 25.1, kind: i === 0 || i === n - 1 ? 'hs' : 'emu', liv: 'fr', cabF: i === 0, cabR: i === n - 1, nose: 4.5, panto: i === 3 })); break;
-      case 'AGV': push(11, (i, n) => ({ L: 18.2, kind: i === 0 || i === n - 1 ? 'hs' : 'emu', liv: 'ita', cabF: i === 0, cabR: i === n - 1, nose: 5, panto: i === 1 || i === 9 })); break;
-      case 'E675': push(7, (i, n) => ({ L: 26.7, kind: i === 0 || i === n - 1 ? 'hs' : 'emu', liv: 'ita', cabF: i === 0, cabR: i === n - 1, nose: 5, panto: i === 2 })); break;
+      case 'CAF': emu(5, 18, 'cafv', 0, { lv: 'blu' }); break;
+      case 'E500': { const fr = ((t.num || 0) * 2246822519 >>> 0) % 10 < 6 ? 'new' : 'old'; push(13, (i, n) => ({ L: i === 0 || i === n - 1 ? 20.4 : 26.1, kind: 'hs', hs: 'E500', fr, liv: 'fr', cabF: i === 0, cabR: i === n - 1, panto: i === 0 || i === n - 1 })); break; }
+      case 'E1000': push(8, (i, n) => ({ L: i === 0 || i === n - 1 ? 26.25 : 24.9, kind: 'hs', hs: 'E1000', liv: 'fr', cabF: i === 0, cabR: i === n - 1, panto: i === 2 || i === 5 })); break;
+      case 'E700': push(8, (i, n) => ({ L: i === 0 || i === n - 1 ? 26.3 : 24.8, kind: 'hs', hs: 'E700', liv: 'fr', cabF: i === 0, cabR: i === n - 1, panto: i === 3 || i === 4 })); break;
+      case 'AGV': push(11, (i, n) => ({ L: i === 0 || i === n - 1 ? 20.2 : 17.3, kind: 'hs', hs: 'AGV', liv: 'ita', cabF: i === 0, cabR: i === n - 1, panto: i === 2 || i === 8 })); break;
+      case 'E675': push(7, (i, n) => ({ L: i === 0 || i === n - 1 ? 28.2 : 26.1, kind: 'hs', hs: 'E675', liv: 'ita', cabF: i === 0, cabR: i === n - 1, panto: i === 2 || i === 4 })); break;
       default:
         if (t.cat === 'MRC') {
           const [c1, c2] = IFCOL[t.impresa] || ['#c0392b', '#e0e0e0'];
-          U.push(loco(t.loco || 'E494', { base: c1, bands: [[0.8, 1, '#2b2e31'], [0.66, 0.72, c2]], grime: 1 }));
-          const kinds = ['EANOS', 'CIST', 'INT', 'TRAM', 'PIAN'], cc = { EANOS: ['#6b3a2a', '#7a4630', '#5c3324'], CIST: t.rid ? ['#e9e9e6', '#cfd2d4', '#2e2f31'] : ['#2e2f31', '#d8d8d4'], INT: ['#3b3e41'], TRAM: ['#9ea4a8', '#b7bcc0', '#8a6e4b'], PIAN: ['#4a4d50'] };
-          for (let i = 0; i < (t.nWag || 12); i++) { const w = t.wag === 'MIX' ? kinds[(t.num * 13 + i * 7) % (t.rid ? 5 : 5)] : (t.wag || 'EANOS'); const cl = cc[w][(t.num + i) % cc[w].length];
-            U.push({ L: WAGONS[w].len, kind: 'wag', wag: w, col: cl, seed: t.num + i * 3, boxes: ((t.num + i) % 3 === 0) ? [6058, 6058, 6058] : [12192, 6058], load: (t.num + i) % 2 === 0 }); }
+          U.push(Object.assign(loco(t.loco || 'E494', { base: c1, bands: [[0.8, 1, '#2b2e31'], [0.66, 0.72, c2]], grime: 1 }), { imp: t.impresa, seed: t.num }));
+          const LEN = { EANOS: 15.74, GABS: 18.04, HABB: 23.26, SHIM: 12.04, PIAN: 19.9, SAMM: 15.2, LAE: 27.0, INT: 19.74, INT2: 29.6, TRAM: 12.8, TAGN: 16.24, CIST: 16.6, GAS: 21.0 };
+          const list = t.wagList || Array.from({ length: t.nWag || 12 }, () => LEN[t.wag] ? t.wag : 'EANOS');
+          list.forEach((w, i) => U.push({ L: LEN[w] || 16, kind: 'wag', wag: w, seed: t.num + i * 3 + (t.wag === 'MIX' ? i * 11 : 0) * 0 + (t.wag === 'MIX' ? i : 0) }));
         } else if (t.cat === 'LIS') { for (let i = 0; i < (t.nLoco || 1); i++) U.push(loco(t.loco || 'E464', t.loco === 'E401' ? 'ic' : 'reg')); }
         else if (t.cat === 'CAN') { U.push({ L: 13, kind: 'wag', wag: 'CAN', cab: true }); const n = Math.max(3, Math.round((t.len - 13) / 14)); for (let i = 0; i < n; i++) U.push({ L: 14, kind: 'wag', wag: i % 2 ? 'CAN' : 'PIAN', load: false }); }
         else { emu(4, 27, 'reg', 2); }
     }
     // treni reversibili: in un senso in testa la pilota, nell'altro la locomotiva
     if (pushPull && t.dir === 'R') { U.reverse(); for (const u of U) { const f = u.cabF; u.cabF = u.cabR; u.cabR = f; } }
+    // locomotiva in coda: la cabina guarda verso l'esterno
+    if (U.length > 1 && ['E464', 'E401'].includes(U[U.length - 1].loco) && !U[0].loco) U[U.length - 1].flip = true;
     return U;
   }
   let trains3 = new Map(), trainGrp = null;
   function lightsAt(g, L, front, head) {
     const m = head ? lightMats.head : lightMats.tail, gg = geoCache.lamp3 || (geoCache.lamp3 = new THREE.BoxGeometry(M(220), M(160), M(40)));
-    const z = (front ? 1 : -1) * (L / 2 + 30), top = g.userData.low || 1000;
-    for (const [x, y] of head ? [[-900, top + 400], [900, top + 400], [0, top + 2500]] : [[-900, top + 400], [900, top + 400]]) { const l = new THREE.Mesh(gg, m); l.position.set(M(x), M(RAIL + y), M(z)); g.add(l); }
+    const z = (front ? 1 : -1) * (g.userData.lampZ || L / 2 + 30), top = g.userData.low || 1000;
+    for (const [x, y, dz] of (!head && g.userData.lampsT) || g.userData.lamps || (head ? [[-900, top + 400], [900, top + 400], [0, top + 2500]] : [[-900, top + 400], [900, top + 400]])) { const l = new THREE.Mesh(gg, m); l.position.set(M(x), M(RAIL + y), M(z - (front ? 1 : -1) * (dz || 0))); g.add(l); }
   }
   function syncTrains() {
     if (!trainGrp) { trainGrp = new THREE.Group(); trainGrp.name = 'treni'; scene.add(trainGrp); }
@@ -8325,6 +9380,7 @@ const R3 = (() => {
     const nOut = Math.max(0, 1 - d * 1.6);
     lightMats.head.emissiveIntensity = 1 + nOut * 4; lightMats.tail.emissiveIntensity = 1 + nOut * 3;
     for (const m of outLit) m.emissiveIntensity = nOut * 0.2 * (m.userData.litK || 1);
+    for (const m of trainLit) m.emissiveIntensity = nOut * 0.9;
     if (mats.globe) { mats.globe.emissiveIntensity = 0.15 + nOut * 2.2; mats.islandLamp.emissiveIntensity = 0.2 + nOut * 2.4; mats.p4Lamp.emissiveIntensity = 0.15 + nOut * 2.4; }
     if (scene.fog) scene.fog.color.copy(skyMat.uniforms.bot.value);
     const og = 0.08 + 0.92 * d; mats.grass.color.setScalar(og); if (mats.leafs) { for (const m of mats.leafs) { m.userData.c0 = m.userData.c0 || m.color.clone(); m.color.copy(m.userData.c0).multiplyScalar(og); } mats.treeLine.color.setScalar(0.15 + 0.85 * d); } mats.leaf.color.setRGB(0.24 * og, 0.35 * og, 0.2 * og); mats.trunk.color.setRGB(0.29 * og, 0.23 * og, 0.16 * og);
@@ -8547,7 +9603,13 @@ const R3 = (() => {
     renderTG();
   }
   $('b3d').addEventListener('click', () => running ? leave() : enter());
-  return { get _dbg() { return { scene, renderer, composer }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
+  function demo(matK, trk, z0, num = 1, dir = 'D', ex) {
+    if (!trainGrp) { trainGrp = new THREE.Group(); scene.add(trainGrp); }
+    const U = consist(Object.assign({ mat: matK, cat: 'REG', dir, num, matName: 'x' }, ex || {})), grp = new THREE.Group(); trainGrp.add(grp); let z = z0;
+    U.forEach((u, i) => { const g = vehicle(u); g.position.set(M(TRK3[trk]), 0, M(z - u.L * 500)); grp.add(g); if (i === 0) lightsAt(g, u.L * 1000, true, true); if (i === U.length - 1) lightsAt(g, u.L * 1000, false, false); z -= u.L * 1000 + 300; });
+    markDirty && markDirty(); return U.length;
+  }
+  return { _demo: demo, get _dbg() { return { scene, renderer, composer }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
     _cellXY(sel) { const d = $('tab').querySelector(sel) || $('pls').querySelector(sel); const c = layout.cells.find(c => domCell(c) === d); const v = new THREE.Vector3(px2x(c.x + c.w / 2), px2y(c.y + c.h / 2), 0).applyMatrix4(pulsGroup.matrixWorld).project(camera); const r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 })();
 try { if (localStorage.getItem('cs-latisana-view') === '3d') R3.enter(); } catch (e) { }
