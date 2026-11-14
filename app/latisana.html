@@ -485,7 +485,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '1.25.0';
+window.SIM_BUILD = '1.26.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -9354,17 +9354,33 @@ const R3 = (() => {
   }
 
   // ---------- ciclo giorno/notte ----------
-  const sunF = h => (h < 6 || h > 18.25) ? 0 : h < 7.5 ? (h - 6) / 1.5 : h > 16.75 ? (18.25 - h) / 1.5 : 1;
+  // posizione reale del sole a Latisana (45.7778 N, 13.0008 E) per la data del computer e l'ora del simulatore.
+  // Binari orientati circa OSO–ENE: verso S. Giorgio (−z) azimut TRACK_AZ; fabbricato viaggiatori e ufficio sul lato nord.
+  const LAT = 45.7778, LON = 13.0008, TRACK_AZ = 75;
+  function solar(h) {
+    const now = new Date(), y = now.getFullYear(), doy = Math.floor((now - new Date(y, 0, 0)) / 864e5);
+    const lastSun = m => { const d = new Date(y, m + 1, 0); return d.getDate() - d.getDay(); };
+    const md = now.getMonth() * 100 + now.getDate(), dst = md >= 200 + lastSun(2) && md < 900 + lastSun(9);
+    const g = 2 * Math.PI / 365 * (doy - 1 + (h - 12) / 24);
+    const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+    const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+    const tst = (h - (dst ? 2 : 1)) * 60 + eq + 4 * LON, ha = (tst / 4 - 180) * DEG, la = LAT * DEG;
+    const cz = Math.sin(la) * Math.sin(decl) + Math.cos(la) * Math.cos(decl) * Math.cos(ha), el = Math.asin(Math.max(-1, Math.min(1, cz)));
+    let az = Math.acos(Math.max(-1, Math.min(1, (Math.sin(decl) - Math.sin(la) * cz) / (Math.cos(la) * Math.cos(el))))); if (ha > 0) az = 2 * Math.PI - az;
+    return { el, az };
+  }
+  // luce del giorno in funzione dell'altezza del sole: notte sotto −6°, pieno giorno sopra +10°
+  const sunF = el => { const k = Math.max(0, Math.min(1, (el / DEG + 6) / 16)); return k * k * (3 - 2 * k); };
   const C3 = (a, b, k) => new THREE.Color(a).lerp(new THREE.Color(b), k);
   let lastSun = null, lastLampOn = null;
   function light() {
     if (!built) return;
     if (lastLampOn !== lampOn) { lastLampOn = lampOn; renderer.shadowMap.needsUpdate = true; }
     markDirty();
-    const h = (S.simT % 86400) / 3600, d = sunF(h), tw = d > 0 && d < 1 ? 1 - Math.abs(d - 0.5) * 2 : 0;
-    // sole: arco da sud-est a sud-ovest, sempre dal lato della finestra
-    const p = Math.min(1, Math.max(0, (h - 6) / 12.25)), az = (-70 + 140 * p) * DEG, el = Math.max(0.04, Math.sin(p * Math.PI) * 38 * DEG);
-    const sd = new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.sin(el), -Math.cos(el) * Math.sin(az)).normalize();
+    const h = (S.simT % 86400) / 3600, sp = solar(h), d = sunF(sp.el), tw = d > 0 && d < 1 ? 1 - Math.abs(d - 0.5) * 2 : 0;
+    // da azimut geografico a coordinate della scena: est = (cosB, 0, −sinB), nord = (−sinB, 0, −cosB)
+    const B = TRACK_AZ * DEG, el = Math.max(0.03, sp.el), ca = Math.cos(el), E = Math.sin(sp.az) * ca, N = Math.cos(sp.az) * ca;
+    const sd = new THREE.Vector3(E * Math.cos(B) - N * Math.sin(B), Math.sin(el), -E * Math.sin(B) - N * Math.cos(B)).normalize();
     if (!lastSun || lastSun.angleTo(sd) > 0.01) { lastSun = sd.clone(); renderer.shadowMap.needsUpdate = true; }
     sun.position.copy(sd).multiplyScalar(60).add(new THREE.Vector3(10, 0, 0)); sun.target.position.set(10, 0, 0);
     sun.intensity = 2.4 * d; sun.color.copy(C3(0xffb070, 0xfff4e0, Math.min(1, d * 1.6)));
