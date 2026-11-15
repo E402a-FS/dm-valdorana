@@ -382,6 +382,9 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 @keyframes bban{from{transform:translateX(0)}to{transform:translateX(-100%)}}
 
 .itab{width:100%;border-collapse:collapse;font-size:13px}.itab th,.itab td{border-bottom:1px solid #2a3138;padding:4px 6px;text-align:left}.itab th{color:#9fb0bf;font-weight:600}.itab tr.ia td{background:#5a1d1d;color:#fff}.itab tr.id td{opacity:.5}
+.itab tr.i12 td{background:#3a3212;color:#ffe9a8;font-weight:600}.itab tr.ifar td{color:#8c98a4}
+.scrw{backface-visibility:hidden}
+#room3d .css3{overflow:hidden;width:100%;height:100%}
 
 </style>
 </head>
@@ -493,7 +496,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '1.30.0';
+window.SIM_BUILD = '2.0.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5297,7 +5300,7 @@ function newState(startDay = 0, startHour = 5.5) {
   const sig = {}; for (const k of SIGNALS) sig[k] = { lev: 'C', norm: false };
   const pl = {}; for (const k in PLS) pl[k] = { st: 'A', t: 0 };
   S = {
-    simT: startDay * 86400 + startHour * 3600, sw, cdb, line, sig, pl, key: 'N', trains: [], TT: [], genDays: [], active: {}, sigActive: {}, lineLast: {}, ev: null,
+    simT: startDay * 86400 + startHour * 3600, sw, cdb, line, sig, pl, key: 'N', trains: [], TT: [], genDays: [], intDays: [], active: {}, sigActive: {}, lineLast: {}, ev: null,
     faults: {}, sigFault: {}, blkFault: {}, phone: [], phoneQ: [], m40n: 0, moduli: [], ints: [], intN: 0, dcN: 0,
     libCount: 0, bcaCount: 0, paxDelay: 0, irreg: 0, served: 0, presc: 0, faultsOn: true, nextFault: startDay * 86400 + startHour * 3600 + 1500 + Math.random() * 2400, logs: [], viMode: false,
   };
@@ -5332,6 +5335,19 @@ const sigLab = k => SIG_LEVER[k] || SIGS[k].lab;
 function inConsegna(k) { const f = S.faults[k]; return !!(f && f.state === 'intervento'); }
 function swBusy(k) { return SWCDB[k].some(c => S.cdb[c].lock || S.cdb[c].occ || S.cdb[c].fault); }
 function lineAllFree(L) { return LINES[L].secs.every(s => !S.cdb[s].occ && !S.cdb[s].lock && !S.cdb[s].fault); }
+// interruzioni della settimana (generate in anticipo per il programma delle interruzioni)
+function genInts(dd, initial) {
+    // interruzioni della manutenzione tra S. Giorgio e Latisana (binario pari o dispari): notte 00–04, mattina 10:30–12
+  const ri = rng(dd * 977 + 3), dow = dd % 7;
+  const mk = (st, en, ask) => { if (ask > S.simT + (initial ? 60 : -1e9)) S.ints.push({ id: ++S.intN, giuntoReq: Math.random() < 0.6, ente: ri() < 0.5 ? 'LU' : 'LL', from: st, to: en, dur: en - st, ask, state: 'sched', tries: 0, by: 'manutenzione', dc: false, ack: false }); };
+  if (dow !== 6 || ri() < 0.5) mk(dd * 86400, dd * 86400 + (3.5 + (ri() < 0.5 ? 0.5 : 0)) * 3600, dd * 86400 - 20 * 60);
+  if (dow <= 4 && ri() < 0.75) mk(dd * 86400 + 10.5 * 3600, dd * 86400 + 12 * 3600, dd * 86400 + 10.25 * 3600);
+  // interruzioni straordinarie (guasti, verifiche): in linea o in stazione, senza treno cantiere
+  for (let i = 0, n = dow <= 4 ? 2 : 1; i < n; i++) {
+    const st = dd * 86400 + (7 + ri() * 13) * 3600, dur = (20 + Math.floor(ri() * 26)) * 60, en = ['B1', 'B4', 'B2', 'LU', 'LL', 'RU', 'RL'][Math.floor(ri() * 7)];
+    if (st - 300 > S.simT + (initial ? 60 : -1e9)) S.ints.push({ id: ++S.intN, giuntoReq: !!LINES[en] && Math.random() < 0.6, ente: en, from: st, to: st + dur, dur, ask: st - 300, state: 'sched', tries: 0, by: 'manutenzione', kind: 'straordinaria', dc: false, ack: false });
+  }
+}
 function ensureDays(initial) {
   const d = Math.floor(S.simT / 86400);
   for (const dd of [d - 1, d, d + 1]) {
@@ -5339,17 +5355,9 @@ function ensureDays(initial) {
     if (dd === d + 1 && S.simT < dd * 86400 - 14 * 3600) continue;
     S.genDays.push(dd);
     S.TT.push(...genDay(dd).filter(t => t.ready > S.simT + (initial ? 30 : -1e9)));
-    // interruzioni della manutenzione tra S. Giorgio e Latisana (binario pari o dispari): notte 00–04, mattina 10:30–12
-    const ri = rng(dd * 977 + 3), dow = dd % 7;
-    const mk = (st, en, ask) => { if (ask > S.simT + (initial ? 60 : -1e9)) S.ints.push({ id: ++S.intN, giuntoReq: Math.random() < 0.6, ente: ri() < 0.5 ? 'LU' : 'LL', from: st, to: en, dur: en - st, ask, state: 'sched', tries: 0, by: 'manutenzione', dc: false, ack: false }); };
-    if (dow !== 6 || ri() < 0.5) mk(dd * 86400, dd * 86400 + (3.5 + (ri() < 0.5 ? 0.5 : 0)) * 3600, dd * 86400 - 20 * 60);
-    if (dow <= 4 && ri() < 0.75) mk(dd * 86400 + 10.5 * 3600, dd * 86400 + 12 * 3600, dd * 86400 + 10.25 * 3600);
-    // interruzioni straordinarie (guasti, verifiche): in linea o in stazione, senza treno cantiere
-    for (let i = 0, n = dow <= 4 ? 2 : 1; i < n; i++) {
-      const st = dd * 86400 + (7 + ri() * 13) * 3600, dur = (20 + Math.floor(ri() * 26)) * 60, en = ['B1', 'B4', 'B2', 'LU', 'LL', 'RU', 'RL'][Math.floor(ri() * 7)];
-      if (st - 300 > S.simT + (initial ? 60 : -1e9)) S.ints.push({ id: ++S.intN, giuntoReq: !!LINES[en] && Math.random() < 0.6, ente: en, from: st, to: st + dur, dur, ask: st - 300, state: 'sched', tries: 0, by: 'manutenzione', kind: 'straordinaria', dc: false, ack: false });
-    }
   }
+  if (!S.intDays) S.intDays = S.genDays.slice();
+  for (let dd = d; dd <= d + 6; dd++) { if (S.intDays.includes(dd)) continue; S.intDays.push(dd); genInts(dd, initial); }
   S.TT.sort((a, b) => a.ready - b.ready);
   S.TT = S.TT.filter(t => !(t.done && S.simT - t.doneT > 3600));
 }
@@ -5474,6 +5482,7 @@ function sigLever(sg, pos) {
 }
 // condizioni per la via libera (null = consentita)
 function openBlock(sg, rid, running, info) {
+  if (!running) { const ft = S.trains.find(t => t.await === sg && t.fdo && t.fdo.state !== 'ripresa' && !t.gone); if (ft) return `intervento delle FdO sul ${ft.cat} ${ft.num}: serve prima il Mod. M40a di ripresa della corsa`; }
   const r = ROUTES[rid], a = S.active[rid];
   if (r.vi || a.deg) return 'itinerario a via impedita: il segnale resta obbligatoriamente a via impedita (Mod. M40 DL)';
   if (S.sigFault[sg]) return 'segnale guasto (spento): itinerario a via impedita e Mod. M40 DL';
@@ -5605,6 +5614,7 @@ function phone(from, text) { S.phone.push({ t: S.simT, from, text }); if (S.phon
 function queuePhone(delay, from, text, act) { S.phoneQ.push({ t: S.simT + delay, from, text, act }); }
 function trainByNum(num) { return S.trains.find(x => String(x.num) === String(num) && !x.gone); }
 function doAct(x) {
+  if (x.t === 'fdook') { const tr = trainByNum(x.num); if (tr && tr.fdo) { tr.fdo.state = 'ripresa'; log(`${tr.cat} ${tr.num}: Mod. M40a di ripresa della corsa registrato, il segnale di partenza può essere disposto a via libera`, 'ok'); } return; }
   if (x.t === 'gack') { giuntoAck({ num: x.num }, x.n); S.ringing = true; return; }
   if (x.t === 'inook') { const t = S.TT.find(q => q.uid === x.uid); if (t) { t.inoOk = true; t.inoAsk = false; } return; }
   const tr = x.num && trainByNum(x.num);
@@ -5919,11 +5929,36 @@ function intNextTrain(x) {
   const tr = S.trains.find(t => !t.gone && t.track === trk && !t.rec); if (tr) return tr.t;
   return trk ? S.TT.find(t => !t.done && t.plan === trk && t.ready - S.simT < 600) || null : null;
 }
+// treni che percorrono il binario di linea: pari S. Giorgio (LU) e pari Portogruaro (RU) dai treni in direzione Portogruaro, dispari dagli altri
+const lineUser = (t, L) => !t.can && t.dir === ((L === 'LU' || L === 'RU') ? 'R' : 'L');
+// ora in cui il treno libera il binario di linea (arrivo a Latisana o arrivo nella stazione vicina)
+function clearT(t, L) { const tr = S.trains.find(q => q.t === t && !q.gone); if (LINES[L].legal === 'in') return tr && tr.lineIn === L && !tr.track ? Math.max(t.arr, S.simT + 120) : t.arr; return Math.max((t.depT || t.dep || t.arr), tr && tr.exit ? S.simT : 0) + 420; }
+function intDelimCand(x, t0) {
+  const L = x.ente; let best = null;
+  for (const t of S.TT) { if (t.done || !lineUser(t, L)) continue; const tr = S.trains.find(q => q.t === t && !q.gone);
+    if (LINES[L].legal === 'in' && tr && tr.track) continue; const ct = clearT(t, L);
+    if (ct < S.simT - 60 || ct < t0 - 900 || ct > t0 + 1800) continue;
+    if (!best || Math.abs(ct - t0) < Math.abs(best.ct - t0)) best = { t, ct }; }
+  return best;
+}
 function intDCresp(id) {
   const x = S.ints.find(i => i.id === id); if (!x || x.state !== 'granted') return;
+  if (LINES[x.ente]) {
+    const t0 = Math.max(S.simT, x.from || S.simT), c = intDelimCand(x, t0);
+    if (x.giuntoReq !== false && !c) x.giuntoReq = false;      // nessun treno da delimitare: il giunto non serve
+    if (c && (x.giuntoReq !== false || Math.random() < 0.45)) {
+      const dur = (x.to || t0) - t0, st = Math.max(t0, c.ct + 60);
+      x.after = { uid: c.t.uid, num: c.t.num, cat: c.t.cat, at: c.ct }; x.dcWait = c.t.uid;
+      if (st > t0 + 60) { x.from = st; x.to = st + Math.max(600, dur); }
+      phone('DC', `${STN}, qui DC: nulla osta all'interruzione n. ${x.id} del ${cname(x.ente)} subordinato al transito del ${c.t.cat} ${c.t.num}, previsto alle ${fmtM(c.ct)}: treno delimitante ${c.t.cat} ${c.t.num}${x.giuntoReq !== false ? ', con giunto' : ', giunto non necessario'}. L'interruzione potrà iniziare ${st > t0 + 60 ? `dalle ${fmtM(x.from)} circa (orario variabile in relazione al traffico)` : 'dopo il suo transito'}. Vi richiamo io.`);
+      log(`Interruzione n. ${x.id}: il DC subordina la concessione al transito del ${c.t.cat} ${c.t.num}${st > t0 + 60 ? `, inizio spostato alle ${fmtM(x.from)}` : ''}`, 'warn');
+      return;
+    }
+    x.dcOk = true; phone('DC', `${STN}, qui DC: nulla osta all'interruzione n. ${x.id} del ${cname(x.ente)}, non subordinata al transito di alcun treno (giunto non necessario). Accordatevi con la stazione limitrofa.`); return;
+  }
   const t = intNextTrain(x);
-  if (t && Math.random() < 0.8) { x.dcWait = t.uid; phone('DC', `${STN}, qui DC: per l'interruzione n. ${x.id} del ${cname(x.ente)} attendete il transito del ${t.cat} ${t.num}. Vi richiamo io.`); return; }
-  x.dcOk = true; phone('DC', `${STN}, qui DC: nulla osta all'interruzione n. ${x.id} del ${cname(x.ente)}.${LINES[x.ente] ? ' Accordatevi con la stazione limitrofa.' : ''}`);
+  if (t && Math.random() < 0.6) { x.dcWait = t.uid; x.after = { uid: t.uid, num: t.num, cat: t.cat }; phone('DC', `${STN}, qui DC: per l'interruzione n. ${x.id} del ${cname(x.ente)} attendete il transito del ${t.cat} ${t.num}. Vi richiamo io.`); return; }
+  x.dcOk = true; phone('DC', `${STN}, qui DC: nulla osta all'interruzione n. ${x.id} del ${cname(x.ente)}.`);
 }
 // accordo con la stazione limitrofa per l'interruzione di un binario di linea
 function intToLim(id) {
@@ -5941,9 +5976,7 @@ function intLimResp(id) {
   const x = S.ints.find(i => i.id === id); if (!x || x.state !== 'granted') return;
   const nb = 'DM ' + SIDES[LINES[x.ente].side].name, tr = S.trains.find(t => !t.gone && t.lineIn === x.ente && !t.track);
   if (tr) { x.limWait = tr.t.uid; phone(nb, `${STN}, ho già licenziato il ${tr.cat} ${tr.num} sul ${cname(x.ente)}: attendete il suo arrivo, poi l'interruzione è d'accordo.`); return; }
-  const ll = S.lineLast[x.ente], lt = ll && S.TT.find(q => q.uid === ll.uid);
-  if (ll && ll.way === 'out' && !(lt && lt.giuntoN) && !ll.giuntoN) { ll.giuntoN = giuntoNum(); if (lt) lt.giuntoN = ll.giuntoN; }
-  x.limOk = true; phone(nb, `${STN}, d'accordo: ${cname(x.ente)} interrotto per noi, non inoltro treni su quel binario.${ll && ll.way === 'out' ? ` Ultimo treno giunto da noi: ${ll.cat} ${ll.num}. ${x.giuntoReq !== false ? giuntoTxt(ll, (lt && lt.giuntoN) || ll.giuntoN, nb.replace(/\.$/, ''), null, 'DM ' + nb.replace(/\.$/, '')) : ''}` : ''}`); if (ll && ll.way === 'out' && x.giuntoReq !== false) giuntoAck(ll, (lt && lt.giuntoN) || ll.giuntoN);
+  x.limOk = true; phone(nb, `${STN}, d'accordo: ${cname(x.ente)} interrotto per noi, non inoltro treni su quel binario.`);
 }
 function intByDM(k, min) {
   if (!k || (!LINES[k] && !S.cdb[k]) || SECOF[k]) return result(false, 'Ente non valido (LU, LL, RU, RL, B1–B4, ZM)');
@@ -5968,9 +6001,9 @@ function updateInts() {
       ring(MT, `${STN}, qui il capo squadra della manutenzione: chiediamo un'interruzione ${x.kind === 'straordinaria' ? 'straordinaria' : 'programmata'} del ${cname(x.ente)} dalle ${fmtM(Math.max(x.from, S.simT + 300))} alle ${fmtM(x.to)} per lavori${withCan ? `, con treno cantiere ${stab ? 'in uscita dall\'asta di Latisana verso S. Giorgio' : 'in arrivo da S. Giorgio per il ricovero nell\'asta di Latisana'}` : ', a piedi senza mezzi d\'opera'}.`);
     }
     if (x.state === 'pending' && S.simT - x.askT > 900) { x.tries++; x.state = x.tries >= 2 ? 'done' : 'sched'; x.ask = S.simT + 1200; phone(MT, 'Nessuna risposta: richiameremo più tardi.'); }
-    if (x.state === 'granted' && x.dcWait) { const t = S.TT.find(q => q.uid === x.dcWait), tr = t && S.trains.find(q => q.t === t); if (!t || t.done || (tr && (tr.rec || (LINES[x.ente] && tr.lineIn === x.ente && tr.track)))) { x.dcWait = null; x.dcOk = true; ring('DC', `${STN}, qui DC: il ${t ? t.cat + ' ' + t.num : 'treno'} è transitato, nulla osta all'interruzione n. ${x.id} del ${cname(x.ente)}.${LINES[x.ente] ? ' Accordatevi con la stazione limitrofa.' : ''}`); } }
+    if (x.state === 'granted' && x.dcWait) { const t = S.TT.find(q => q.uid === x.dcWait), tr = t && S.trains.find(q => q.t === t); if (!t || t.done || (tr && (LINES[x.ente] ? (LINES[x.ente].legal === 'in' && tr.track) : tr.rec))) { x.dcWait = null; x.dcOk = true; ring('DC', `${STN}, qui DC: il ${t ? t.cat + ' ' + t.num : 'treno'} è transitato, nulla osta all'interruzione n. ${x.id} del ${cname(x.ente)}.${LINES[x.ente] ? ' Accordatevi con la stazione limitrofa.' : ''}`); } }
     if (x.state === 'granted' && x.limWait) { const t = S.TT.find(q => q.uid === x.limWait), tr = t && S.trains.find(q => q.t === t); if (!t || t.done || !tr || tr.track) { x.limWait = null; x.limOk = true; ring('DM ' + SIDES[LINES[x.ente].side].name, `${STN}, il treno è giunto da voi: d'accordo per l'interruzione n. ${x.id} del ${cname(x.ente)}, non inoltro altri treni.`); } }
-    if (x.state === 'granted' && x.via && x.delim && LINES[x.ente] && S.lineLast[x.ente] && String(S.lineLast[x.ente].num) !== String(x.delim.num) && (x.delim.num || x.giuntoReq !== false)) { x.via = false; log(`Interruzione n. ${x.id}: dopo la concessione è transitato il ${S.lineLast[x.ente].cat} ${S.lineLast[x.ente].num}, va ripetuta la concessione con il nuovo treno delimitante`, 'err'); }
+    if (x.state === 'granted' && x.via && LINES[x.ente] && S.lineLast[x.ente] && S.lineLast[x.ente].t > (x.viaT || 0)) { x.via = false; log(`Interruzione n. ${x.id}: dopo la concessione è transitato il ${S.lineLast[x.ente].cat} ${S.lineLast[x.ente].num}, va ripetuta la concessione con il nuovo treno delimitante`, 'err'); }
     if (x.state === 'granted' && x.dcOk && (!LINES[x.ente] || (x.limOk && (x.via || x.by === 'DM'))) && S.simT >= (x.from || 0) - 60 && intFree(x.ente)) intStart(x);
     if (x.state === 'granted' && !x.dc && !x.dcWarn && S.simT >= (x.from || 0) + 300) { x.dcWarn = true; log(`Interruzione n. ${x.id} accolta ma non comunicata al DC: non può iniziare`, 'err'); }
     if (x.state === 'active') {
@@ -6138,6 +6171,14 @@ function moveTrain(tr, dt) {
     // viaggiatori: sosta e orario di partenza; merci/MAT/LIS: sosta tecnica o cambio personale; sosta programmata: subito
     let ready = C.pax ? (tr.dw >= tr.dwell && S.simT >= tr.t.dep) : tr.dw >= tr.dwell;
     if (tr.av && tr.dw < tr.av.dur) ready = false;
+    // eventi in sosta dei viaggiatori: ritardo per incarrozzamento o intervento delle Forze dell'Ordine (richiesta verbale dell'AdC)
+    if (C.pax && !tr.evChk && tr.dw > 12 && tr.track && !tr.rec) { tr.evChk = true; const q = Math.random();
+      if (q < 0.035) { const m = 2 + Math.floor(Math.random() * 5); tr.imb = tr.dwell + m * 60; ring(`AdC ${tr.cat} ${tr.num}`, `${STN}, qui il capotreno del ${tr.cat} ${tr.num} al binario ${tr.track}: la partenza ritarderà di circa ${m} minuti per l'incarrozzamento dei viaggiatori (${['gruppo numeroso con bagagli', 'viaggiatori in coincidenza in arrivo', 'assistenza a viaggiatori anziani'][Math.floor(Math.random() * 3)]}).`); log(`${tr.cat} ${tr.num}: ritardo in partenza di circa ${m}' per incarrozzamento viaggiatori`, 'warn'); }
+      else if (q < 0.05) { const why = FDO_WHY[Math.floor(Math.random() * FDO_WHY.length)]; tr.fdo = { state: 'attesa', t0: S.simT, until: S.simT + 600 + Math.random() * 1200, why };
+        ring(`AdC ${tr.cat} ${tr.num}`, `${STN}, qui il macchinista del ${tr.cat} ${tr.num} fermo al binario ${tr.track}: ${why}. Chiedo l'intervento delle Forze dell'Ordine a bordo. Disponete a via impedita il segnale di partenza, non ripartiamo fino a vostra autorizzazione.`);
+        log(`${tr.cat} ${tr.num}: richiesto l'intervento delle Forze dell'Ordine (${why})`, 'err'); } }
+    if (tr.imb && tr.dw < tr.imb) ready = false;
+    if (tr.fdo && tr.fdo.state !== 'ripresa') ready = false;
     if (ready && (tr.t.stopType === 'cambio personale' || tr.av || tr.giunto) && !tr.prontoAck) {
       if (tr.giunto && !tr.prontoCall) { tr.prontoCall = true; tr.t.giuntoN = tr.giunto.n; ring(`AdC ${tr.cat} ${tr.num}`, giuntoTxt(tr, tr.giunto.n, 'Latisana', tr.track, `AdC treno ${tr.num}`) + (tr.av ? ` ${tr.av.kind === 'carri' ? 'Verifica dei carri ultimata' : 'Avaria risolta'}, pronti a ripartire.` : tr.t.stopType === 'cambio personale' ? ' Cambio personale effettuato, pronti a ripartire.' : ' Pronti a ripartire.')); }
       if (!tr.prontoCall) { tr.prontoCall = true; ring(`AdC ${tr.cat} ${tr.num}`, tr.av ? `${STN}, qui il macchinista del treno ${tr.num}: ${tr.av.kind === 'carri' ? 'verifica dei carri ultimata, il carro è stato riscontrato idoneo' : 'avaria risolta, i rilievi sono conclusi'}. Treno pronto a partire dal binario ${tr.track}.` : `${STN}, qui il macchinista del treno ${tr.num}: cambio personale effettuato, treno pronto a partire dal binario ${tr.track}.`); }
@@ -6158,7 +6199,7 @@ function moveTrain(tr, dt) {
     log(`${tr.cat} ${tr.num} ${tr.stops ? 'partito' : 'licenziato'} ${tr.track === 'M' ? "dall'asta" : 'dal bin. ' + tr.track} sul ${cname(tr.outLine)} — ${dl ? 'ritardo +' + dl + "'" : 'in orario'}`, dl > 2 && CATS[tr.cat].pax ? 'warn' : 'ok');
   }
   if (tr.exit && tr.head - tr.len >= tr.L) { tr.gone = true; tr.t.done = true; tr.t.doneT = S.simT; log(`${tr.cat} ${tr.num} giunto a ${SIDES[tr.toSide].name}`);
-    if (!tr.t.can && S.ints.some(x => x.ente === tr.outLine && x.state === 'granted' && x.giuntoReq !== false)) { tr.t.giuntoN = giuntoNum(); const ll = S.lineLast[tr.outLine]; if (ll && ll.uid === tr.t.uid) ll.giuntoN = tr.t.giuntoN; ring(`DM ${SIDES[tr.toSide].name}`, giuntoTxt(tr, tr.t.giuntoN, SIDES[tr.toSide].name.replace(/\.$/, ''), null, `DM ${SIDES[tr.toSide].name.replace(/\.$/, '')}`)); giuntoAck(tr, tr.t.giuntoN); } }
+    if (!tr.t.can && S.ints.some(x => x.ente === tr.outLine && x.state === 'granted' && x.giuntoReq !== false && x.after && x.after.uid === tr.t.uid)) { tr.t.giuntoN = giuntoNum(); const ll = S.lineLast[tr.outLine]; if (ll && ll.uid === tr.t.uid) ll.giuntoN = tr.t.giuntoN; ring(`DM ${SIDES[tr.toSide].name}`, giuntoTxt(tr, tr.t.giuntoN, SIDES[tr.toSide].name.replace(/\.$/, ''), null, `DM ${SIDES[tr.toSide].name.replace(/\.$/, '')}`)); giuntoAck(tr, tr.t.giuntoN); } }
 }
 // i PLA restano chiusi finché un segnale che li protegge è disposto o il treno non li ha superati:
 // leva del segnale di partenza a via libera, itinerario autorizzato con M40, segnale aperto o in annullamento,
@@ -6484,31 +6525,52 @@ function intConcedi(id, num, g) {
   const x = S.ints.find(i => String(i.id) === String(id) && i.state === 'granted');
   if (!x) return result(false, `Interruzione n. ${id} non in corso di concessione`);
   if (!LINES[x.ente]) return result(false, 'Interruzione in ambito stazione: non serve il treno delimitante');
-  if (!x.dcOk) return result(false, 'Manca il nulla osta del DC');
+  if (!x.dcOk) return result(false, x.after ? `Manca il nulla osta del DC: attendere il transito del ${x.after.cat} ${x.after.num}` : 'Manca il nulla osta del DC');
   if (!x.limOk) return result(false, 'Manca l\'accordo con la stazione limitrofa');
-  const last = S.lineLast[x.ente], need = x.giuntoReq !== false, nn = String(num || '').trim();
-  if (!need) {
-    if (nn && (!last || nn !== String(last.num))) return result(false, `Il treno delimitante indicato (${nn}) non è l'ultimo treno che ha percorso il ${cname(x.ente)}${last ? ` (${last.cat} ${last.num})` : ''}`);
-    x.via = true; x.delim = nn ? { num: nn, g: null } : { num: null, g: null };
-    phone('DM', `${MT}, qui ${STN}: concedo l'interruzione n. ${x.id} del ${cname(x.ente)}${nn ? `; ultimo treno ${last.cat} ${last.num}` : ''}, giunto non necessario. Potete iniziare quando il binario è libero.`);
-    return result(true, `Interruzione n. ${x.id} concessa${nn ? ` (treno delimitante ${nn})` : ''}, giunto non necessario`, 'ok');
+  const aft = x.after, nn = String(num || '').trim(), need = aft && x.giuntoReq !== false;
+  if (!aft) {
+    if (nn) return result(false, `La concessione non è subordinata al transito di un treno: non c'è treno delimitante (lasciare vuoto)`);
+    x.via = true; x.viaT = S.simT; x.delim = { num: null, g: null };
+    phone('DM', `${MT}, qui ${STN}: concedo l'interruzione n. ${x.id} del ${cname(x.ente)}, non subordinata al transito di treni. Potete iniziare quando il binario è libero.`);
+    return result(true, `Interruzione n. ${x.id} concessa`, 'ok');
   }
-  if (last) {
-    if (nn !== String(last.num)) return result(false, `Il treno delimitante indicato (${nn || '—'}) non è l'ultimo treno che ha percorso il ${cname(x.ente)}`);
-    const t = S.TT.find(q => q.uid === last.uid) || last;
-    const gn = t.giuntoN || last.giuntoN;
-    if (!gn) return result(false, last.way === 'out' ? `Il giunto del ${last.cat} ${last.num} non è ancora pervenuto da ${SIDES[LINES[x.ente].side].name}` : `Il giunto del ${last.cat} ${last.num} non è stato acquisito: va chiesto al treno prima del suo arrivo a Latisana`);
-    if (String(g || '').replace(/\s/g, '') !== gn) return result(false, `Numero di giunto errato per il ${last.cat} ${last.num}`);
+  if (nn !== String(aft.num)) return result(false, `Il treno delimitante è il ${aft.cat} ${aft.num}, indicato dal DC`);
+  if (need) {
+    const t = S.TT.find(q => q.uid === aft.uid), gn = t && t.giuntoN;
+    if (!gn) return result(false, LINES[x.ente].legal === 'out' ? `Il giunto del ${aft.cat} ${aft.num} non è ancora pervenuto da ${SIDES[LINES[x.ente].side].name}` : `Il giunto del ${aft.cat} ${aft.num} non è stato acquisito: va chiesto al treno prima del suo arrivo a Latisana`);
+    if (String(g || '').replace(/\s/g, '') !== gn) return result(false, `Numero di giunto errato per il ${aft.cat} ${aft.num}`);
   }
-  x.via = true; x.delim = last ? { num: last.num, g: g } : { num: null, g: null };
-  phone('DM', `${MT}, qui ${STN}: concedo l'interruzione n. ${x.id} del ${cname(x.ente)}${last ? `; treno delimitante ${last.cat} ${last.num}, giunto n. ${g}` : ''}. Potete iniziare quando il binario è libero.`);
-  return result(true, `Interruzione n. ${x.id} concessa${last ? ` (treno delimitante ${last.num}, giunto ${g})` : ''}`, 'ok');
+  x.via = true; x.viaT = S.simT; x.delim = { num: aft.num, g: need ? g : null };
+  phone('DM', `${MT}, qui ${STN}: concedo l'interruzione n. ${x.id} del ${cname(x.ente)}; treno delimitante ${aft.cat} ${aft.num}${need ? `, giunto n. ${g}` : ', giunto non necessario'}. Potete iniziare quando il binario è libero.`);
+  return result(true, `Interruzione n. ${x.id} concessa (treno delimitante ${aft.num}${need ? `, giunto ${g}` : ''})`, 'ok');
 }
 // richieste straordinarie: persona a ridotta mobilità (DC) e avarie in linea (AdC)
 const AV_UDT = ['allarme di trazione sulla locomotiva', 'anomalia al pantografo', 'avaria all\'impianto frenante del mezzo di trazione', 'intervento ripetuto del dispositivo di vigilanza'];
 const AV_CARRI = ['segnalazione di boccola calda su un carro', 'sospetto spostamento del carico su un carro', 'anomalia alla condotta generale del freno', 'telone di un carro lacerato'];
 const AV_PAX = ['avaria a una porta di salita', 'allarme di trazione', 'anomalia all\'impianto di climatizzazione con guasto alla trazione', 'avaria all\'impianto frenante'];
+const FDO_WHY = ['un viaggiatore molesto si rifiuta di scendere dal treno', 'lite tra viaggiatori a bordo', 'viaggiatore sprovvisto di titolo di viaggio che si rifiuta di farsi identificare', 'aggressione al personale di bordo', 'segnalazione di un bagaglio incustodito'];
+function updateFdo() {
+  for (const tr of S.trains) { const f = tr.fdo; if (!f || f.state === 'ripresa' || tr.gone) continue;
+    const rid = tr.await && S.sigActive[tr.await], open = rid && S.active[rid] && S.active[rid].open;
+    if (open && !f.irr && S.simT - f.t0 > 90) { f.irr = true; S.irreg++; log(`Irregolarità: segnale di partenza del ${tr.cat} ${tr.num} non disposto a via impedita durante l'intervento delle FdO`, 'err'); onSound('err'); }
+    if (f.state === 'attesa' && S.simT >= f.until) { f.state = 'ok'; ring('FdO – Polizia Ferroviaria', `${STN}, qui Polizia Ferroviaria: intervento concluso sul ${tr.cat} ${tr.num} al binario ${tr.track}. Nulla osta alla ripresa della corsa.`); log(`FdO: intervento concluso sul ${tr.cat} ${tr.num}, serve il Mod. M40a di ripresa della corsa`, 'warn'); }
+  }
+}
+// Mod. M40a di ripresa della corsa dopo l'intervento delle FdO
+function sendM40aRipresa(num) {
+  const tr = trainByNum(num); if (!tr || !tr.fdo) return result(false, `Nessun intervento delle FdO in corso sul treno ${num}`);
+  if (tr.fdo.state === 'attesa') return result(false, 'Le Forze dell\'Ordine non hanno ancora dato il nulla osta alla ripresa della corsa');
+  if (tr.fdo.state !== 'ok') return result(false, 'Mod. M40a di ripresa già trasmesso');
+  const n = ++S.m40n, ora = fmtM(S.simT), nm = `${tr.cat} ${tr.num}`, txt = `Si autorizza la ripresa della corsa del treno ${tr.num} dal bin ${tr.track} di Latisana.`;
+  tr.fdo.state = 'trasm'; S.presc++;
+  phone('DM', `Treno ${nm}, trasmetto Mod. M. 40a n. ${n} delle ore ${ora}. Si ordina all'Agente di condotta del treno ${tr.num}: ${txt}`);
+  regMod('Mod. M. 40a', n, nm, `Si ordina all'Agente di condotta del treno ${tr.num}: ${txt}`);
+  queuePhone(8, `AdC ${nm}`, `Ripeto: Mod. M40a n. ${n} delle ore ${ora}. ${txt}`);
+  queuePhone(13, 'DM', 'Esatto.', { t: 'fdook', num: tr.num });
+  return result(true, `Mod. M40a n. ${n} di ripresa della corsa in trasmissione al ${nm}`, 'warn');
+}
 function updateRequests() {
+  updateFdo();
   for (const t of S.TT) if (t.prm && !t.prmCall && !t.done && !t.track && S.simT >= t.arr - 900 && S.simT < t.arr + 600) {
     t.prmCall = true; t.plan = t.dir === 'R' ? 'IV' : 'I'; t.note = (t.note ? t.note + ' · ' : '') + `PRM in ${t.prm}: bin. I o IV`;
     dcSay(`${STN}, qui DC: sul ${t.cat} ${t.num} ${t.prm === 'discesa' ? 'viaggia una persona con disabilità che scende' : 'deve salire una persona con disabilità'} a Latisana, con assistenza. Ricevete il treno sul binario I o IV: i marciapiedi tra il II e il III non hanno l'ascensore.`);
@@ -7042,8 +7104,10 @@ function renderPhone() {
   if (S.ev && S.ev.phase !== 'fine') { const e = S.ev, nb = SIDES[e.side].name; h += `<div class="c ${S.ringEmerg ? 'ring' : ''}" style="border-left:4px solid #e53935"><span>${e.type === 'emerg' ? `🚨 Emergenza ${nb}: ${e.why}` : `⚠ Guasto impianti ${nb}`} · ${e.phase === 'mav' ? 'marcia a vista 30 km/h in tratta' : e.phase === 'stop' ? `<b>circolazione sospesa</b> (prev. ${fmtM(e.to)})` : e.phase === 'limitata' ? `circolazione limitata, inoltri da autorizzare (prev. ${fmtM(e.to)})` : 'in attesa del DC'}</span><span></span></div>`; }
   if (S.inoReq) { const t = S.TT.find(x => x.uid === S.inoReq.uid); if (t) h += `<div class="c ring"><span>☎ DM ${SIDES[S.inoReq.side].name}: autorizzazione all'inoltro del ${t.cat} ${t.num} verso Latisana</span><span><button class="hb sm" data-c="INO SI">Autorizza</button> <button class="hb sm" data-c="INO NO">Attendere</button></span></div>`; }
   for (const side of ['PG', 'SG']) if (evLimited(side)) for (const tr of S.trains) { const t = tr.t; if (t.can || tr.exit || t.dcHold || t.inoOk || (t.dir === 'R' ? 'PG' : 'SG') !== side || !(tr.track || tr.lineIn)) continue; h += `<div class="c"><span>${t.cat} ${t.num} verso ${SIDES[side].name}: ${t.inoAsk ? 'inoltro richiesto, attendere' : 'chiedere l\'autorizzazione all\'inoltro'}</span><span>${t.inoAsk ? '' : `<button class="hb sm" data-c="INO ${t.num}">Chiedi inoltro</button>`}</span></div>`; }
+  for (const tr of S.trains) if (tr.fdo && tr.fdo.state !== 'ripresa' && !tr.gone) h += `<div class="c ${tr.fdo.state === 'ok' ? 'ring' : ''}" style="border-left:4px solid #1e63c6"><span>🚓 ${tr.cat} ${tr.num} bin. ${tr.track}: ${tr.fdo.state === 'attesa' ? 'intervento delle FdO in corso, segnale di partenza a via impedita' : tr.fdo.state === 'ok' ? 'nulla osta delle FdO: trasmettere il Mod. M40a di ripresa della corsa' : 'Mod. M40a in trasmissione'}</span><span>${tr.fdo.state === 'ok' ? `<button class="hb sm" data-c="M40A ${tr.num}">Mod. M40a</button>` : ''}</span></div>`;
+  for (const x of S.ints) if (x.state === 'granted' && x.after && x.giuntoReq !== false && LINES[x.ente] && LINES[x.ente].legal === 'in') { const tr = trainByNum(x.after.num); if (tr && !tr.giunto && tr.lineIn === x.ente && !tr.track) h += `<div class="c ring"><span>⚠ ${tr.cat} ${tr.num} treno delimitante dell'interruzione n. ${x.id}: richiedere il giunto prima dell'arrivo</span><span><button class="hb sm" data-c="GIU ${tr.num}">Chiedi giunto</button></span></div>`; }
   for (const tr of S.trains) if (tr.giuntoObbl && !tr.giunto && !tr.track && tr.lineIn) h += `<div class="c ring"><span>⚠ ${tr.cat} ${tr.num} sul binario unico (${cname(tr.lineIn)}): richiedere il giunto treno</span><span><button class="hb sm" data-c="GIU ${tr.num}">Chiedi giunto</button></span></div>`;
-  for (const x of S.ints) if (x.state === 'granted' && LINES[x.ente] && x.dcOk && x.limOk && !x.via && x.by !== 'DM') { const ll = S.lineLast[x.ente]; const need = x.giuntoReq !== false; h += `<div class="c ring"><span>Interruzione n. ${x.id} ${cname(x.ente)}: concessione · ${need ? '<b>giunto obbligatorio</b>' : 'giunto non necessario'}${ll ? ` · ultimo treno sul binario: ${ll.cat} ${ll.num} (${ll.way === 'in' ? 'verso Latisana' : 'verso ' + SIDES[LINES[x.ente].side].name})` : ' · nessun treno ha percorso il binario'}</span><span>treno delimitante <input class="viaT" data-id="${x.id}" size="6" placeholder="${need ? '' : 'nessuno'}" value="${VIAV[x.id + 't'] || ''}"> ${need ? `giunto <input class="viaG" data-id="${x.id}" size="5" placeholder="nn/nn" value="${VIAV[x.id + 'g'] || ''}">` : '<input class="viaG" type="hidden" value="">'} <button class="hb sm" data-via="${x.id}">Concedi</button></span></div>`; }
+  for (const x of S.ints) if (x.state === 'granted' && LINES[x.ente] && x.dcOk && x.limOk && !x.via && x.by !== 'DM') { const ll = S.lineLast[x.ente]; const aft = x.after, need = aft && x.giuntoReq !== false; h += `<div class="c ring"><span>Interruzione n. ${x.id} ${cname(x.ente)}: concessione · ${aft ? `treno delimitante <b>${aft.cat} ${aft.num}</b> · ${need ? '<b>giunto obbligatorio</b>' : 'giunto non necessario'}` : 'non subordinata al transito di treni: nessun treno delimitante'}</span><span>${aft ? `treno <input class="viaT" data-id="${x.id}" size="6" value="${VIAV[x.id + 't'] || ''}"> ` : '<input class="viaT" type="hidden" value="">'}${need ? `giunto <input class="viaG" data-id="${x.id}" size="5" placeholder="nn/nn" value="${VIAV[x.id + 'g'] || ''}"> ` : '<input class="viaG" type="hidden" value="">'}<button class="hb sm" data-via="${x.id}">Concedi</button></span></div>`; }
   if (S.ringing) h += `<div class="c ring"><span>☎ Telefono: chiamata in arrivo</span><span><button class="hb sm" data-c="RISP">Rispondi</button></span></div>`;
   for (const x of S.ints) if (x.state === 'pending') h += `<div class="c ${x.ack ? '' : 'ring'}"><span>☎ Manutenzione: interruzione ${cname(x.ente)} fino alle ${fmtM(x.to)}</span><span><button class="hb sm" data-c="INT SI">Concedi</button> <button class="hb sm" data-c="INT NO">Nega</button> <input type="time" class="intT" data-id="${x.id}" value="${INTT[x.id] || (INTT[x.id] = fmtM(Math.max(S.simT + 1800, x.from || 0)))}"> <button class="hb sm" data-intat="1">Concedi alle…</button></span></div>`;
   for (const tr of S.trains) if (tr.stab && tr.ready && !(S.sigActive.QM && S.active[S.sigActive.QM].m40)) h += `<div class="c"><span>☎ Capo cantiere ${tr.num}: pronto a uscire dall'asta verso S. Giorgio${S.sigActive.QM ? ' · itinerario formato' : ' (formare asta → 1 o 2 con chiave FD101 liberata)'}</span><span><button class="hb sm" data-c="AUT ${tr.num}">Autorizza</button></span></div>`;
@@ -7078,7 +7142,18 @@ $('m40send').onclick = () => {
 };
 // ---------- Mod. M40a ----------
 let m40anum = null;
+let m40aMode = '';
 function openM40a(num) {
+  const ft = trainByNum(num);
+  if (ft && ft.fdo && ft.fdo.state !== 'ripresa') {
+    m40anum = num; m40aMode = 'fdo';
+    $('m40an').textContent = S.m40n + 1; $('m40at').textContent = ft.num; $('m40ad').textContent = DOWL[Math.floor(S.simT / 86400) % 7] + ' ' + fmtM(S.simT);
+    $('m40aa').textContent = `Agente di condotta del treno ${ft.cat} ${ft.num}`;
+    $('m40alist').innerHTML = `<div class="mrow"><small>Intervento delle Forze dell'Ordine: ${ft.fdo.why} · ${ft.fdo.state === 'attesa' ? '<b>nulla osta delle FdO non ancora ricevuto</b>' : 'nulla osta delle FdO ricevuto'}</small></div><fieldset class="it"><legend>SI ORDINA</legend><label><input type="checkbox" id="oRIP" checked><span>Si autorizza la ripresa della corsa del treno ${ft.num} dal bin ${ft.track} di Latisana.</span></label></fieldset>`;
+    const ph = $('pTel').ownerDocument; if ($('m40a').ownerDocument !== ph) ph.body.appendChild($('m40a'));
+    $('m40a').style.display = 'flex'; return;
+  }
+  m40aMode = '';
   const c = m40aContext(num); if (c.err) { msg(c.err, 'err'); return; }
   m40anum = num;
   $('m40an').textContent = S.m40n + 1; $('m40at').textContent = c.tr.num; $('m40ad').textContent = DOWL[Math.floor(S.simT / 86400) % 7] + ' ' + fmtM(S.simT);
@@ -7098,6 +7173,7 @@ function openM40a(num) {
 }
 $('m40acancel').onclick = () => { $('m40a').style.display = 'none'; m40anum = null; };
 $('m40asend').onclick = () => {
+  if (m40aMode === 'fdo') { const ok = $('m40alist').querySelector('#oRIP').checked; $('m40a').style.display = 'none'; show(ok ? sendM40aRipresa(m40anum) : result(false, 'Nessuna voce del Mod. M40a selezionata')); m40anum = null; m40aMode = ''; return; }
   const b = $('m40alist'), q = s => b.querySelector(s);
   const o = { osr: q('#oOSR') && q('#oOSR').checked, par: q('#oPAR').checked, tratto: q('#oTR').checked, from: q('#oFrom').value, to: q('#oTo').value, pl: !!(q('#oPL') && q('#oPL').checked), pls: [...b.querySelectorAll('.m40apl:checked')].map(i => i.value) };
   if (o.to && /^\d/.test(o.to)) o.to = 'PBI ' + o.to;
@@ -7340,13 +7416,15 @@ let modOpen = -1;
 // prospetto delle interruzioni (programmate sempre; straordinarie dopo la concessione)
 function renderInts() {
   const box = $('intList'); if (!box) return;
-  const now = S.simT, ST = { sched: 'programmata', pending: 'richiesta in corso', granted: 'concessa, in attesa di inizio', active: 'IN ATTO', done: 'terminata', refused: 'rifiutata', cancelled: 'annullata' };
-  const L = S.ints.filter(x => x.to > now - 3 * 3600 && x.from < now + 30 * 3600 && (x.kind !== 'straordinaria' || ['granted', 'active', 'done'].includes(x.state) || x.via));
-  L.sort((a, b) => a.from - b.from);
-  const row = x => { const lin = !!LINES[x.ente], need = lin && x.giuntoReq !== false, d = x.delim;
-    const del = !lin ? 'non necessario (ambito di stazione)' : d && d.num ? `${d.num}${d.g ? ` · giunto ${d.g}` : ''}` : x.via ? 'nessun treno' : '—';
-    return `<tr class="${x.state === 'active' ? 'ia' : x.state === 'done' ? 'id' : ''}"><td>${x.id}</td><td>${x.kind === 'straordinaria' ? 'straordinaria' : 'programmata'}</td><td>${cname(x.ente)}</td><td>${Math.floor(x.from / 86400) > Math.floor(now / 86400) ? 'domani ' : ''}${fmtM(x.from)}–${fmtM(x.to)}</td><td>${ST[x.state] || x.state}</td><td>${lin ? (need ? '<b>obbligatorio</b>' : 'giunto non necessario') : 'giunto non necessario'}</td><td>${del}</td></tr>`; };
-  const h = L.length ? `<table class="itab"><thead><tr><th>N.</th><th>Tipo</th><th>Ente</th><th>Orario</th><th>Stato</th><th>Giunto</th><th>Treno delimitante</th></tr></thead><tbody>${L.map(row).join('')}</tbody></table>` : '<div class="muted">Nessuna interruzione in programma</div>';
+  const now = S.simT, ST = { sched: 'programmata', pending: 'richiesta in corso', granted: 'accolta, in attesa del via', active: 'IN ATTO', done: 'terminata' };
+  const L = S.ints.filter(x => (x.to || now) > now - 1800 && (x.kind !== 'straordinaria' || ['granted', 'active', 'done'].includes(x.state)));
+  L.sort((a, b) => (a.from || 0) - (b.from || 0));
+  const dayL = t => { const dd = Math.floor(t / 86400) - Math.floor(now / 86400); return dd === 0 ? 'oggi' : dd === 1 ? 'domani' : DOWL[Math.floor(t / 86400) % 7].toLowerCase(); };
+  const row = x => { const lin = !!LINES[x.ente], aft = x.after, d = x.delim, near = x.state === 'active' || ((x.from || now) - now < 12 * 3600);
+    const gi = !lin ? 'non necessario' : x.giuntoReq !== false ? '<b>obbligatorio</b>' : 'non necessario';
+    const del = !lin ? (aft ? `${aft.cat} ${aft.num}` : '—') : aft ? `${aft.cat} ${aft.num}${d && d.g ? ` · giunto ${d.g}` : ''}` : (x.state === 'sched' || x.state === 'pending') ? (x.giuntoReq !== false ? 'da indicare dal DC' : '—') : 'nessuno (non subordinata)';
+    return `<tr class="${x.state === 'active' ? 'ia' : near ? 'i12' : 'ifar'}"><td>${x.id}</td><td>${x.kind === 'straordinaria' ? 'straordinaria' : 'programmata'}</td><td>${cname(x.ente)}</td><td>${dayL(x.from || now)} ${fmtM(x.from || now)}–${fmtM(x.to)}</td><td>${ST[x.state] || x.state}</td><td>${gi}</td><td>${del}</td></tr>`; };
+  const h = L.length ? `<div class="muted" style="margin:4px 0">In evidenza le interruzioni delle prossime 12 ore · programma della settimana</div><table class="itab"><thead><tr><th>N.</th><th>Tipo</th><th>Ente</th><th>Orario</th><th>Stato</th><th>Giunto</th><th>Treno delimitante</th></tr></thead><tbody>${L.map(row).join('')}</tbody></table>` : '<div class="muted">Nessuna interruzione in programma</div>';
   if (box._h !== h) { box._h = h; box.innerHTML = h; }
 }
 setInterval(renderInts, 1000);
@@ -7439,6 +7517,7 @@ const R3 = (() => {
   const PXMM = 0.75;            // mm per px della pulsantiera
   const PW = Math.round(W / PXMM), PH = Math.round(L / PXMM), PS = 1.5;   // dimensioni pannello in px e scala texture
 
+  const SCR = [], stLights = [];
   let phoneHit = [], phoneScr, phoneLed, sun, hemi, lampSpot, lampBulbMat, ceilLights = [], ceilMats = [], skyMat, qlTex, qlMesh, pulsGroup, pulsTex, cellObjs = [], monLights = [], glassMat, switchMesh, lampHit, clockTex, starPts;
   const mats = {};
 
@@ -7524,18 +7603,34 @@ const R3 = (() => {
     // esterno: cielo (cupola con sfumatura e stelle), prato, alberi
     skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
-      uniforms: { cloud: { value: new THREE.Color(0xffffff) }, cover: { value: 0.45 }, top: { value: new THREE.Color(0x8ec5f0) }, bot: { value: new THREE.Color(0xd8e8f5) }, stars: { value: 0 }, sunDir: { value: new THREE.Vector3(-1, 0.5, 0) }, sunCol: { value: new THREE.Color(1, 0.95, 0.85) }, sunOn: { value: 1 } },
+      uniforms: { cloud: { value: new THREE.Color(0xffffff) }, cover: { value: 0.45 }, top: { value: new THREE.Color(0x8ec5f0) }, bot: { value: new THREE.Color(0xd8e8f5) }, stars: { value: 0 }, sunDir: { value: new THREE.Vector3(-1, 0.5, 0) }, sunCol: { value: new THREE.Color(1, 0.95, 0.85) }, sunOn: { value: 1 }, glowCol: { value: new THREE.Color(0xff8040) }, glowK: { value: 0 }, moonDir: { value: new THREE.Vector3(0, 0.5, 1) }, moonPh: { value: 0.5 }, moonOn: { value: 0 }, tm: { value: 0 }, city: { value: 0 }, cloudLow: { value: new THREE.Color(0x000000) } },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: `uniform vec3 cloud; uniform float cover; uniform vec3 top; uniform vec3 bot; uniform float stars; uniform vec3 sunDir; uniform vec3 sunCol; uniform float sunOn; varying vec3 vP;
+      fragmentShader: `uniform vec3 cloud; uniform float cover; uniform vec3 top; uniform vec3 bot; uniform float stars; uniform vec3 sunDir; uniform vec3 sunCol; uniform float sunOn;
+        uniform vec3 glowCol; uniform float glowK; uniform vec3 moonDir; uniform float moonPh; uniform float moonOn; uniform float tm; uniform float city; uniform vec3 cloudLow; varying vec3 vP;
         float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164))) * 43758.5453); }
         float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
         float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
         float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * n2(p); p *= 2.03; a *= 0.5; } return v; }
-        void main(){ float t = clamp(vP.y * 1.6 + 0.1, 0.0, 1.0); vec3 c = mix(bot, top, t);
-          vec3 q = floor(vP * 300.0); float s = step(0.9975, h(q)) * stars * smoothstep(0.05, 0.3, vP.y); c += vec3(s);
-          float d = max(dot(normalize(vP), normalize(sunDir)), 0.0); c += sunCol * (pow(d, 600.0) * 4.0 + pow(d, 12.0) * 0.25) * sunOn;
-          if (vP.y > 0.02) { vec2 uv = vP.xz / (vP.y + 0.12) * 1.6; float cl = smoothstep(cover, cover + 0.28, fbm(uv + vec2(3.1, 1.7))); cl *= smoothstep(0.02, 0.2, vP.y);
-            float sh = fbm(uv * 1.3 + vec2(5.2, 9.1)); c = mix(c, cloud * (0.82 + 0.25 * sh), cl * 0.85); }
+        void main(){ vec3 d = normalize(vP); float t = clamp(d.y * 1.4 + 0.08, 0.0, 1.0); vec3 c = mix(bot, top, pow(t, 0.7));
+          // bagliore del crepuscolo dal lato del sole e chiarore delle luci dei paesi all'orizzonte
+          vec2 sx = normalize(sunDir.xz + 1e-4), dx = normalize(d.xz + 1e-4); float az = max(dot(sx, dx), 0.0);
+          float hz = pow(1.0 - clamp(d.y, 0.0, 1.0), 6.0);
+          c += glowCol * glowK * hz * (0.35 + 0.65 * pow(az, 3.0));
+          c += vec3(0.10, 0.07, 0.045) * city * pow(1.0 - clamp(d.y, 0.0, 1.0), 10.0);
+          // stelle: luminosità variabile e scintillio
+          vec3 q = floor(d * 420.0); float r = h(q); float tw = 0.65 + 0.35 * sin(tm * 3.0 + r * 60.0);
+          float st = step(0.9965, r) * (0.35 + 0.65 * fract(r * 913.0)) * tw * stars * smoothstep(0.03, 0.25, d.y);
+          c += vec3(st) * vec3(0.95, 0.97, 1.0);
+          // sole
+          float sd = max(dot(d, normalize(sunDir)), 0.0); c += sunCol * (pow(sd, 900.0) * 6.0 + pow(sd, 14.0) * 0.22) * sunOn;
+          // luna con la fase
+          vec3 md = normalize(moonDir); float mdot = dot(d, md);
+          if (moonOn > 0.0) { float disc = smoothstep(0.99985, 0.99992, mdot); vec3 ax = normalize(cross(md, vec3(0.0, 1.0, 0.0))), ay = normalize(cross(ax, md)); vec3 o = d - md * mdot; float lx = dot(o, ax) / 0.0155, ly = dot(o, ay) / 0.0155;
+            float k = cos(moonPh * 6.2832), side = moonPh < 0.5 ? -1.0 : 1.0; float lit = smoothstep(-0.08, 0.08, side * lx - k * sqrt(max(0.0, 1.0 - ly * ly)));
+            c = mix(c, vec3(0.92, 0.93, 0.88) * (0.25 + 0.75 * lit), disc * moonOn); c += vec3(0.55, 0.6, 0.7) * pow(max(mdot, 0.0), 260.0) * 0.18 * moonOn; }
+          // nuvole in movimento
+          if (d.y > 0.02) { vec2 uv = d.xz / (d.y + 0.12) * 1.6 + vec2(tm * 0.004, tm * 0.0015); float cl = smoothstep(cover, cover + 0.28, fbm(uv + vec2(3.1, 1.7))); cl *= smoothstep(0.02, 0.2, d.y);
+            float sh = fbm(uv * 1.3 + vec2(5.2, 9.1)); vec3 cc = mix(cloudLow, cloud, 0.55 + 0.45 * sh); cc += glowCol * glowK * 0.5 * pow(az, 2.0); c = mix(c, cc, cl * 0.9); }
           gl_FragColor = vec4(c, 1.0); }`
     });
     skyMat.depthTest = false; const sky = new THREE.Mesh(new THREE.SphereGeometry(300, 32, 16), skyMat); sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
@@ -7633,6 +7728,9 @@ const R3 = (() => {
       // luce dello schermo
       const ra = new THREE.PointLight(0xaec4ff, 0.05, 1.0, 2); ra.position.set(p.x + Math.sin(ry * DEG) * 0.25, p.y - 0.05, p.z + Math.cos(ry * DEG) * 0.25); scene.add(ra); monLights.push(ra);
       const rad = ry * DEG; T[id] = { x: x - 33 * Math.sin(rad), y: yD + yC, z: z - 33 * Math.cos(rad), w: wS, h: hS, ry };
+      // contorno della cornice (faccia anteriore) in mm, per nascondere gli schermi CSS che stanno dietro
+      const bez = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new THREE.Vector3(M(a * (wS / 2 + 22)), M(yC + b * (hS / 2 + 27)), M(-34)).applyMatrix4(g.matrixWorld).multiplyScalar(1000));
+      SCR.push({ id, wrap, c: new THREE.Vector3(T[id].x, T[id].y, T[id].z), ry: rad, s: wS / 1280, bez, clip: '' });
     };
     mkScreens();
     mon('r3m1', XP - 330, -420, -14);
@@ -7978,6 +8076,9 @@ const R3 = (() => {
       pos.forEach((z, i) => { o.position.set(M(P4b - 600), M(3000), M(z)); o.updateMatrix(); pole.setMatrixAt(i, o.matrix); o.position.set(M(P4b - 900), M(6000), M(z)); o.updateMatrix(); head.setMatrixAt(i, o.matrix); });
       stn.add(pole); stn.add(head); }
     for (const z of [-8000, 14000, 36000]) { bench(P4a + 2000, z, -90); bin(P4a + 2600, z + 4000); }
+    // luci notturne dei marciapiedi (senza ombre): pensilina del 1, pensilina dell'isola 2-3, lampioni del 4
+    for (const [x, y, z, k, col] of [[X1 + 2050, 2550, -6250, 1, 0xffe0b0], [X1 + 2050, 2550, 8750, 1, 0xffe0b0], [XC, 3650, -9000, 1.4, 0xf4f0ff], [XC, 3650, 9000, 1.4, 0xf4f0ff], [P4b - 900, 5850, 0, 2.2, 0xffd59a], [P4b - 900, 5850, 20000, 2.2, 0xffd59a]]) {
+      const l = new THREE.PointLight(col, 0, 16, 2); l.position.set(M(x), M(y), M(z)); l.userData.k = k; scene.add(l); stLights.push(l); }
     const fenceT = ctex(512, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#7f95a6'; for (let x = 4; x < w; x += 22) g.fillRect(x, 10, 9, h - 10); g.fillRect(0, 20, w, 12); g.fillRect(0, h - 40, w, 12); });
     const fm = mat({ map: rep(fenceT, LEN / 3000, 1), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.4 });
     const fp = plane(FEN, 1000 - 900 + 900 / 2, ZC, LEN, 2000, fm, -90, 0, stn); fp.castShadow = false;
@@ -9713,16 +9814,44 @@ const R3 = (() => {
     // da azimut geografico a coordinate della scena: est = (cosB, 0, −sinB), nord = (−sinB, 0, −cosB)
     const B = TRACK_AZ * DEG, el = Math.max(0.03, sp.el), ca = Math.cos(el), E = Math.sin(sp.az) * ca, N = Math.cos(sp.az) * ca;
     const sd = new THREE.Vector3(E * Math.cos(B) - N * Math.sin(B), Math.sin(el), -E * Math.sin(B) - N * Math.cos(B)).normalize();
-    if (!lastSun || lastSun.angleTo(sd) > 0.01) { lastSun = sd.clone(); renderer.shadowMap.needsUpdate = true; }
-    sun.position.copy(sd).multiplyScalar(60).add(new THREE.Vector3(10, 0, 0)); sun.target.position.set(10, 0, 0);
-    sun.intensity = 2.4 * d; sun.color.copy(C3(0xffb070, 0xfff4e0, Math.min(1, d * 1.6)));
-    skyMat.uniforms.top.value.copy(C3(0x0b1026, 0x6fb0ea, d)); skyMat.uniforms.bot.value.copy(C3(0x1a2240, 0xd5e6f4, d)).lerp(new THREE.Color(0xf09060), tw * 0.75);
-    skyMat.uniforms.stars.value = Math.max(0, 1 - d * 3); skyMat.uniforms.cloud.value.copy(C3(0x1c2233, 0xf4f6f8, d)).lerp(new THREE.Color(0xf2a07a), tw * 0.6); skyMat.uniforms.sunDir.value.copy(sd); skyMat.uniforms.sunOn.value = d > 0 ? 1 : 0;
+    if (sp.el >= -0.05 && (!lastSun || lastSun.angleTo(sd) > 0.01)) { lastSun = sd.clone(); renderer.shadowMap.needsUpdate = true; }
+    const eD = sp.el / DEG, now = new Date(), day = Math.floor(S.simT / 86400);
+    // meteo del giorno: sereno, poco nuvoloso o nuvoloso (senza pioggia né nebbia)
+    const wq = ((day * 2654435761) >>> 0) % 10, cover = wq < 4 ? 0.64 : wq < 8 ? 0.5 : 0.34, oc = Math.max(0, Math.min(1, (0.64 - cover) / 0.3));
+    // colori del cielo per altezza del sole: giorno, ora dorata, crepuscolo civile, nautico, astronomico, notte
+    const KS = [[-90, 0x01030a, 0x070b16], [-18, 0x01030a, 0x070b16], [-12, 0x030816, 0x0d1426], [-6, 0x0b1838, 0x2a2c48], [-2, 0x203a72, 0x8a6a70], [2, 0x3f6db4, 0xe9a774], [8, 0x4f86cf, 0xc9d9e6], [20, 0x3f7fd4, 0xcfe2f1], [90, 0x2f6fca, 0xcfe0ef]];
+    let a = KS[0], b = KS[KS.length - 1]; for (let k = 1; k < KS.length; k++) if (eD <= KS[k][0]) { a = KS[k - 1]; b = KS[k]; break; }
+    const f = Math.max(0, Math.min(1, (eD - a[0]) / Math.max(1e-3, b[0] - a[0])));
+    const top = C3(a[1], b[1], f), bot = C3(a[2], b[2], f), grey = new THREE.Color(0x8d939a).multiplyScalar(Math.max(0.04, d));
+    top.lerp(grey, oc * 0.55 * d); bot.lerp(grey, oc * 0.45 * d);
+    skyMat.uniforms.top.value.copy(top); skyMat.uniforms.bot.value.copy(bot);
+    const twK = Math.max(0, 1 - Math.abs(eD + 2) / 8);    // crepuscolo: massimo con il sole 2° sotto l'orizzonte
+    skyMat.uniforms.glowCol.value.copy(C3(0xff5a20, 0xffb070, Math.max(0, Math.min(1, (eD + 6) / 10)))); skyMat.uniforms.glowK.value = twK * (0.55 - 0.3 * oc);
+    skyMat.uniforms.stars.value = Math.max(0, Math.min(1, (-eD - 6) / 8)) * (1 - oc * 0.85); skyMat.uniforms.city.value = Math.max(0, Math.min(1, (-eD - 3) / 6));
+    skyMat.uniforms.cover.value = cover; skyMat.uniforms.tm.value = (S.simT % 86400) / 60;
+    skyMat.uniforms.cloud.value.copy(C3(0x0d0f16, 0xf6f7f8, d)).lerp(new THREE.Color(0xf0a07a), twK * 0.5 * (1 - d)); skyMat.uniforms.cloudLow.value.copy(C3(0x07080c, 0xaab0b8, d)).lerp(new THREE.Color(0x1c1612), skyMat.uniforms.city.value * 0.6);
+    skyMat.uniforms.sunDir.value.copy(sd); skyMat.uniforms.sunOn.value = sp.el > -0.02 ? 1 - oc * 0.7 : 0; skyMat.uniforms.sunCol.value.copy(C3(0xff7a30, 0xfff1d8, Math.min(1, Math.max(0, eD / 12))));
+    // luna: fase dalla data (lunazione 29,53 giorni) e posizione in ritardo sul sole di fase × 24 h
+    const ph = (((now - Date.UTC(2000, 0, 6, 18, 14)) / 864e5 + (S.simT % 86400) / 86400 - (now.getHours() * 3600 + now.getMinutes() * 60) / 86400) / 29.530588 % 1 + 1) % 1;
+    const mp = solar(((h - ph * 24.84) % 24 + 24) % 24), mel = mp.el, mca = Math.cos(Math.max(0.02, mel)), mE = Math.sin(mp.az) * mca, mN = Math.cos(mp.az) * mca;
+    const md = new THREE.Vector3(mE * Math.cos(B) - mN * Math.sin(B), Math.sin(Math.max(0.02, mel)), -mE * Math.sin(B) - mN * Math.cos(B)).normalize();
+    const illum = (1 - Math.cos(ph * 2 * Math.PI)) / 2, moonUp = mel > 0 ? Math.min(1, mel / (4 * DEG)) : 0;
+    skyMat.uniforms.moonDir.value.copy(md); skyMat.uniforms.moonPh.value = ph; skyMat.uniforms.moonOn.value = moonUp * (1 - oc * 0.8) * Math.max(0.25, 1 - d);
+    // sole di giorno, luna di notte (stessa luce direzionale, ombre comprese)
+    const useMoon = sp.el < -0.05 && moonUp > 0, ld = useMoon ? md : sd;
+    if (useMoon && (!lastSun || lastSun.angleTo(md) > 0.01)) { lastSun = md.clone(); renderer.shadowMap.needsUpdate = true; }
+    sun.position.copy(ld).multiplyScalar(60).add(new THREE.Vector3(10, 0, 0)); sun.target.position.set(10, 0, 0);
+    if (useMoon) { sun.intensity = 0.09 * illum * moonUp * (1 - oc * 0.7); sun.color.setHex(0x9db4ff); }
+    else { sun.intensity = 2.5 * d * (1 - 0.6 * oc); sun.color.copy(C3(0xff8a40, 0xfff4e0, Math.min(1, Math.max(0, eD / 14)))); }
+    const nightOut = Math.max(0, Math.min(1, (2 - eD) / 8));
+    for (const l of stLights) l.intensity = nightOut * 9 * l.userData.k;
+    glassMat.opacity = 0.12 + nightOut * 0.1;
+    renderer.toneMappingExposure = 0.85 + nightOut * 0.15;
     const on = g => g === 'A' ? ceilA : ceilB, cf = ceilOnF();
     for (const l of ceilLights) { l.intensity = on(l.userData.grp) ? 2.4 : 0; l.visible = l.intensity > 0; }
     for (const m of ceilMats) { const o = on(m.userData.grp); m.emissiveIntensity = o ? 1.6 : 0; m.color.setHex(o ? 0xffffff : 0x9a9a94); }
-    hemi.intensity = 0.02 + cf * 0.16 + d * 0.18;
-    scene.environmentIntensity = 0.02 + cf * 0.14 + d * 0.14;
+    hemi.intensity = 0.006 + cf * 0.16 + d * 0.18 * (1 - 0.3 * oc); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
+    scene.environmentIntensity = 0.006 + cf * 0.14 + d * 0.14;
     lampSpot.intensity = lampOn ? LAMP_I : 0; lampBulbMat.emissiveIntensity = lampOn ? 1.0 : 0; lampBulbMat.color.setHex(lampOn ? 0xfff3d0 : 0x777777);
     for (const p of switchMesh) p.parent.rotation.x = on(p.userData.sw) ? -0.12 : 0.12;
     const nOut = Math.max(0, 1 - d * 1.6);
@@ -9733,7 +9862,7 @@ const R3 = (() => {
     if (scene.fog) scene.fog.color.copy(skyMat.uniforms.bot.value);
     const og = 0.08 + 0.92 * d; mats.grass.color.setScalar(og); if (mats.leafs) { for (const m of mats.leafs) { m.userData.c0 = m.userData.c0 || m.color.clone(); m.color.copy(m.userData.c0).multiplyScalar(og); } mats.treeLine.color.setScalar(0.15 + 0.85 * d); } mats.leaf.color.setRGB(0.24 * og, 0.35 * og, 0.2 * og); mats.trunk.color.setRGB(0.29 * og, 0.23 * og, 0.16 * og);
     const night = 1 - Math.min(1, cf + d);
-    for (const l of monLights) l.intensity = 0;
+    for (const l of monLights) l.intensity = 0.01 + night * 0.025;
     qlMesh.material.emissiveIntensity = 0.9 + night * 0.6;
     bloom.strength = 0.25 + night * 0.4;
   }
@@ -9915,6 +10044,23 @@ const R3 = (() => {
   // ---------- ciclo di disegno ----------
   let lightT = 0;
   let fpsN = 0, fpsT = 0, fpsEl = null;
+  // gli schermi sono elementi HTML sovrapposti alla scena: se un monitor si trova davanti allo schermo di un altro,
+  // si ritaglia dallo schermo posteriore la sagoma del monitor anteriore (proiettata dal punto di vista)
+  function clipScreens() {
+    const cam = new THREE.Vector3(C.x, C.y, C.z);
+    for (const A of SCR) {
+      const n = new THREE.Vector3(Math.sin(A.ry), 0, Math.cos(A.ry)), right = new THREE.Vector3(Math.cos(A.ry), 0, -Math.sin(A.ry)), holes = [];
+      if (cam.clone().sub(A.c).dot(n) <= 0) { if (A.clip) { A.clip = ''; A.wrap.style.clipPath = ''; } continue; }
+      for (const B of SCR) {
+        if (B === A) continue;
+        const pts = []; let front = 0;
+        for (const P of B.bez) { const dir = P.clone().sub(cam), dn = dir.dot(n); if (Math.abs(dn) < 1e-6) break; const t = A.c.clone().sub(cam).dot(n) / dn; if (t > 1) front++; const Q = cam.clone().add(dir.multiplyScalar(t)).sub(A.c); pts.push([640 + Q.dot(right) / A.s, 400 - Q.y / A.s]); }
+        if (front === 4 && pts.length === 4) holes.push('M' + pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L') + ' Z');
+      }
+      const cp = holes.length ? `path(evenodd, "M-20000 -20000 H21280 V20800 H-20000 Z ${holes.join(' ')}")` : '';
+      if (cp !== A.clip) { A.clip = cp; A.wrap.style.clipPath = cp; }
+    }
+  }
   function frame(now) {
     if (!running) return;
     requestAnimationFrame(frame);
@@ -9923,7 +10069,7 @@ const R3 = (() => {
     if (now - lightT > 500) { lightT = now; light(); const mc = document.querySelector('#r3m1 .mclk'); if (mc) mc.textContent = fmt(S.simT); }
     if (!dirty && !camDirty) return;
     if (quality !== 'bassa') composer.render(); else renderer.render(scene, camera);
-    if (camDirty) css.render(cssScene, cssCam);
+    if (camDirty) { clipScreens(); css.render(cssScene, cssCam); }
     dirty = camDirty = false; fpsN++;
     if (now - fpsT > 1000) { if (!fpsEl) fpsEl = document.querySelector('.hud3 .fps'); if (fpsEl) fpsEl.textContent = `${Math.round(fpsN * 1000 / (now - fpsT))} fps`; fpsN = 0; fpsT = now; }
   }
