@@ -552,7 +552,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.2.2';
+window.SIM_BUILD = '2.5.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -7009,6 +7009,9 @@ function toLamps(a) {
   }
   return [['R'], 0];
 }
+// imposta un attributo SVG solo se cambia (evita ricalcoli di stile e rendering inutili)
+let qlVer = 0;
+function sa(el, k, v) { const c = el._a || (el._a = {}); v = String(v); if (c[k] !== v) { c[k] = v; el.setAttribute(k, v); qlVer++; } }
 function renderQL() {
   const blinkOn = Math.floor(performance.now() / 350) % 2 === 0;
   for (const p of L.seg) {
@@ -7022,39 +7025,39 @@ function renderQL() {
       if (inConsegna(p.c)) dot = blinkOn ? '#e08a30' : COLQ.dotOff;
       if (p.c === 'ZM' && S.key === 'R' && !c.occ && !c.lock) dot = blinkOn ? COLQ.Y : COLQ.dotOff;
     }
-    if (p.dots._f !== dot) { p.dots.setAttribute('fill', dot); p.dots._f = dot; }
-    if (p.bar._o !== op + dash) { p.bar.setAttribute('opacity', op); p.bar.setAttribute('stroke-dasharray', dash); p.bar._o = op + dash; }
+    if (p.dots._f !== dot) { sa(p.dots, 'fill', dot); p.dots._f = dot; }
+    if (p.bar._o !== op + dash) { sa(p.bar, 'opacity', op); sa(p.bar, 'stroke-dasharray', dash); p.bar._o = op + dash; }
   }
   for (const k in L.sig) {
     const a = aspect(k), [cols, fl] = toLamps(a), on = !fl || blinkOn;
-    L.sig[k].ls.forEach((l, i) => l.setAttribute('fill', cols[i] && on ? COLQ[cols[i]] : COLQ.lampOff));
-    if (L.sig[k].ind) L.sig[k].ind.setAttribute('stroke', a === 'RV' ? COLQ.W : COLQ.lampOff);
+    L.sig[k].ls.forEach((l, i) => sa(l, 'fill', cols[i] && on ? COLQ[cols[i]] : COLQ.lampOff));
+    if (L.sig[k].ind) sa(L.sig[k].ind, 'stroke', a === 'RV' ? COLQ.W : COLQ.lampOff);
     const isB = PBI[k], flt = S.sigFault[k] || S.blkFault[k];
     let lc = isB ? COLQ.labB : COLQ.lab;
     if (flt) lc = blinkOn ? '#ff6b5e' : '#7a2a24';
     else if (SIG_LEVER[k] && S.sigActive[k]) { const ac = S.active[S.sigActive[k]]; lc = ac.state === 'annulling' && blinkOn ? '#ff9f43' : COLQ.labOn; }
-    L.sig[k].lab.setAttribute('fill', lc);
+    sa(L.sig[k].lab, 'fill', lc);
   }
   for (const k in L.sw) {
     const w = S.sw[k];
     for (const e of L.sw[k]) {
-      e.lamp.setAttribute('fill', w.fault ? (blinkOn ? COLQ.R : COLQ.lampOff) : inConsegna(k) ? (blinkOn ? '#e08a30' : COLQ.lampOff) : w.mv ? (blinkOn ? COLQ.W : COLQ.lampOff) : w.pos === 'R' ? COLQ.Y : COLQ.W);
-      e.t.setAttribute('fill', swLockedBy(k) ? COLQ.inkHi : COLQ.ink);
+      sa(e.lamp, 'fill', w.fault ? (blinkOn ? COLQ.R : COLQ.lampOff) : inConsegna(k) ? (blinkOn ? '#e08a30' : COLQ.lampOff) : w.mv ? (blinkOn ? COLQ.W : COLQ.lampOff) : w.pos === 'R' ? COLQ.Y : COLQ.W);
+      sa(e.t, 'fill', swLockedBy(k) ? COLQ.inkHi : COLQ.ink);
     }
   }
-  L.tc.setAttribute('fill', S.key === 'R' ? (blinkOn ? COLQ.Y : COLQ.lampOff) : COLQ.W);
+  sa(L.tc, 'fill', S.key === 'R' ? (blinkOn ? COLQ.Y : COLQ.lampOff) : COLQ.W);
   for (const id in L.bca) {
     const st = S.line[id], secs = LINES[id].secs, occ = secs.some(c => S.cdb[c].occ || S.cdb[c].fault), b = L.bca[id];
-    b.occ.setAttribute('fill', occ ? COLQ.red : COLQ.lampOff); b.lib.setAttribute('fill', !occ && !st.interr ? COLQ.G : COLQ.lampOff);
+    sa(b.occ, 'fill', occ ? COLQ.red : COLQ.lampOff); sa(b.lib, 'fill', !occ && !st.interr ? COLQ.G : COLQ.lampOff);
     const col = st.interr ? COLQ.red : st.chg ? (blinkOn ? COLQ.Y : '#333') : (st.orient === LINES[id].legal ? COLQ.W : COLQ.Y);
-    b.out.setAttribute('fill', st.interr || st.orient === 'out' || st.chg ? col : '#333'); b.inn.setAttribute('fill', st.interr || st.orient === 'in' || st.chg ? col : '#333');
+    sa(b.out, 'fill', st.interr || st.orient === 'out' || st.chg ? col : '#333'); sa(b.inn, 'fill', st.interr || st.orient === 'in' || st.chg ? col : '#333');
   }
   for (const k of ['PL1', 'PL2']) {
     const st = S.pl[k].st, o = L.pl[k];
     const clOn = st === 'C' || (st === 'chiudendo' && blinkOn), opOn = st === 'A' || (st === 'aprendo' && blinkOn);
-    o.cl.setAttribute('stroke', clOn ? COLQ.W : COLQ.lampOff); o.op.setAttribute('stroke', opOn ? COLQ.W : COLQ.lampOff);
+    sa(o.cl, 'stroke', clOn ? COLQ.W : COLQ.lampOff); sa(o.op, 'stroke', opOn ? COLQ.W : COLQ.lampOff);
   }
-  for (const k of PLAS) { const st = S.pl[k].st; L.pl[k].lp.setAttribute('fill', st === 'allarme' ? (blinkOn ? COLQ.R : COLQ.lampOff) : st === 'C' ? COLQ.V : st === 'A' ? COLQ.W : (blinkOn ? COLQ.V : COLQ.W)); }
+  for (const k of PLAS) { const st = S.pl[k].st; sa(L.pl[k].lp, 'fill', st === 'allarme' ? (blinkOn ? COLQ.R : COLQ.lampOff) : st === 'C' ? COLQ.V : st === 'A' ? COLQ.W : (blinkOn ? COLQ.V : COLQ.W)); }
   // descrittori treno
   let h = '';
   for (const tr of S.trains) {
@@ -7070,7 +7073,7 @@ function renderQL() {
     h += `<rect x="${(lx - wl / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${wl.toFixed(1)}" height="16" rx="2" fill="#050606" stroke="${col}"/>`;
     h += `<text x="${lx.toFixed(1)}" y="${(top + 12.2).toFixed(1)}" font-size="12.5" fill="${col}" text-anchor="middle" font-weight="700" font-family="ui-monospace,monospace">${lab}</text>`;
   }
-  L.trains.innerHTML = h;
+  if (L.trains._h !== h) { L.trains._h = h; L.trains.innerHTML = h; qlVer++; }
 }
 svg.addEventListener('click', e => { const b = e.target.closest('[data-co]'); if (b) show(changeOrient(b.dataset.co)); });
 
@@ -7429,7 +7432,7 @@ function renderBoard() {
     h += `<tr><td class="vet" style="color:${v[1]}">${v[0]}</td><td class="catb">${t.cat}</td><td>${t.num}</td><td>${arr ? t.orig : t.dest}</td><td>${fmtM(arr ? t.arr : t.dep)}</td><td class="rit">${rit ? rit + "'" : ''}</td><td style="text-align:center;font-weight:700">${bin}</td>${arr ? `<td style="text-align:center">${inArr}</td>` : ''}<td>${info}</td></tr>`;
   }
   for (let i = list.length; i < 8; i++) h += `<tr>${'<td>&nbsp;</td>'.repeat(arr ? 9 : 8)}</tr>`;
-  $('bBody').innerHTML = h; $('bClock').textContent = fmtM(now);
+  { const bb2 = $('bBody'); if (bb2._h !== h) { bb2._h = h; bb2.innerHTML = h; } const ck = fmtM(now), be = $('bClock'); if (be._t !== ck) { be._t = ck; be.textContent = ck; } }
   { const bb = $('bBanner'), tx = boardBanner(); if (bb) { if (bb._t !== tx) { bb._t = tx; bb.innerHTML = tx ? `<span>${tx}</span>` : ''; } bb.style.display = tx ? '' : 'none'; } }
 }
 // ---------- orario di servizio e richieste ----------
@@ -7465,7 +7468,7 @@ function renderTT() {
     const eff = (tp, te) => te ? `<div class="eff ${te - tp > 120 ? 'late' : ''}">${fmtM(te)}${te - tp > 59 ? ` (+${Math.floor((te - tp) / 60)}')` : ''}</div>` : '';
     h += `<tr data-tt="${t.uid}" class="${t.done ? 'done' : live ? 'live' : wait ? 'wait' : ''} click"><td><span class="cat" style="background:${CATS[t.cat].col}">${t.cat}</span> ${t.num}${t.rid ? ' <span class="rid" title="Merci pericolose (RID)"></span>' : ''}${t.prmCall ? ' <span title="Persona a ridotta mobilità: bin. I o IV">♿</span>' : ''}<div class="if">${t.impresa}</div></td><td>${t.orig} → ${t.dest}</td><td>${showArr ? fmtM(t.arr) + eff(t.arr, t.arrT || (t.late ? eta0(t) : 0)) : '—'}</td><td>${fmtM(t.dep)}${eff(t.dep, t.depT || (t.late ? t.dep + t.late * 60 : 0))}</td><td>${binCell(t)}</td><td class="note">${svcLabel(t)}${t.note && (!t.precFor || t.stopType !== 'sosta programmata') ? `<div class="if">${t.note}</div>` : ''}</td><td>${st}</td></tr>`;
   }
-  tb.innerHTML = h || '<tr><td colspan="7" style="color:#8b939c">Nessun treno nelle prossime ore</td></tr>';
+  h = h || '<tr><td colspan="7" style="color:#8b939c">Nessun treno nelle prossime ore</td></tr>'; if (tb._h !== h) { tb._h = h; tb.innerHTML = h; }
   for (const uid of TTOPEN) { const row = tb.querySelector(`tr[data-tt="${uid}"]`), t = S.TT.find(x => String(x.uid) === String(uid)); if (!row || !t) continue; const d = document.createElement('tr'); d.className = 'ttdet'; d.innerHTML = `<td colspan="7">${t.matName ? `Materiale <b>${t.matName}</b> · ` : ''}${t.rid ? '<span class="rid"></span> <b>merci pericolose (RID)</b> · ' : ''}Lunghezza <b>${t.len} m</b> · velocità massima <b>${t.vmax} km/h</b> · ${t.can ? 'treno cantiere' : t.dir === 'R' ? 'pari, da S. Giorgio' : 'dispari, da Portogruaro'} · ${CATS[t.cat].name}${t.note ? ' · ' + t.note : ''}</td>`; row.after(d); }
   const d = Math.floor(S.simT / 86400) % 7;
   $('ttDay').textContent = DOWL[d] + (d <= 4 ? ' · feriale' : d === 5 ? ' · sabato' : ' · festivo');
@@ -7585,7 +7588,7 @@ function loop() {
   ringT += dtr;
   if (ringT > 3) { ringT = 0; if (S.ringEmerg) onSound('emerg'); else if (S.ringing || (speed > 0 && (S.trains.some(t => t.called && !t.callAck) || S.ints.some(x => x.state === 'pending' && !x.ack)))) onSound('phone'); }
   ttT += dtr; if (ttT > 0.5) { ttT = 0; renderTT(); renderPhone(); renderBoard(); renderTG(); }
-  try { renderQL(); renderBanco(); $('clock').textContent = fmt(S.simT); } catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore di visualizzazione: ${e.message}`, 'err'); window.__showErr && window.__showErr('visualizzazione: ' + (e.stack || e.message).split('\n').slice(0, 4).join('\n')); } }
+  try { renderQL(); renderBanco(); { const ck = fmt(S.simT), ce = $('clock'); if (ce._t !== ck) { ce._t = ck; ce.textContent = ck; } } } catch (e) { console.error(e); if (!loopErr) { loopErr = true; msg(`Errore di visualizzazione: ${e.message}`, 'err'); window.__showErr && window.__showErr('visualizzazione: ' + (e.stack || e.message).split('\n').slice(0, 4).join('\n')); } }
   autoT += dtr; if (autoT > 30) { autoT = 0; saveLocal(true); }
   for (const p of PANELS) if (p._win && p._win.closed) dock(p);
 }
@@ -8476,6 +8479,38 @@ const R3 = (() => {
       o.castShadow = near && p.y > M(-200) && !o.isInstancedMesh ? true : o.isInstancedMesh && p.y === 0; });
     // ---- occlusione ambientale "dipinta": ombre di contatto sotto pensiline, panchine e lungo i bordi ----
     buildContactAO(stn, { E1, IS0, IS1, P4a, P4b, XC, FAC });
+    mergeStatic(stn, new Set([dropsMesh, rainMesh]));
+  }
+  // unisce le mesh statiche opache con lo stesso materiale in un solo oggetto: molte meno chiamate di disegno
+  function mergeStatic(root, skip) {
+    root.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), buckets = new Map(), rem = [], mm = new THREE.Matrix4(), nm = new THREE.Matrix3();
+    // materiali modificati durante il gioco (notte, pioggia, ...): restano separati, non si fondono con altri
+    const anim = new Set([...outLit, ...winLit, ...wetMats, glassMat]); for (const k in mats) for (const m of [].concat(mats[k])) anim.add(m);
+    const tid = t => t ? t.uuid : '', sig = m => [m.type, m.color && m.color.getHex(), tid(m.map), m.roughness, m.metalness, m.emissive && m.emissive.getHex(), m.emissiveIntensity, tid(m.emissiveMap), tid(m.alphaMap), tid(m.normalMap), tid(m.bumpMap), tid(m.aoMap), m.side, m.alphaTest, m.flatShading, m.opacity, m.envMapIntensity, m.polygonOffset, m.polygonOffsetFactor, m.depthWrite, m.fog, m.toneMapped, m.vertexColors].join('|');
+    root.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || skip.has(o)) return;
+      for (let p = o; p && p !== root; p = p.parent) if (!p.visible) return;
+      const g = o.geometry; if (!g || !g.attributes.position || !g.attributes.normal) return;
+      const ms = Array.isArray(o.material) ? o.material : [o.material], gg = g.index ? g.toNonIndexed() : g, P = gg.attributes.position, N = gg.attributes.normal, U = gg.attributes.uv;
+      const parts = (Array.isArray(o.material) && gg.groups.length) ? gg.groups.map(q => [ms[q.materialIndex], q.start, q.count]) : [[ms[0], 0, P.count]];
+      // se un solo pezzo non è fondibile, lascio la mesh com'è
+      for (const [m] of parts) if (!m || m.transparent || m.isShaderMaterial || m.isRawShaderMaterial) return;
+      mm.multiplyMatrices(inv, o.matrixWorld); nm.getNormalMatrix(mm);
+      const v = new THREE.Vector3();
+      for (const [m, st, cnt] of parts) {
+        const key = (anim.has(m) ? m.uuid : sig(m)) + (o.castShadow ? 'c' : '-') + (o.receiveShadow ? 'r' : '-') + o.renderOrder;
+        let b = buckets.get(key); if (!b) { b = { m, o, pos: [], nor: [], uv: [] }; buckets.set(key, b); }
+        for (let i = st; i < st + cnt && i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(mm); b.pos.push(v.x, v.y, v.z); v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); b.nor.push(v.x, v.y, v.z); if (U) b.uv.push(U.getX(i), U.getY(i)); else b.uv.push(0, 0); }
+      }
+      rem.push(o);
+    });
+    for (const o of rem) if (o.parent) o.parent.remove(o);
+    for (const [, b] of buckets) {
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+      g.computeBoundingSphere(); const me = new THREE.Mesh(g, b.m); me.castShadow = b.o.castShadow; me.receiveShadow = b.o.receiveShadow; me.renderOrder = b.o.renderOrder; me.matrixAutoUpdate = false; root.add(me);
+    }
+    return rem.length;
   }
   // ======================= TRENI 3D =======================
   // posizione dal motore: punto del percorso (coordinate del QL) → binario e progressiva in 3D.
@@ -9853,8 +9888,10 @@ const R3 = (() => {
   // ---------- quadro luminoso: SVG del gioco → texture (colore + emissione per i LED) ----------
   let qlBusy = false, qlLast = 0;
   let qlLastSvg = '', qlBg = null;
+  let qlSeenVer = -1, qlForce = 0;
   function updateQL(now) {
-    if (qlBusy || now - qlLast < 250) return; qlLast = now;
+    if (qlBusy || now - qlLast < 250) return;
+    if (qlVer === qlSeenVer && now - qlForce < 2500) return; qlLast = now; qlSeenVer = qlVer; if (now - qlForce >= 2500) qlForce = now;   // di norma ricostruisce l'immagine solo se il quadro è cambiato
     const cl = svg.cloneNode(true); cl.setAttribute('width', 2840); cl.setAttribute('height', 430); cl.removeAttribute('style'); cl.removeAttribute('class');
     const str = new XMLSerializer().serializeToString(cl);
     if (str === qlLastSvg) return;                       // nulla è cambiato sul quadro: niente da ridisegnare
@@ -10204,7 +10241,8 @@ const R3 = (() => {
     { // luci dei lampioni: le più vicine all'osservatore (solo alta e ultra)
       const on2 = quality === 'alta' || quality === 'ultra', nO = Math.max(0, 1 - d * 1.6), cp = camera.position;
       for (const l of lampN) l.visible = on2;
-      if (on2) { const c = poolPts.map(q => ({ q, k: (M(q[0]) - cp.x) ** 2 + (M(q[1] === undefined ? 0 : q[1]) * 0) + (M(q[1]) - cp.z) ** 2 })); c.sort((a, b) => a.k - b.k);
+      if (on2 && nO <= 0) { for (const l of lampN) l.intensity = 0; }
+      else if (on2) { const c = poolPts.map(q => ({ q, k: (M(q[0]) - cp.x) ** 2 + (M(q[1] === undefined ? 0 : q[1]) * 0) + (M(q[1]) - cp.z) ** 2 })); c.sort((a, b) => a.k - b.k);
         lampN.forEach((l, i) => { const q = c[i] && c[i].q; if (q) { l.position.set(M(q[0]), M(q[3]) - 0.1, M(q[1])); l.intensity = nO * ST_I; } }); } }
     for (const m of ceilMats) { const o = on(m.userData.grp); m.emissiveIntensity = o ? 1.6 : 0; m.color.setHex(o ? 0xffffff : 0x9a9a94); }
     hemiBase = hemi.intensity = 0.003 + d * (0.18 * (1 - 0.3 * oc) + 0.10 * oc); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
@@ -10312,7 +10350,7 @@ const R3 = (() => {
     const show = () => { box.textContent = lines.join('\n'); };
     const raf = () => new Promise(r => requestAnimationFrame(r));
     const remat = () => scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
-    const ms = async (fn, n = 12) => { fn(); gl.finish(); await raf(); const t0 = performance.now(); for (let i = 0; i < n; i++) fn(); gl.finish(); return (performance.now() - t0) / n; };
+    const ms = async (fn, n = 12) => { for (let i = 0; i < 3; i++) { fn(); gl.finish(); await raf(); } const t0 = performance.now(); for (let i = 0; i < n; i++) fn(); gl.finish(); return (performance.now() - t0) / n; };
     const res = {}, row = (k, name, v) => { res[k] = v; lines.push(`${name.padEnd(36)}${v.toFixed(1).padStart(7)} ms  (max ${String(Math.round(1000 / v)).padStart(3)} fps)`); show(); };
     try {
       renderer.info.autoReset = false; renderer.info.reset(); renderer.render(scene, camera); const inf = renderer.info.render; renderer.info.autoReset = true;
@@ -10323,6 +10361,13 @@ const R3 = (() => {
       setPR(1); { const z = renderer.getSize(new THREE.Vector2()); composer.setSize(z.x, z.y); } row('d', '4. Scala di disegno 1×', await ms(() => composer.render())); setPR(pr0); { const z = renderer.getSize(new THREE.Vector2()); composer.setSize(z.x, z.y); }
       renderer.shadowMap.enabled = false; remat(); row('e', '5. Senza ombre', await ms(() => composer.render())); renderer.shadowMap.enabled = sh0; renderer.shadowMap.needsUpdate = true; remat();
       renderer.capabilities.logarithmicDepthBuffer = false; remat(); row('f', '6. Senza depth buffer logaritmico', await ms(() => composer.render())); renderer.capabilities.logarithmicDepthBuffer = ld0; remat();
+      { // tempo del processore (JavaScript e invio dei disegni alla GPU), senza attendere la GPU
+        const cpu = (fn, n = 20) => { fn(); const t0 = performance.now(); for (let i = 0; i < n; i++) fn(); return (performance.now() - t0) / n; };
+        lines.push('', 'Tempo del PROCESSORE per fotogramma (JavaScript e comandi alla GPU):');
+        lines.push(`invio disegni (${inf.calls} draw call)`.padEnd(36) + cpu(() => composer.render()).toFixed(1).padStart(7) + ' ms');
+        lines.push('treni, luci e ciclo notte'.padEnd(36) + cpu(() => { syncTrains(); light(); }).toFixed(1).padStart(7) + ' ms');
+        lines.push('monitor HTML (trasformazioni 3D)'.padEnd(36) + cpu(() => { clipScreens(); for (const A of SCR) A.cr.render(A.cs, cssCam); }).toFixed(1).padStart(7) + ' ms');
+        lines.push('quadro, pulsantiera, display'.padEnd(36) + cpu(() => { updateQL(performance.now()); updatePanel(performance.now()); updateDisplays(performance.now()); }).toFixed(1).padStart(7) + ' ms'); show(); }
       lines.push('', 'Ciclo completo con i monitor HTML (fps reali, vsync escluso dal confronto):'); show();
       const run = async t => { let n = 0; const t0 = performance.now(); while (performance.now() - t0 < t) { C.yaw += n % 2 ? 0.4 : -0.4; applyCam(); composer.render(); clipScreens(); for (const A of SCR) A.cr.render(A.cs, cssCam); await raf(); n++; } return n * 1000 / (performance.now() - t0); };
       const f1 = await run(1500); for (const A of SCR) A.cr.domElement.style.display = 'none'; const f2 = await run(1500); for (const A of SCR) A.cr.domElement.style.display = '';
