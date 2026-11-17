@@ -401,12 +401,17 @@ header{position:relative;z-index:40}
 .md select{background:#23282c;color:#e6ece8;border:1px solid #3a4046;border-radius:3px;padding:3px 5px;font:inherit;font-size:12px}
 .md #speeds{padding:3px 9px;flex-wrap:wrap}
 
+.fclock{position:fixed;right:18px;top:60px;z-index:90;cursor:move;user-select:none;padding:4px;background:#0b0d0ecc;border:1px solid #3a4046;border-radius:6px;box-shadow:0 6px 18px #000a}
+.fclock .clock{margin:0}
+.ntm{position:fixed;inset:0;background:#000a;z-index:200;display:flex;align-items:center;justify-content:center}
+.ntb{background:#1b1f22;border:1px solid #3a4046;border-radius:6px;padding:14px 18px;display:flex;flex-direction:column;gap:8px;color:#e6ece8}
+body.native-menu header{display:none}
+
 </style>
 </head>
 <body>
 <header>
   <h1>Circolazione Simulatore · Latisana-Lignano-Bibione<small>ACEI con tabulatore · Doppio binario banalizzato in BCA · DC – Dirigenza Centrale (DC Ve. Mestre) · S. Giorgio di Nogaro – Portogruaro C. <span id="appVer"></span></small></h1>
-  <div class="clock" id="clock">Lun 05:30:00</div>
   <nav class="menubar" id="menubar">
     <div class="mn"><button class="mb" type="button">Partita ▾</button><div class="md">
       <button class="mi" id="bMenu" title="Menu principale: scelta dell'impianto">Menu principale</button>
@@ -418,6 +423,7 @@ header{position:relative;z-index:40}
     </div></div>
     <div class="mn"><button class="mb" type="button">Viste ▾</button><div class="md">
       <button class="mi" id="b3d" title="Sala del DM in 3D: banco con quadro luminoso e pulsantiera, PC con due monitor">Vista 3D</button>
+      <label class="mi"><input type="checkbox" id="vClock"> Orologio flottante</label>
       <hr><div class="mlab">Inquadrature 3D</div>
       <button class="mi" data-v3="seat">Banco</button><button class="mi" data-v3="ql">Quadro luminoso</button><button class="mi" data-v3="puls">Pulsantiera</button>
       <button class="mi" data-v3="r3m1">Monitor 1</button><button class="mi" data-v3="r3m2">Monitor 2</button><button class="mi" data-v3="win">Finestra</button>
@@ -542,9 +548,11 @@ header{position:relative;z-index:40}
   <div class="mfoot"><small>IL DIRIGENTE: DM Latisana · trasmissione telefonica con ripetizione dell'AdC</small><span><button class="sec" id="m40cancel" type="button">Annulla</button> <button id="m40send" type="button">Trasmetti all'AdC</button></span></div>
 </div></div>
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
+<div id="fClock" class="fclock" style="display:none"><div class="clock" id="clock">Lun 05:30:00</div></div>
+<div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.2.0';
+window.SIM_BUILD = '2.2.1';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -7665,6 +7673,52 @@ $('calls').addEventListener('input', e => { if (e.target.classList.contains('int
     const w = S && S.wx; $('wxNow').textContent = w ? 'Ora: ' + (w.n || w.k) + (WXCFG.fog ? ' con nebbia' : '') : '—';
   }
   window.__syncMenus = syncMenus;
+})();
+
+// ---------- orologio flottante, nuovo turno e collegamento al menu nativo (exe) ----------
+(function () {
+  const fc = $('fClock'), LSC = 'cs-latisana-orologio'; let st = {}; try { st = JSON.parse(localStorage.getItem(LSC) || '{}'); } catch (e) { }
+  const save = () => { try { localStorage.setItem(LSC, JSON.stringify(st)); } catch (e) { } };
+  const apply = () => { fc.style.display = st.on ? '' : 'none'; $('vClock').checked = !!st.on; if (st.x !== undefined) { fc.style.left = Math.min(st.x, innerWidth - 60) + 'px'; fc.style.top = Math.min(st.y, innerHeight - 40) + 'px'; fc.style.right = 'auto'; } };
+  apply();
+  $('vClock').onchange = () => { st.on = $('vClock').checked; save(); apply(); };
+  let drag = null;
+  fc.addEventListener('pointerdown', e => { const r = fc.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; fc.setPointerCapture(e.pointerId); });
+  fc.addEventListener('pointermove', e => { if (!drag) return; st.x = Math.max(0, e.clientX - drag.dx); st.y = Math.max(0, e.clientY - drag.dy); apply(); });
+  fc.addEventListener('pointerup', () => { if (drag) { drag = null; save(); } });
+  // nuovo turno (finestrella)
+  DOWL.forEach((d, i) => $('ntDay').add(new Option(d, i))); for (let h = 0; h < 24; h++) $('ntHour').add(new Option(String(h).padStart(2, '0') + ':00', h)); $('ntHour').add(new Option('05:30', 5.5)); $('ntHour').value = 5.5;
+  const openNT = () => { $('ntDay').value = $('startDay').value; $('ntHour').value = $('startHour').value; $('newTurn').style.display = 'flex'; };
+  $('ntNo').onclick = () => $('newTurn').style.display = 'none';
+  $('ntGo').onclick = () => { $('newTurn').style.display = 'none'; start(+$('ntDay').value, +$('ntHour').value); $('startDay').value = $('ntDay').value; $('startHour').value = $('ntHour').value; };
+  // menu nativo dell'applicazione (Electron): le stesse funzioni delle tendine, nella barra in alto
+  if (window.dmApp && dmApp.onMenu) {
+    document.body.classList.add('native-menu');
+    const clk = id => { const el = $(id); if (el) el.click(); };
+    dmApp.onMenu((id, val) => {
+      try {
+        if (id === 'click') clk(val);
+        else if (id === 'v3') document.querySelector(`[data-v3="${val}"]`).click();
+        else if (id === 'wxMode') document.querySelector(`input[name=wxMode][value=${val}]`).click();
+        else if (id === 'wxKind') { document.querySelector('input[name=wxMode][value=manual]').click(); $('wxKind').value = val; $('wxKind').onchange(); }
+        else if (id === 'wxFog') clk('wxFog');
+        else if (id === 'gQ') { $('gQ').value = val; $('gQ').onchange(); }
+        else if (id === 'gFps') clk('gFps');
+        else if (id === 'gTorch' || id === 'gBench') clk(id);
+        else if (id === 'speed') setSpeed(val ? val : 0);
+        else if (id === 'faults' || id === 'sound') clk(id);
+        else if (id === 'clockWin') clk('vClock');
+        else if (id === 'newTurn') openNT();
+        else if (id === 'importFile') { if (dmApp.openGame) dmApp.openGame().then(t => { if (t) loadFrom(t, 'Turno importato'); }); else clk('fImp'); }
+      } catch (e) { console.error(e); }
+    });
+    setInterval(() => {
+      try {
+        const w = S && S.wx;
+        dmApp.setUi({ view3d: document.body.classList.contains('v3d'), wxMode: WXCFG.mode, wxKind: WXCFG.kind, wxFog: !!WXCFG.fog, q: $('gQ').value, fps: $('gFps').checked, faults: $('faults').checked, sound: $('sound').checked, speed, clock: !!st.on, wxNow: w ? (w.n || w.k) + (WXCFG.fog ? ' con nebbia' : '') : '' });
+      } catch (e) { }
+    }, 1000);
+  }
 })();
 
 // suoni dei treni (registrazioni fornite dall'utente)
