@@ -384,6 +384,8 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 .itab{width:100%;border-collapse:collapse;font-size:13px}.itab th,.itab td{border-bottom:1px solid #2a3138;padding:4px 6px;text-align:left}.itab th{color:#9fb0bf;font-weight:600}.itab tr.ia td{background:#5a1d1d;color:#fff}.itab tr.id td{opacity:.5}
 .itab tr.i12 td{background:#3a3212;color:#ffe9a8;font-weight:600}.itab tr.ifar td{color:#8c98a4}
 
+.bench{position:absolute;left:10px;top:52px;z-index:9;background:#000d;color:#d7ffd7;font:12px/1.55 monospace;padding:10px 14px;border:1px solid #3a4046;border-radius:4px;cursor:pointer;white-space:pre;pointer-events:auto;max-width:96%;overflow:auto}
+
 </style>
 </head>
 <body>
@@ -402,7 +404,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
     <div class="stat"><b id="sPresc">0</b><span>prescrizioni</span></div>
   </div>
 </header>
-<div id="room3d"><div class="hud3"><button data-v="back" title="Torna all'inquadratura precedente (Backspace)">◀ Indietro</button><button data-v="seat">Banco</button><button data-v="ql">Quadro luminoso</button><button data-v="puls">Pulsantiera</button><button data-v="r3m1">Monitor 1</button><button data-v="r3m2">Monitor 2</button><button data-v="win">Finestra</button><button data-v="pano">Panoramica</button><button data-v="pano2">Panoramica 2</button><button data-v="q" title="Ombre, riflessi e bagliore: alta su PC, bassa su tablet o PC lenti">Qualità: alta</button><span class="fps" title="Fotogrammi al secondo (la scena viene ridisegnata solo quando cambia qualcosa)">— fps</span><span>WASD o frecce per camminare (Maiusc = più veloce) · trascina per guardarti intorno · rotella = zoom · doppio clic sul quadro o sulla pulsantiera · Esc torna al banco · tasti 1–5 · interruttori accanto alla finestra · clic su un monitor = schermo intero · clic sul telefono per rispondere · clic sulla lampada · Alt+Invio = schermo intero</span></div></div>
+<div id="room3d"><div class="hud3"><button data-v="back" title="Torna all'inquadratura precedente (Backspace)">◀ Indietro</button><button data-v="seat">Banco</button><button data-v="ql">Quadro luminoso</button><button data-v="puls">Pulsantiera</button><button data-v="r3m1">Monitor 1</button><button data-v="r3m2">Monitor 2</button><button data-v="win">Finestra</button><button data-v="pano">Panoramica</button><button data-v="pano2">Panoramica 2</button><button data-v="q" title="Ombre, riflessi e bagliore: alta su PC, bassa su tablet o PC lenti">Qualità: alta</button><button data-v="bench" title="Misura quanto costa ogni elemento grafico su questo PC e dice quale GPU è in uso">Diagnosi fps</button><span class="fps" title="Fotogrammi al secondo (la scena viene ridisegnata solo quando cambia qualcosa)">— fps</span><span>WASD o frecce per camminare (Maiusc = più veloce) · trascina per guardarti intorno · rotella = zoom · doppio clic sul quadro o sulla pulsantiera · Esc torna al banco · tasti 1–5 · interruttori accanto alla finestra · clic su un monitor = schermo intero · clic sul telefono per rispondere · clic sulla lampada · Alt+Invio = schermo intero</span></div></div>
 <main>
 <section>
   <div class="panel qlpanel" id="pQL"><div class="ph"><span>Quadro luminoso</span><button class="dt" title="Sgancia in una finestra">⧉</button></div>
@@ -494,7 +496,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '2.0.3';
+window.SIM_BUILD = '2.0.5';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5242,7 +5244,7 @@ function genDay(d) {
   for (const t of list) if (CATS[t.cat].pax && t.stops) { const q = rp(); if (q < 0.07) t.prm = q < 0.035 ? 'discesa' : 'salita'; }
   // ritardi di provenienza dalle stazioni limitrofe (da +5' a +120'): il treno entra in linea in ritardo rispetto all'orario
   const rl = rng(d * 6151 + 29);
-  for (const t of list) { const q = rl(), u = rl(); t.late = 0; if (q < (CATS[t.cat].pax ? 0.30 : 0.42)) { t.late = Math.min(120, 5 + Math.floor(Math.pow(u, 2.2) * 116)); t.ready += t.late * 60; } }
+  for (const t of list) { const q = rl(), u = rl(); t.late = 0; if (q < (CATS[t.cat].pax ? 0.05 : 0.20)) { t.late = Math.min(120, 5 + Math.floor(Math.pow(u, 2.2) * 116)); t.ready += t.late * 60; } }
   // precedenze per orario: il merci con sosta programmata attende un viaggiatori dello stesso senso
   for (const t of list) if (t.stopType === 'sosta programmata') {
     const v = list.filter(p => CATS[p.cat].pax && p.dir === t.dir && (p.late || 0) <= 10 && p.arr > t.arr + 60 && p.arr < t.arr + Math.max(25, t.stopMin) * 60).sort((a, b) => a.arr - b.arr)[0];
@@ -5847,16 +5849,17 @@ function updateDC() {
       else if (opp && !opp.dcSpawnHold) { opp.dcSpawnHold = t.uid; dcSay(`Latisana, qui DC: trattengo a S. Giorgio il ${opp.cat} ${opp.num}; inoltrate il ${t.cat} ${t.num}.`); }
     }
   }
-  // ritardi in ingresso: il DC fa fermare a Latisana un treno di rango inferiore per dare la precedenza a un viaggiatori in ritardo e fargli recuperare minuti
+  // ritardi in ingresso: il DC fa fermare a Latisana un treno di rango inferiore (anche tra merci) per dare la precedenza a un treno in ritardo e fargli recuperare minuti
   if (!S.ev && !single) for (const y of S.TT) {
-    if (!(y.late >= 5) || y.dcAsk || y.done || y.can || !CATS[y.cat].pax || S.simT < y.ready - 600) continue;
+    if (!(y.late >= (CATS[y.cat].pax ? 5 : 10)) || y.dcAsk || y.done || y.can || y.cat === 'CAN' || S.simT < y.ready - 600) continue;
     y.dcAsk = true;
     const yTr = S.trains.find(q => q.t === y);
     if (yTr && (yTr.track || yTr.exit) || Math.random() > 0.85) continue;
     const toSide = y.dir === 'R' ? 'PG' : 'SG', yP = passLat(y), yRun = LINE_TOT[toSide] / (KMH(Math.min(y.vmax, 140)) * 0.85);
     let best = null;
     for (const x of S.TT) {
-      if (x === y || x.dir !== y.dir || x.done || x.can || x.dcHold || x.precFor || !((PRIO[x.cat] || 0) < (PRIO[y.cat] || 0))) continue;
+      if (x === y || x.dir !== y.dir || x.done || x.can || x.dcHold || x.precFor || x.cat === 'CAN') continue;
+      if (!((PRIO[x.cat] || 0) < (PRIO[y.cat] || 0) || (!CATS[x.cat].pax && !CATS[y.cat].pax && (PRIO[x.cat] || 0) === (PRIO[y.cat] || 0) && (x.late || 0) < (y.late || 0)))) continue;   // rango inferiore; tra merci anche a pari rango, se x è meno in ritardo
       const xTr = S.trains.find(q => q.t === x);
       if (xTr && (xTr.exit || xTr.rec || xTr.av)) continue;
       if (xTr && xTr.await && S.sigActive[xTr.await] && S.active[S.sigActive[xTr.await]].open) continue;   // ha già il segnale di partenza a via libera
@@ -7507,6 +7510,7 @@ const R3 = (() => {
   const { THREE, CSS3DRenderer, CSS3DObject, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, RoomEnvironment, RectAreaLightUniformsLib, RoundedBoxGeometry } = window.T3 || {};
   const view = document.getElementById('room3d');
   const M = v => v / 1000, DEG = Math.PI / 180;
+  let gpuName = '', gpuTag = '', prTarget = 1, prNow = 1, benching = false, rafN = 0, goodN = 0;
   let renderer, css, scene, cssScene, camera, cssCam, composer, bloom, built = false, running = false, quality = 'alta';
   const T = {};                  // superfici inquadrabili (mm)
   const tick = [];               // funzioni chiamate a ogni fotogramma
@@ -7565,8 +7569,10 @@ const R3 = (() => {
 
   function build() {
     if (built) return; built = true;
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: true });
-    renderer.setPixelRatio(Math.min(1.5, devicePixelRatio || 1));
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
+    prTarget = prNow = Math.min(1.5, devicePixelRatio || 1); renderer.setPixelRatio(prNow);
+    { const gl = renderer.getContext(), ex = gl.getExtension('WEBGL_debug_renderer_info'); gpuName = ex ? String(gl.getParameter(ex.UNMASKED_RENDERER_WEBGL)) : 'GPU non rilevabile';
+      gpuTag = /nvidia|geforce|gtx|rtx/i.test(gpuName) ? 'NVIDIA' : /intel/i.test(gpuName) ? 'Intel (integrata)' : /amd|radeon/i.test(gpuName) ? 'AMD' : /swiftshader|llvmpipe|software/i.test(gpuName) ? 'software' : 'GPU'; }
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.85;
     renderer.domElement.className = 'gl3';
@@ -9943,19 +9949,68 @@ const R3 = (() => {
   function focus(name) {
     if (camera.fov !== FOV0 && name !== 'q') setFov(FOV0);
     if (name === 'back') { go(hist.length ? hist.pop() : SEAT); return; }
+    if (name === 'bench') { bench(); return; }
     if (name === 'q') { quality = { alta: 'media', media: 'bassa', bassa: 'alta' }[quality] || 'media'; saveLS(); applyQuality(); return; }
     hist.push(Object.assign({}, C)); if (hist.length > 20) hist.shift();
     if (PRE[name]) go(PRE[name]); else if (T[name]) go(target(T[name]));
   }
+  // la risoluzione di disegno va applicata sia al renderer sia al compositore (prima il compositore restava alla scala iniziale)
+  function setPR(p) { prNow = p; renderer.setPixelRatio(p); composer.setPixelRatio(p); }
+  // risoluzione dinamica: se i fotogrammi calano sotto i 42 fps con la scena in movimento, scala la risoluzione; la risale con calma
+  function adapt(fps, cont) {
+    if (!cont || quality === 'bassa') { goodN = 0; return; }
+    const lo = Math.max(0.7, prTarget * 0.6); let ch = false;
+    if (fps < 42 && prNow > lo + 0.01) { setPR(Math.max(lo, prNow - 0.15)); ch = true; goodN = 0; }
+    else if (fps > 56 && prNow < prTarget - 0.01) { if (++goodN >= 5) { setPR(Math.min(prTarget, prNow + 0.1)); ch = true; goodN = 0; } }
+    else goodN = 0;
+    if (ch) { const z = renderer.getSize(new THREE.Vector2()); renderer.setSize(z.x, z.y); composer.setSize(z.x, z.y); markDirty(); }
+  }
   function applyQuality() {
     if (!built) return;
     const hi = quality !== 'bassa';
-    renderer.setPixelRatio(quality === 'alta' ? Math.min(1.5, devicePixelRatio || 1) : 1);
+    prTarget = quality === 'alta' ? Math.min(1.5, devicePixelRatio || 1) : 1; setPR(prTarget); bloom.enabled = quality === 'alta'; goodN = 0;
     renderer.shadowMap.enabled = hi; renderer.shadowMap.needsUpdate = true; sun.castShadow = hi;
     { const ms = quality === 'alta' ? 4096 : 2048; if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
     scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
     const b = document.querySelector('.hud3 [data-v=q]'); if (b) b.textContent = 'Qualità: ' + quality;
     size();
+  }
+
+
+  // ---------- diagnosi prestazioni ----------
+  async function bench() {
+    if (benching || !built || !running) return; benching = true;
+    const box = document.createElement('pre'); box.className = 'bench'; view.appendChild(box); box.onclick = () => box.remove();
+    const gl = renderer.getContext(), pr0 = prNow, bl0 = bloom.enabled, sh0 = renderer.shadowMap.enabled, ld0 = renderer.capabilities.logarithmicDepthBuffer, y0 = C.yaw;
+    const lines = [`DIAGNOSI FPS — Latisana ${window.SIM_BUILD || ''}  (clic per chiudere: fai uno screenshot e mandalo)`, `GPU in uso: ${gpuName}`];
+    const show = () => { box.textContent = lines.join('\n'); };
+    const raf = () => new Promise(r => requestAnimationFrame(r));
+    const remat = () => scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
+    const ms = async (fn, n = 12) => { fn(); gl.finish(); await raf(); const t0 = performance.now(); for (let i = 0; i < n; i++) fn(); gl.finish(); return (performance.now() - t0) / n; };
+    const res = {}, row = (k, name, v) => { res[k] = v; lines.push(`${name.padEnd(36)}${v.toFixed(1).padStart(7)} ms  (max ${String(Math.round(1000 / v)).padStart(3)} fps)`); show(); };
+    try {
+      renderer.info.autoReset = false; renderer.info.reset(); renderer.render(scene, camera); const inf = renderer.info.render; renderer.info.autoReset = true;
+      lines.push(`Finestra ${renderer.domElement.width}×${renderer.domElement.height} px · scala ${prNow.toFixed(2)} · qualità ${quality} · ${inf.calls} draw call · ${Math.round(inf.triangles / 1000)}k triangoli`, '', 'Tempo di disegno della GPU per fotogramma (meno è meglio, 16.7 ms = 60 fps):'); show();
+      row('a', '1. Scena completa (come ora)', await ms(() => composer.render()));
+      bloom.enabled = false; row('b', '2. Senza bagliore (bloom)', await ms(() => composer.render())); bloom.enabled = bl0;
+      row('c', '3. Senza post-processing', await ms(() => renderer.render(scene, camera)));
+      setPR(1); { const z = renderer.getSize(new THREE.Vector2()); composer.setSize(z.x, z.y); } row('d', '4. Scala di disegno 1×', await ms(() => composer.render())); setPR(pr0); { const z = renderer.getSize(new THREE.Vector2()); composer.setSize(z.x, z.y); }
+      renderer.shadowMap.enabled = false; remat(); row('e', '5. Senza ombre', await ms(() => composer.render())); renderer.shadowMap.enabled = sh0; renderer.shadowMap.needsUpdate = true; remat();
+      renderer.capabilities.logarithmicDepthBuffer = false; remat(); row('f', '6. Senza depth buffer logaritmico', await ms(() => composer.render())); renderer.capabilities.logarithmicDepthBuffer = ld0; remat();
+      lines.push('', 'Ciclo completo con i monitor HTML (fps reali, vsync escluso dal confronto):'); show();
+      const run = async t => { let n = 0; const t0 = performance.now(); while (performance.now() - t0 < t) { C.yaw += n % 2 ? 0.4 : -0.4; applyCam(); composer.render(); clipScreens(); for (const A of SCR) A.cr.render(A.cs, cssCam); await raf(); n++; } return n * 1000 / (performance.now() - t0); };
+      const f1 = await run(1500); for (const A of SCR) A.cr.domElement.style.display = 'none'; const f2 = await run(1500); for (const A of SCR) A.cr.domElement.style.display = '';
+      lines.push(`con i monitor HTML  ${f1.toFixed(0).padStart(4)} fps`, `senza i monitor HTML ${f2.toFixed(0).padStart(3)} fps`, '');
+      const hint = [];
+      if (gpuTag === 'Intel (integrata)') hint.push('! Sta usando la scheda INTEGRATA: imposta la GPU NVIDIA per questa app (Impostazioni > Sistema > Schermo > Grafica).');
+      if (res.a > 18 && res.b < res.a * 0.75) hint.push('- Il bagliore pesa molto: la qualità "media" lo toglie.');
+      if (res.a > 18 && res.d < res.a * 0.65) hint.push('- Pesa la risoluzione: la risoluzione dinamica la abbassa da sola.');
+      if (f2 > f1 * 1.35) hint.push('- I monitor HTML (pagine web sovrapposte) costano molto: è un limite del browser, non della GPU.');
+      if (res.f < res.a * 0.8) hint.push('- Il depth buffer logaritmico costa: si può eliminare.');
+      if (res.a <= 12) hint.push('- La GPU disegna la scena con ampio margine: se gli fps sono bassi il collo di bottiglia è altrove (CPU o monitor HTML).');
+      lines.push(...(hint.length ? hint : ['Nessun collo di bottiglia evidente.'])); show();
+    } catch (e) { lines.push('Errore: ' + e.message); show(); }
+    bloom.enabled = bl0; setPR(pr0); renderer.capabilities.logarithmicDepthBuffer = ld0; C.yaw = y0; applyCam(); markDirty(); camDirty = true; benching = false;
   }
 
   // ---------- input ----------
@@ -10103,6 +10158,7 @@ const R3 = (() => {
   function frame(now) {
     if (!running) return;
     requestAnimationFrame(frame);
+    if (benching) return; rafN++;
     updateQL(now); updatePanel(now); drawClock(); drawPhone(now); updateDisplays(now); walk(now);
     if (syncTrains() && speed > 0) markDirty(); updateSound(now);
     if (now - lightT > 500) { lightT = now; light(); const mc = document.querySelector('#r3m1 .mclk'); if (mc) mc.textContent = fmt(S.simT); }
@@ -10110,7 +10166,7 @@ const R3 = (() => {
     if (quality !== 'bassa') composer.render(); else renderer.render(scene, camera);
     if (camDirty) { clipScreens(); for (const A of SCR) A.cr.render(A.cs, cssCam); }
     dirty = camDirty = false; fpsN++;
-    if (now - fpsT > 1000) { if (!fpsEl) fpsEl = document.querySelector('.hud3 .fps'); if (fpsEl) fpsEl.textContent = `${Math.round(fpsN * 1000 / (now - fpsT))} fps`; fpsN = 0; fpsT = now; }
+    if (now - fpsT > 1000) { if (!fpsEl) fpsEl = document.querySelector('.hud3 .fps'); if (fpsEl) { const f = Math.round(fpsN * 1000 / (now - fpsT)); fpsEl.textContent = `${f} fps · ${gpuTag}${prNow < prTarget - 0.01 ? ' · ' + prNow.toFixed(2) + '×' : ''}`; fpsEl.title = 'GPU in uso: ' + gpuName + ' · scala di disegno ' + prNow.toFixed(2); adapt(f, fpsN >= rafN * 0.9 && rafN > 20); } fpsN = 0; rafN = 0; fpsT = now; }
   }
 
   // ---------- passaggio 2D <-> 3D ----------
