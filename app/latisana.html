@@ -552,7 +552,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.2.1';
+window.SIM_BUILD = '2.2.2';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -7953,7 +7953,7 @@ const R3 = (() => {
       ceilMats.push(lm); lm.userData.grp = z < 0 ? 'A' : 'B'; box(x, H - 15, z, 1200, 15, 300, lm).castShadow = false;
     }
     // una sola luce ad area per gruppo di plafoniere (A lato banco, B lato porta): metà del costo di calcolo
-    for (const z of [-300, 1000]) { const ra = new THREE.RectAreaLight(0xfff4e4, 6, M(3300), M(300)); ra.position.set(M(450), M(H - 20), M(z)); ra.lookAt(M(450), 0, M(z)); scene.add(ra); ra.userData.grp = z < 0 ? 'A' : 'B'; ceilLights.push(ra); }
+    for (const z of [-300, 1000]) { const ra = new THREE.RectAreaLight(0xfff4e4, 6, M(3300), M(300)); ra.position.set(M(450), M(H - 20), M(z)); ra.lookAt(M(450), 0, M(z)); scene.add(ra); { const fl = new THREE.PointLight(0xfff0dc, 0, 6.5, 1.6); fl.position.set(M(450), M(H - 300), M(z)); fl.userData.grp = z < 0 ? 'A' : 'B'; scene.add(fl); fillLights.push(fl); } ra.userData.grp = z < 0 ? 'A' : 'B'; ceilLights.push(ra); }
 
     // ---------- banco ACEI ----------
     const prof = [[0, 720], [0, yD], [zD, yD], [zP, yP], [zQ, yQ], [zB, yQ], [zB, 0], [-250, 0], [-250, 720]];
@@ -8204,7 +8204,8 @@ const R3 = (() => {
   // L'ufficio è il chiosco sul marciapiede del binario 1: dalla finestra (parete x = X1) si vedono,
   // allontanandosi, marciapiede 1, binari 1 e 2, marciapiede a isola 2-3 con pensilina e sottopasso,
   // binari 3 e 4, marciapiede 4, recinzione e case. Misure in mm, binari lungo l'asse z.
-  const winLit = [], poolPts = [];
+  const FILL_I = 1.2, ST_I = 3;
+  const winLit = [], poolPts = [], lampN = [], fillLights = [];
   const outLit = [];            // materiali esterni "illuminati" di notte dai lampioni (emissione tenue)
   let dispTex = [];             // tabelloni elettronici
   function buildStation() {
@@ -8306,11 +8307,11 @@ const R3 = (() => {
     // ---- pensilina del marciapiede 1 (sopra l'ufficio) ----
     const pz0 = -70000, pz1 = 90000, pl = pz1 - pz0, pzc = (pz0 + pz1) / 2;
     box((FAC + X1 + 2900) / 2, 3300, pzc, X1 + 2900 - FAC, 200, pl, mat({ color: 0x4a4f53, roughness: 0.6, metalness: 0.3 }), stn);
-    const und = plane((FAC + X1 + 2900) / 2, 3298, pzc, X1 + 2900 - FAC, pl, lit(mat({ map: rep(tUnder, 3, pl / 1500), roughness: 0.8 }), 1.2), 0, -90, stn); und.castShadow = false;
+    const und = plane((FAC + X1 + 2900) / 2, 3298, pzc, X1 + 2900 - FAC, pl, lit(mat({ map: rep(tUnder, 3, pl / 1500), roughness: 0.8 }), 0.12), 0, -90, stn); und.castShadow = false;
     box(X1 + 2900, 3150, pzc, 90, 420, pl, mat({ color: 0x3d4246, roughness: 0.5, metalness: 0.4 }), stn);
     const glob = new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0xffe2a8, emissiveIntensity: 0.15, roughness: 0.3 }); mats.globe = glob;
     { const pos = []; for (let z = pz0 + 3750; z < pz1; z += 7500) if (z < Z0 - 400 || z > Z1 + 400) pos.push(z);
-      for (const z of pos) poolPts.push([X1 + 2050, z, 6500]);
+      for (const z of pos) poolPts.push([X1 + 2050, z, 6500, 2700]);
       const col = new THREE.InstancedMesh(new THREE.CylinderGeometry(M(90), M(100), M(3300), 16), mSteelD, pos.length), gl = new THREE.InstancedMesh(new THREE.SphereGeometry(M(170), 18, 12), glob, pos.length), o = new THREE.Object3D();
       pos.forEach((z, i) => { o.position.set(M(X1 + 2350), M(1650), M(z)); o.updateMatrix(); col.setMatrixAt(i, o.matrix); o.position.set(M(X1 + 2050), M(2700), M(z)); o.updateMatrix(); gl.setMatrixAt(i, o.matrix); });
       stn.add(col); stn.add(gl);
@@ -8354,12 +8355,12 @@ const R3 = (() => {
     for (const s of [-1, 1]) {
       const g = new THREE.Group(); g.position.set(M(XC + s * HW / 2), M(4000), M(izc)); g.rotation.z = s * 5 * DEG; stn.add(g);
       const r = new THREE.Mesh(new THREE.BoxGeometry(M(HW + 100), M(120), M(il)), mat({ color: 0x5f7a6b, roughness: 0.5, metalness: 0.3 })); r.castShadow = false; g.add(r);
-      const u = new THREE.Mesh(new THREE.PlaneGeometry(M(HW + 100), M(il)), lit(mat({ map: rep(tUnder, 2, il / 1200), roughness: 0.8 }), 1.2)); u.rotation.x = Math.PI / 2; u.position.y = M(-62); g.add(u);
+      const u = new THREE.Mesh(new THREE.PlaneGeometry(M(HW + 100), M(il)), lit(mat({ map: rep(tUnder, 2, il / 1200), roughness: 0.8 }), 0.12)); u.rotation.x = Math.PI / 2; u.position.y = M(-62); g.add(u);
       box(XC + s * (HW + 30), 3550, izc, 80, 380, il, mGreen, stn);
     }
     box(XC, 3950, izc, 260, 250, il, mGreen, stn);
     { const pos = []; for (let z = iz0 + 4500; z < iz1; z += 9000) if (z < SZ0 - 600 || z > SZ1 + 600) pos.push(z);
-      for (const z of pos) poolPts.push([XC, z, 7000]);
+      for (const z of pos) poolPts.push([XC, z, 7000, 3800]);
       const col = new THREE.InstancedMesh(new THREE.BoxGeometry(M(220), M(3900), M(220)), mGreen, pos.length), br = new THREE.InstancedMesh(new THREE.BoxGeometry(M(2400), M(140), M(160)), mGreen, pos.length), lm = new THREE.InstancedMesh(new THREE.BoxGeometry(M(160), M(70), M(1400)), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4e0, emissiveIntensity: 0.2 }), pos.length), o = new THREE.Object3D();
       mats.islandLamp = lm.material;
       pos.forEach((z, i) => { o.rotation.set(0, 0, 0); o.position.set(M(XC), M(1950), M(z)); o.updateMatrix(); col.setMatrixAt(i, o.matrix); o.position.set(M(XC), M(3700), M(z)); o.updateMatrix(); br.setMatrixAt(i, o.matrix); o.position.set(M(XC), M(3780), M(z + 4500)); o.updateMatrix(); lm.setMatrixAt(i, o.matrix); });
@@ -8386,7 +8387,7 @@ const R3 = (() => {
     hang(XC, 2600, SZ0 - 300, 1300, 420, blueSign('SOTTOPASSAGGIO  ⇩  USCITA', 900, 290, 66), -90, 40, 3950);
     // ---- marciapiede 4: lampioni, recinzione, case e alberi oltre ----
     { const pos = []; for (let z = -100000; z < 130000; z += 20000) pos.push(z);
-      for (const z of pos) poolPts.push([P4b - 900, z, 6500]);
+      for (const z of pos) poolPts.push([P4b - 900, z, 6500, 6000]);
       const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(M(60), M(90), M(6000), 12), mGalv, pos.length), head = new THREE.InstancedMesh(new THREE.BoxGeometry(M(700), M(120), M(300)), new THREE.MeshStandardMaterial({ color: 0xfff8e8, emissive: 0xffe9c0, emissiveIntensity: 0.15 }), pos.length), o = new THREE.Object3D();
       mats.p4Lamp = head.material;
       pos.forEach((z, i) => { o.position.set(M(P4b - 600), M(3000), M(z)); o.updateMatrix(); pole.setMatrixAt(i, o.matrix); o.position.set(M(P4b - 900), M(6000), M(z)); o.updateMatrix(); head.setMatrixAt(i, o.matrix); });
@@ -8400,6 +8401,8 @@ const R3 = (() => {
       const im = mats.poolMesh = new THREE.InstancedMesh(pg2, pm, poolPts.length), o = new THREE.Object3D();
       poolPts.forEach(([x, z, d], i) => { o.position.set(M(x), 0.012, M(z)); o.scale.set(M(d), 1, M(d)); o.updateMatrix(); im.setMatrixAt(i, o.matrix); });
       im.frustumCulled = false; im.visible = false; im.renderOrder = 2; stn.add(im); }
+    // luci vere dei lampioni: poche, assegnate ai punti luce più vicini all'osservatore (le altre restano solo come chiazze sul suolo)
+    for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffdca0, 0, 20, 2); l.castShadow = false; stn.add(l); lampN.push(l); }
     for (const z of [-8000, 14000, 36000]) { bench(P4a + 2000, z, -90); bin(P4a + 2600, z + 4000); }
     const fenceT = ctex(512, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#7f95a6'; for (let x = 4; x < w; x += 22) g.fillRect(x, 10, 9, h - 10); g.fillRect(0, 20, w, 12); g.fillRect(0, h - 40, w, 12); });
     const fm = mat({ map: rep(fenceT, LEN / 3000, 1), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.4 });
@@ -8415,7 +8418,7 @@ const R3 = (() => {
       g.fillStyle = 'rgba(0,0,0,.08)'; g.fillRect(0, H2 - 40, W2, 40); grime(g, W2, H2, 128, 0.25, 3); });
     // finestre accese di notte: solo alcune, giallo caldo, il resto resta buio
     const houseEmi = floors => ctex(512, 512, (g, W2, H2) => { g.fillStyle = '#000'; g.fillRect(0, 0, W2, H2); const fh = H2 / floors;
-      for (let r = 0; r < floors; r++) for (let k = 0; k < 4; k++) if (rnd() < 0.3) { const x = 40 + k * 120, y = r * fh + fh * 0.25; g.fillStyle = rnd() < 0.5 ? '#ffc874' : '#ffe2a8'; g.fillRect(x, y, 60, fh * 0.55); } });
+      for (let r = 0; r < floors; r++) for (let k = 0; k < 4; k++) if (rnd() < 0.24) { const x = 40 + k * 120, y = r * fh + fh * 0.25; g.fillStyle = rnd() < 0.5 ? '#ff9f3a' : '#ffc46a'; g.fillRect(x, y, 60, fh * 0.55); } });
     const houseCols = ['#e8dcc4', '#efe3cf', '#d9b98f', '#f1ead9', '#e2c9a6', '#d7a98a', '#eadfb8'], shutCols = ['#3f6b4a', '#7a4a2a', '#5d6a72', '#3f6b4a'];
     for (let i = 0; i < 18; i++) {
       const z = -150000 + i * 17000 + rnd() * 7000, x = FEN + 9000 + rnd() * 11000, w = 9000 + rnd() * 6000, d = 9000 + rnd() * 3000, fl = 2 + Math.floor(rnd() * 2), h = fl * 2900 + 400;
@@ -10197,12 +10200,18 @@ const R3 = (() => {
     renderer.toneMappingExposure = (0.85 + nightOut * 0.15) * (1 - 0.1 * oc);
     const on = g => g === 'A' ? ceilA : ceilB, cf = ceilOnF();
     for (const l of ceilLights) { l.intensity = on(l.userData.grp) ? 2.4 : 0; l.visible = true; }
+    for (const l of fillLights) { l.intensity = on(l.userData.grp) ? FILL_I * (0.35 + 0.65 * (1 - d)) : 0; l.visible = true; }
+    { // luci dei lampioni: le più vicine all'osservatore (solo alta e ultra)
+      const on2 = quality === 'alta' || quality === 'ultra', nO = Math.max(0, 1 - d * 1.6), cp = camera.position;
+      for (const l of lampN) l.visible = on2;
+      if (on2) { const c = poolPts.map(q => ({ q, k: (M(q[0]) - cp.x) ** 2 + (M(q[1] === undefined ? 0 : q[1]) * 0) + (M(q[1]) - cp.z) ** 2 })); c.sort((a, b) => a.k - b.k);
+        lampN.forEach((l, i) => { const q = c[i] && c[i].q; if (q) { l.position.set(M(q[0]), M(q[3]) - 0.1, M(q[1])); l.intensity = nO * ST_I; } }); } }
     for (const m of ceilMats) { const o = on(m.userData.grp); m.emissiveIntensity = o ? 1.6 : 0; m.color.setHex(o ? 0xffffff : 0x9a9a94); }
-    hemiBase = hemi.intensity = 0.004 + cf * 0.105 + d * (0.18 * (1 - 0.3 * oc) + 0.10 * oc); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
+    hemiBase = hemi.intensity = 0.003 + d * (0.18 * (1 - 0.3 * oc) + 0.10 * oc); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
     { const want = (quality === 'alta' || quality === 'ultra') && sp.el > 0.07 && sunK > 0.25;
       if (want !== trainCast) { trainCast = want; for (const [, e] of trains3) e.grp.traverse(o => { if (o.isMesh) o.castShadow = want; }); renderer.shadowMap.needsUpdate = true; }
     }
-    envBase = scene.environmentIntensity = 0.004 + cf * 0.09 + d * (0.14 + 0.05 * oc); sunBase = sun.intensity;
+    envBase = scene.environmentIntensity = 0.003 + d * (0.14 + 0.05 * oc); sunBase = sun.intensity;
     // asfalto, marciapiedi e massicciata bagnati con la pioggia
     wetK += ((wx.rain > 0.15 ? 1 : 0) - wetK) * 0.06;
     for (const m of wetMats) { if (!m.userData.c0) { m.userData.c0 = m.color.clone(); m.userData.r0 = m.roughness; } m.color.copy(m.userData.c0).multiplyScalar(1 - 0.32 * wetK); m.roughness = m.userData.r0 * (1 - 0.5 * wetK); }
@@ -10212,7 +10221,7 @@ const R3 = (() => {
     const nOut = Math.max(0, 1 - d * 1.6);
     lightMats.head.emissiveIntensity = 1 + nOut * 4; lightMats.tail.emissiveIntensity = 1 + nOut * 3;
     for (const m of outLit) m.emissiveIntensity = nOut * 0.32 * (m.userData.litK || 1);
-    for (const m of winLit) m.emissiveIntensity = nOut * 1.7;
+    for (const m of winLit) m.emissiveIntensity = nOut * 0.75;
     if (mats.pool) { mats.pool.opacity = nOut * 0.36; mats.poolMesh.visible = nOut > 0.03; }
     for (const m of trainLit) m.emissiveIntensity = nOut * 0.9;
     if (mats.globe) { mats.globe.emissiveIntensity = 0.15 + nOut * 2.2; mats.islandLamp.emissiveIntensity = 0.2 + nOut * 2.4; mats.p4Lamp.emissiveIntensity = 0.15 + nOut * 2.4; }
@@ -10465,7 +10474,7 @@ const R3 = (() => {
     const rain = wx.rain;
     rainMesh.visible = rain > 0.02; dropsMesh.visible = rain > 0.1;
     if (rainMesh.visible) { const u = rainMesh.material.uniforms; u.t.value = now / 1000; u.a.value = (0.5 + 0.5 * rain) * (0.45 + 0.55 * dayK); u.slant.value = wx.wind * 0.32; u.col.value.setRGB(0.45 + 0.4 * dayK, 0.5 + 0.38 * dayK, 0.58 + 0.34 * dayK); markDirty(); }
-    if (dropsMesh.visible) { dropsMesh.material.opacity = Math.min(0.85, rain * 0.9); dropsTex.offset.y -= dt * 0.0025 * (0.5 + rain); }
+    if (dropsMesh.visible) { dropsMesh.material.opacity = Math.min(0.85, rain * 0.9); dropsTex.offset.y += dt * 0.0025 * (0.5 + rain); }
     if (wx.storm) { if (!nextFlash) nextFlash = now + 3000 + Math.random() * 6000; if (now >= nextFlash) { bolt(now); nextFlash = now + 7000 + Math.random() * 24000; } } else nextFlash = 0;
     if ((S.wxFlash || 0) !== lastWxFlash) { lastWxFlash = S.wxFlash || 0; if (lastWxFlash) bolt(now); }
     if (flash2 && now >= flash2) { flash = Math.max(flash, 0.8); flash2 = 0; }
