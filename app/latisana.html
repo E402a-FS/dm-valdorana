@@ -496,7 +496,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '2.0.5';
+window.SIM_BUILD = '2.1.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5244,7 +5244,7 @@ function genDay(d) {
   for (const t of list) if (CATS[t.cat].pax && t.stops) { const q = rp(); if (q < 0.07) t.prm = q < 0.035 ? 'discesa' : 'salita'; }
   // ritardi di provenienza dalle stazioni limitrofe (da +5' a +120'): il treno entra in linea in ritardo rispetto all'orario
   const rl = rng(d * 6151 + 29);
-  for (const t of list) { const q = rl(), u = rl(); t.late = 0; if (q < (CATS[t.cat].pax ? 0.05 : 0.20)) { t.late = Math.min(120, 5 + Math.floor(Math.pow(u, 2.2) * 116)); t.ready += t.late * 60; } }
+  for (const t of list) { const q = rl(), u = rl(); t.late = 0; if (q < (CATS[t.cat].pax ? 0.02 : 0.20)) { t.late = Math.min(120, 5 + Math.floor(Math.pow(u, 2.2) * 116)); t.ready += t.late * 60; } }
   // precedenze per orario: il merci con sosta programmata attende un viaggiatori dello stesso senso
   for (const t of list) if (t.stopType === 'sosta programmata') {
     const v = list.filter(p => CATS[p.cat].pax && p.dir === t.dir && (p.late || 0) <= 10 && p.arr > t.arr + 60 && p.arr < t.arr + Math.max(25, t.stopMin) * 60).sort((a, b) => a.arr - b.arr)[0];
@@ -5307,7 +5307,7 @@ function newState(startDay = 0, startHour = 5.5) {
   S = {
     simT: startDay * 86400 + startHour * 3600, sw, cdb, line, sig, pl, key: 'N', trains: [], TT: [], genDays: [], intDays: [], active: {}, sigActive: {}, lineLast: {}, ev: null,
     faults: {}, sigFault: {}, blkFault: {}, phone: [], phoneQ: [], m40n: 0, moduli: [], ints: [], intN: 0, dcN: 0,
-    libCount: 0, bcaCount: 0, paxDelay: 0, irreg: 0, served: 0, presc: 0, faultsOn: true, nextFault: startDay * 86400 + startHour * 3600 + 1500 + Math.random() * 2400, logs: [], viMode: false,
+    libCount: 0, bcaCount: 0, paxDelay: 0, irreg: 0, served: 0, presc: 0, faultsOn: true, nextFault: startDay * 86400 + startHour * 3600 + 1500 + Math.random() * 2400, logs: [], viMode: false, wxSeed: Math.floor(Math.random() * 1e9), wx: null, wxK: null, wxChk: 0, wxFlash: 0,
   };
   ensureDays(true);
   stableCantiere();
@@ -6301,9 +6301,54 @@ function updateLines(dt) {
   for (const k of PLAS) { const p = S.pl[k]; if (p.st === 'allarme') continue; if (dem && (p.st === 'A' || p.st === 'aprendo')) { p.st = 'chiudendo'; p.t = S.simT + 12; } if (!dem && p.st === 'C') { p.st = 'aprendo'; p.t = S.simT + 6; } }
   for (const k in S.pl) { const p = S.pl[k]; if (p.st === 'chiudendo' && S.simT >= p.t) { p.st = 'C'; if (PLS[k].cmd) log(`${PLS[k].lab}: chiuso e controllato`, 'ok'); } if (p.st === 'aprendo' && S.simT >= p.t) p.st = 'A'; }
 }
+// ---------- meteo ----------
+// il tempo cambia ogni ora e mezza: sequenza casuale (diversa a ogni nuovo turno) con una certa continuità e con le nebbie più probabili di notte e al mattino
+// e i temporali più probabili nel pomeriggio e alla sera
+const WX_SLOT = 5400, WX_FAULT_P = 0.05;
+const WX = {
+  sereno:    { k: 'sereno',    n: 'sereno',        ovc: 0,    rain: 0,   fog: 0,    wind: 0.08, bad: false, msg: 'il cielo è sereno' },
+  poco:      { k: 'poco',      n: 'poco nuvoloso', ovc: 0.25, rain: 0,   fog: 0,    wind: 0.15, bad: false, msg: 'cielo poco nuvoloso' },
+  nuvoloso:  { k: 'nuvoloso',  n: 'nuvoloso',      ovc: 0.62, rain: 0,   fog: 0.04, wind: 0.25, bad: false, msg: 'il cielo si copre' },
+  nebbia:    { k: 'nebbia',    n: 'nebbia',        ovc: 0.8,  rain: 0,   fog: 0.9,  wind: 0.03, bad: false, msg: 'si alza la nebbia: visibilità ridotta' },
+  pioggia:   { k: 'pioggia',   n: 'pioggia',       ovc: 0.92, rain: 0.6, fog: 0.22, wind: 0.4,  bad: true,  msg: 'inizia a piovere' },
+  temporale: { k: 'temporale', n: 'temporale',     ovc: 1,    rain: 1,   fog: 0.3,  wind: 0.9,  bad: true, storm: true, msg: 'temporale in corso: pioggia intensa e fulmini' },
+};
+function wxPick(slot, prev) {
+  const h = (slot * WX_SLOT % 86400) / 3600, r = rng(((S.wxSeed || 0) + slot * 7919 + 12345) | 0); r();
+  const w = { sereno: 26, poco: 22, nuvoloso: 22, nebbia: (h < 9.5 || h >= 21.5) ? 15 : 3, pioggia: 14, temporale: (h >= 13.5 && h < 22.5) ? 7 : 1.5 };
+  if (prev === 'pioggia') { w.pioggia += 12; w.temporale += 6; w.nuvoloso += 6; }
+  else if (prev === 'temporale') { w.pioggia += 14; w.temporale += 5; }
+  else if (prev === 'nebbia') { w.nebbia += 10; w.nuvoloso += 6; }
+  else if (prev === 'nuvoloso') { w.pioggia += 5; w.poco += 5; }
+  let tot = 0; for (const k in w) tot += w[k];
+  let q = r() * tot; for (const k in w) { q -= w[k]; if (q <= 0) return k; } return 'sereno';
+}
+function wxKind(slot) { return wxPick(slot, wxPick0(slot - 1)); }
+function wxPick0(slot) { return wxPick(slot, null); }
+// condizioni all'istante t (parametri interpolati negli ultimi 10 minuti di ogni fascia)
+function wxAt(t) {
+  const sl = Math.floor(t / WX_SLOT), a = WX[wxKind(sl)], f = (t - sl * WX_SLOT) / WX_SLOT, T = 600 / WX_SLOT, u = Math.max(0, (f - (1 - T)) / T);
+  if (u <= 0) return { k: a.k, n: a.n, ovc: a.ovc, rain: a.rain, fog: a.fog, wind: a.wind, bad: a.bad, storm: !!a.storm };
+  const b = WX[wxKind(sl + 1)], L = (x, y) => x + (y - x) * u;
+  return { k: a.k, n: a.n, ovc: L(a.ovc, b.ovc), rain: L(a.rain, b.rain), fog: L(a.fog, b.fog), wind: L(a.wind, b.wind), bad: a.bad, storm: !!a.storm && u < 0.5 || !!b.storm && u >= 0.5 };
+}
+function updateWeather() {
+  const k = wxKind(Math.floor(S.simT / WX_SLOT));
+  S.wx = wxAt(S.simT);
+  if (S.wxK !== k) {
+    if (S.wxK !== null) log(`Meteo: ${WX[k].msg}`, WX[k].bad || k === 'nebbia' ? 'warn' : '');
+    S.wxK = k;
+  }
+  S.wxBad = !!WX[k].bad;
+}
 function updateFaults() {
-  if (S.faultsOn && S.simT >= S.nextFault) {
-    S.nextFault = S.simT + 2700 + Math.random() * 4500;
+  if (S.faultsOn && S.simT >= S.nextFault) { S.nextFault = S.simT + 2700 + Math.random() * 4500; makeFault(false); }
+  // maltempo (pioggia o temporale): ogni 10 minuti il 5% di probabilità in più di un danno agli impianti, che si aggiunge ai guasti ordinari
+  if (S.faultsOn && S.wxBad && S.simT >= S.wxChk) { S.wxChk = S.simT + 600; if (Math.random() < WX_FAULT_P) makeFault(true); }
+  faultsProgress();
+}
+function makeFault(byWx) {
+  {
     const q = Math.random();
     let type = q < 0.25 ? 'cdb' : q < 0.48 ? 'sw' : q < 0.66 ? 'sig' : q < 0.82 ? 'blk' : q < 0.92 ? 'pla' : 'bca', cand;
     if (type === 'cdb') cand = ['B1', 'B2', 'B3', 'B4', 'D1', 'D8', 'D4', 'D7', 'Z3W', 'Z2W', 'Z3E', 'Z2E'].filter(k => !S.cdb[k].occ && !S.cdb[k].lock && !S.faults[k]);
@@ -6321,9 +6366,12 @@ function updateFaults() {
       if (type === 'sig') { S.sigFault[k] = true; log(`Anormalità: segnale ${sigLab(k)} spento/guasto, non può disporsi a via libera — CEI`, 'err'); }
       if (type === 'pla') { S.pl[k].st = 'allarme'; log(`Anormalità: ${PLS[k].lab} in allarme (barriere senza controllo) — CEI`, 'err'); }
       if (type === 'bca') { S.cdb[k].fault = true; log(`Anormalità: conta assi della ${cname(k)} indica occupazione (BCA guasto) — ripristino con TlBca1 previo accertamento, oppure CEI`, 'err'); }
+      if (byWx) { log(`Il maltempo (${S.wx ? S.wx.n : 'pioggia'}) ha danneggiato gli impianti`, 'warn'); if (S.wx && S.wx.storm) S.wxFlash = S.simT; }
       onSound('err');
     }
   }
+}
+function faultsProgress() {
   for (const k of Object.keys(S.faults)) {
     const f = S.faults[k];
     if (f.state === 'attesa' && S.simT >= f.t1) {
@@ -6647,6 +6695,7 @@ function tick(dt) {
   S.trains = S.trains.filter(t => !t.gone);
   computeOcc();
   updateLines(dt);
+  updateWeather();
   updateFaults();
   updatePhone(dt);
   updateExtM40a(dt);
@@ -7510,7 +7559,7 @@ const R3 = (() => {
   const { THREE, CSS3DRenderer, CSS3DObject, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, RoomEnvironment, RectAreaLightUniformsLib, RoundedBoxGeometry } = window.T3 || {};
   const view = document.getElementById('room3d');
   const M = v => v / 1000, DEG = Math.PI / 180;
-  let gpuName = '', gpuTag = '', prTarget = 1, prNow = 1, benching = false, rafN = 0, goodN = 0;
+  let wetMats = [], wetK = 0, flash = 0, hemiBase = 0.3, envBase = 0.1, sunBase = 0, dayK = 1, rainMesh = null, platLights = [], dropsMesh = null, dropsTex = null, nextFlash = 0, flash2 = 0, lastWxFlash = 0, thunderQ = [], gpuName = '', gpuTag = '', prTarget = 1, prNow = 1, benching = false, rafN = 0, goodN = 0;
   let renderer, css, scene, cssScene, camera, cssCam, composer, bloom, built = false, running = false, quality = 'alta';
   const T = {};                  // superfici inquadrabili (mm)
   const tick = [];               // funzioni chiamate a ogni fotogramma
@@ -7644,16 +7693,52 @@ const R3 = (() => {
     box(XF, WY0, WZ0 + 35, 70, hl, 70, frm); box(XF, WY0, WZ1 - 35, 70, hl, 70, frm);
     for (const k of [1, 2]) box(XF, WY0, WZ0 + wl * k / 3, 70, hl, 55, frm);
     box(XF, WY0 + hl * 0.8, zc, 70, 40, wl, frm);
-    glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.05, transparent: true, opacity: 0.12, envMapIntensity: 1.5 });
+    glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.05, transparent: true, depthWrite: false, opacity: 0.12, envMapIntensity: 1.5 });
     const gl = plane(XF + 10, (WY0 + WY1) / 2, zc, wl, hl, glassMat, -90); gl.castShadow = false; gl.receiveShadow = false;
+    // involucro invisibile che proietta ombra: pareti e soffitto sottili lasciavano filtrare il sole lungo gli spigoli (bagliore sul soffitto)
+    { const sm = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); sm.shadowSide = THREE.FrontSide;
+      const sh = (x0, x1, y0, y1, z0, z1) => { const o = new THREE.Mesh(new THREE.BoxGeometry(M(x1 - x0), M(y1 - y0), M(z1 - z0)), sm); o.position.set(M((x0 + x1) / 2), M((y0 + y1) / 2), M((z0 + z1) / 2)); o.castShadow = true; o.receiveShadow = false; o.renderOrder = -20; scene.add(o); };
+      const TK = 400;
+      sh(X0 - TK, X1 + 260, H, H + TK, Z0 - TK, Z1 + TK);       // soffitto
+      sh(X0 - TK, X0, -200, H, Z0 - TK, Z1 + TK);                // parete della porta
+      sh(X0, X1 + 260, -200, H, Z0 - TK, Z0);                    // parete dietro il banco
+      sh(X0, X1 + 260, -200, H, Z1, Z1 + TK);                    // parete verso il corridoio
+      sh(X1, X1 + 260, -200, H, Z1, Z1 + 1);                     // (spigolo)
+      sh(X1, X1 + 260, -200, H, WZ1, Z1);                        // parete della finestra: a destra del vano
+      sh(X1, X1 + 260, -200, H, Z0, WZ0);                        // a sinistra del vano
+      sh(X1, X1 + 260, -200, WY0, WZ0, WZ1);                     // sotto il vano
+      sh(X1, X1 + 260, WY1, H, WZ0, WZ1);                        // sopra il vano
+    }
+    // pioggia: tratti verticali animati dalla GPU, visibili solo fuori dalla finestra; gocce sul vetro
+    {
+      const N = 16000, pos = new Float32Array(N * 6), eA = new Float32Array(N * 2), x0 = M(XF) + 0.35;
+      for (let i = 0; i < N; i++) {
+        const r = Math.random(), x = x0 + 75 * r * r, y = Math.random() * 24, z = M(zc) + (Math.random() * 2 - 1) * (30 + (x - x0) * 1.3);
+        for (let v = 0; v < 2; v++) { const k = (i * 2 + v) * 3; pos[k] = x; pos[k + 1] = y; pos[k + 2] = z; eA[i * 2 + v] = v; }
+      }
+      const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); rg.setAttribute('e', new THREE.BufferAttribute(eA, 1));
+      const rm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { t: { value: 0 }, a: { value: 0 }, slant: { value: 0.1 }, col: { value: new THREE.Color(0xc8d2dc) } },
+        vertexShader: '#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute float e; uniform float t; uniform float slant; varying float vA; varying float vD;\nvoid main(){ float H = 24.0; float sp = 11.0 + 3.0 * fract(position.x * 7.13 + position.z * 3.7); float y = mod(position.y - t * sp, H); vec3 p = vec3(position.x + slant * (H - y), y, position.z); p += vec3(slant, -1.0, 0.0) * (1.5 * e); vec4 mv = viewMatrix * vec4(p, 1.0); vA = mix(0.12, 1.0, e); vD = -mv.z; gl_Position = projectionMatrix * mv;\n#include <logdepthbuf_vertex>\n}',
+        fragmentShader: '#include <logdepthbuf_pars_fragment>\nuniform vec3 col; uniform float a; varying float vA; varying float vD;\nvoid main(){\n#include <logdepthbuf_fragment>\n gl_FragColor = vec4(col, a * vA * exp(-vD * 0.018)); }' });
+      rainMesh = new THREE.LineSegments(rg, rm); rainMesh.frustumCulled = false; rainMesh.renderOrder = 4; rainMesh.visible = false; scene.add(rainMesh);
+      const dc = document.createElement('canvas'); dc.width = dc.height = 1024; const dg = dc.getContext('2d'); dg.fillStyle = '#000'; dg.fillRect(0, 0, 1024, 1024);
+      for (let i = 0; i < 280; i++) {
+        const x = Math.random() * 1024, y = Math.random() * 1024, r = 2 + Math.random() * Math.random() * 10, gr = dg.createRadialGradient(x, y, 0, x, y, r);
+        gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.6, 'rgba(190,190,190,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); dg.fillStyle = gr; dg.beginPath(); dg.ellipse(x, y, r * 0.8, r * 1.15, 0, 0, 7); dg.fill();
+        if (Math.random() < 0.2) { const L = 30 + Math.random() * 150, lg = dg.createLinearGradient(x, y - L, x, y); lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(1, 'rgba(255,255,255,0.4)'); dg.strokeStyle = lg; dg.lineWidth = 1.6; dg.beginPath(); dg.moveTo(x, y - L); dg.lineTo(x + (Math.random() - 0.5) * 6, y); dg.stroke(); }
+      }
+      dropsTex = new THREE.CanvasTexture(dc); dropsTex.wrapS = dropsTex.wrapT = THREE.RepeatWrapping;
+      dropsMesh = plane(XF + 4, (WY0 + WY1) / 2, zc, wl, hl, new THREE.MeshStandardMaterial({ color: 0xdfe7ee, alphaMap: dropsTex, transparent: true, opacity: 0, roughness: 0.08, metalness: 0, depthWrite: false }), -90);
+      dropsMesh.castShadow = dropsMesh.receiveShadow = false; dropsMesh.visible = false; dropsMesh.renderOrder = 3;
+    }
     T.win = { x: X1, y: (WY0 + WY1) / 2, z: zc, w: wl * 1.25, h: hl * 1.25, ry: -90 }; T.sw = { x: X1, y: 1150, z: WZ0 - 160, w: 500, h: 400, ry: -90 };
     // esterno: cielo (cupola con sfumatura e stelle), prato, alberi
     skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
-      uniforms: { cloud: { value: new THREE.Color(0xffffff) }, cover: { value: 0.45 }, top: { value: new THREE.Color(0x8ec5f0) }, bot: { value: new THREE.Color(0xd8e8f5) }, stars: { value: 0 }, sunDir: { value: new THREE.Vector3(-1, 0.5, 0) }, sunCol: { value: new THREE.Color(1, 0.95, 0.85) }, sunOn: { value: 1 }, glowCol: { value: new THREE.Color(0xff8040) }, glowK: { value: 0 }, moonDir: { value: new THREE.Vector3(0, 0.5, 1) }, moonPh: { value: 0.5 }, moonOn: { value: 0 }, tm: { value: 0 }, city: { value: 0 }, cloudLow: { value: new THREE.Color(0x000000) } },
+      uniforms: { cloud: { value: new THREE.Color(0xffffff) }, cover: { value: 0.45 }, flash: { value: 0 }, top: { value: new THREE.Color(0x8ec5f0) }, bot: { value: new THREE.Color(0xd8e8f5) }, stars: { value: 0 }, sunDir: { value: new THREE.Vector3(-1, 0.5, 0) }, sunCol: { value: new THREE.Color(1, 0.95, 0.85) }, sunOn: { value: 1 }, glowCol: { value: new THREE.Color(0xff8040) }, glowK: { value: 0 }, moonDir: { value: new THREE.Vector3(0, 0.5, 1) }, moonPh: { value: 0.5 }, moonOn: { value: 0 }, tm: { value: 0 }, city: { value: 0 }, cloudLow: { value: new THREE.Color(0x000000) } },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `uniform vec3 cloud; uniform float cover; uniform vec3 top; uniform vec3 bot; uniform float stars; uniform vec3 sunDir; uniform vec3 sunCol; uniform float sunOn;
-        uniform vec3 glowCol; uniform float glowK; uniform vec3 moonDir; uniform float moonPh; uniform float moonOn; uniform float tm; uniform float city; uniform vec3 cloudLow; varying vec3 vP;
+        uniform float flash; uniform vec3 glowCol; uniform float glowK; uniform vec3 moonDir; uniform float moonPh; uniform float moonOn; uniform float tm; uniform float city; uniform vec3 cloudLow; varying vec3 vP;
         float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164))) * 43758.5453); }
         float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
         float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
@@ -7678,6 +7763,7 @@ const R3 = (() => {
           // nuvole in movimento
           if (d.y > 0.02) { vec2 uv = d.xz / (d.y + 0.12) * 1.6 + vec2(tm * 0.004, tm * 0.0015); float cl = smoothstep(cover, cover + 0.28, fbm(uv + vec2(3.1, 1.7))); cl *= smoothstep(0.02, 0.2, d.y);
             float sh = fbm(uv * 1.3 + vec2(5.2, 9.1)); vec3 cc = mix(cloudLow, cloud, 0.55 + 0.45 * sh); cc += glowCol * glowK * 0.5 * pow(az, 2.0); c = mix(c, cc, cl * 0.9); }
+          c = mix(c, vec3(0.78, 0.84, 1.0), flash * (0.35 + 0.5 * (1.0 - clamp(d.y, 0.0, 1.0))));
           gl_FragColor = vec4(c, 1.0); }`
     });
     skyMat.depthTest = false; const sky = new THREE.Mesh(new THREE.SphereGeometry(300, 32, 16), skyMat); sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
@@ -7687,7 +7773,7 @@ const R3 = (() => {
     scene.fog = new THREE.Fog(0xd8e8f5, 90, 330);
     hemi = new THREE.HemisphereLight(0xdfe8f5, 0x6d665c, 0.3); scene.add(hemi);
     sun = new THREE.DirectionalLight(0xfff2dc, 2.5); sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 120 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+    sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 1, far: 140 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
     scene.add(sun); scene.add(sun.target); sun.target.position.set(M(0), 0, M(0));
     for (const [x, z] of [[-600, -300], [1500, -300], [-600, 1000], [1500, 1000]]) {
       const lm = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff6e6, emissiveIntensity: 1.6, roughness: 0.5 });
@@ -7980,11 +8066,11 @@ const R3 = (() => {
     const tSign = (txt, sub) => ctex(1024, 256, (g, w, h) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.strokeStyle = '#d0121b'; g.lineWidth = 14; g.strokeRect(7, 7, w - 14, h - 14); g.beginPath(); g.arc(130, h / 2, 80, 0, 7); g.lineWidth = 16; g.stroke(); g.fillStyle = '#222'; g.beginPath(); g.arc(130, h / 2 - 42, 14, 0, 7); g.fill(); g.fillRect(122, h / 2 - 26, 16, 70); g.strokeStyle = '#d0121b'; g.beginPath(); g.moveTo(75, h / 2 - 55); g.lineTo(185, h / 2 + 55); g.stroke(); g.fillStyle = '#d0121b'; g.font = 'bold 66px Arial'; g.textAlign = 'left'; g.fillText(txt, 250, h / 2 + 10); if (sub) { g.font = '40px Arial'; g.fillStyle = '#444'; g.fillText(sub, 250, h / 2 + 62); } });
     // ---- materiali ----
     const mBallast = lit(mat({ map: rep(tBallast, 3, LEN / 1500), roughness: 1 }), 0.5);
-    const mGround = lit(mat({ map: rep(tGround, 4, LEN / 3000), roughness: 1 }), 0.4);
+    const mGround = lit(mat({ map: rep(tGround, 4, LEN / 3000), roughness: 1 }), 0.4); wetMats.push(mBallast, mGround);
     const mSleeper = lit(mat({ color: 0x9a968c, roughness: 0.9 }), 0.4);
     const mRail = mat({ color: 0x5d5148, roughness: 0.55, metalness: 0.6 }), mRailTop = mat({ color: 0xd2d6da, roughness: 0.2, metalness: 1 });
     const mPave = (wx) => lit(mat({ map: rep(tPave, wx / 1500, LEN / 1500), roughness: 0.92 }), 1);
-    const mConc = lit(mat({ map: rep(tConc, LEN / 4000, 1), roughness: 0.9 }), 0.6);
+    const mConc = lit(mat({ map: rep(tConc, LEN / 4000, 1), roughness: 0.9 }), 0.6); wetMats.push(mConc);
     const mCurb = lit(mat({ color: 0xd6d3cb, roughness: 0.7 }), 0.8), mYellow = lit(mat({ color: 0xe8c21e, roughness: 0.6 }), 1);
     const mTact = lit(mat({ map: rep(ctex(64, 64, (g, w, h) => { g.fillStyle = '#c9c7c0'; g.fillRect(0, 0, w, h); g.fillStyle = '#9d9b94'; for (let x = 4; x < w; x += 16) g.fillRect(x, 0, 6, h); }), 1, LEN / 300), roughness: 0.8 }), 0.9);
     const mSteelD = mat({ color: 0x3e4347, roughness: 0.5, metalness: 0.6 }), mGreen = mat({ color: 0x4d6a5b, roughness: 0.5, metalness: 0.4 });
@@ -8003,7 +8089,7 @@ const R3 = (() => {
     }
     // ---- marciapiedi ----
     const platform = (x0, x1, z0, z1, edges) => {
-      const w = x1 - x0, l = z1 - z0, zc = (z0 + z1) / 2, m = mPave(w);
+      const w = x1 - x0, l = z1 - z0, zc = (z0 + z1) / 2, m = mPave(w); wetMats.push(m);
       const b = box((x0 + x1) / 2, GR, zc, w, -GR - 3, l, mConc, stn); b.castShadow = false;
       const t = plane((x0 + x1) / 2, -1, zc, w, l, m, 0, 90, stn); t.castShadow = false; if (m.map) m.map.repeat.set(w / 1500, l / 1500);
       for (const [ex, dir] of edges) { // bordo in pietra e linea gialla
@@ -8051,7 +8137,9 @@ const R3 = (() => {
     { const pos = []; for (let z = pz0 + 3750; z < pz1; z += 7500) if (z < Z0 - 400 || z > Z1 + 400) pos.push(z);
       const col = new THREE.InstancedMesh(new THREE.CylinderGeometry(M(90), M(100), M(3300), 16), mSteelD, pos.length), gl = new THREE.InstancedMesh(new THREE.SphereGeometry(M(170), 18, 12), glob, pos.length), o = new THREE.Object3D();
       pos.forEach((z, i) => { o.position.set(M(X1 + 2350), M(1650), M(z)); o.updateMatrix(); col.setMatrixAt(i, o.matrix); o.position.set(M(X1 + 2050), M(2700), M(z)); o.updateMatrix(); gl.setMatrixAt(i, o.matrix); });
-      stn.add(col); stn.add(gl); }
+      stn.add(col); stn.add(gl);
+      const nz = pos.slice().sort((a, b) => Math.abs(a - 300) - Math.abs(b - 300)).slice(0, 4);
+      for (const z of nz) { const pl2 = new THREE.PointLight(0xffd9a0, 0, 20, 2); pl2.position.set(M(X1 + 2050), M(2600), M(z)); pl2.visible = false; stn.add(pl2); platLights.push(pl2); } }
     // tabellone, numero di binario, segnale P.B. e orologio vicino all'ufficio
     const blueSign = (txt, w, h, fs) => ctex(Math.round(w), Math.round(h), (g, W2, H2) => { g.fillStyle = '#1e4fa3'; g.fillRect(0, 0, W2, H2); g.strokeStyle = '#fff'; g.lineWidth = 6; g.strokeRect(8, 8, W2 - 16, H2 - 16); g.fillStyle = '#fff'; g.font = `bold ${fs}px Arial`; g.textAlign = 'center'; g.fillText(txt, W2 / 2, H2 / 2 + fs * 0.35); });
     const hang = (x, y, z, w, h, tex, ry = -90, thick = 60, roof = 3300) => { box(x, y - h / 2, z, thick, h, w, mSteelD, stn); for (const s of [-1, 1]) box(x, y + h / 2, z + s * w / 3, 20, roof - y - h / 2, 20, mSteelD, stn); const m = lit(mat({ map: tex, roughness: 0.5 }), 0.8); const p = plane(x - thick / 2 - 2, y, z, w, h, m, ry, 0, stn); p.castShadow = false; const p2 = plane(x + thick / 2 + 2, y, z, w, h, m, -ry, 0, stn); p2.castShadow = false; return p; };
@@ -9399,7 +9487,7 @@ const R3 = (() => {
         const U = consist(tr.t || {}), grp = new THREE.Group(); trainGrp.add(grp);
         let off = 0; const veh = U.map((u, i) => { const g = vehicle(u); grp.add(g); const o = { g, L: u.L, off }; off += u.L + 0.3; return o; });
         lightsAt(veh[0].g, veh[0].L * 1000, true, !tr.stab); lightsAt(veh[veh.length - 1].g, veh[veh.length - 1].L * 1000, false, false);
-        grp.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+        grp.traverse(o => { if (o.isMesh) { o.castShadow = trainCast; o.receiveShadow = false; } });
         e = { grp, veh, clk: 0 }; trains3.set(tr, e);
       }
       // posizione dei veicoli lungo il percorso
@@ -9436,12 +9524,27 @@ const R3 = (() => {
       // bus dei treni: attenuato e filtrato come se si ascoltasse da un ufficio chiuso
       const trBus = AC.createGain(); trBus.gain.value = 0.32; const trLp = AC.createBiquadFilter(); trLp.type = 'lowpass'; trLp.frequency.value = 650; trLp.Q.value = 0.4;
       const trLp2 = AC.createBiquadFilter(); trLp2.type = 'lowpass'; trLp2.frequency.value = 1400; trBus.connect(trLp); trLp.connect(trLp2); trLp2.connect(AC.destination);
-      snd = { fG, hG, rG, rLp, hsG, clkBuf, buf: {}, trBus };
+      // pioggia sul vetro, scroscio lontano, vento e tuoni: tutto attenuato come se si ascoltasse da dentro l'ufficio
+      const rainN = noise(4, false), rHp = AC.createBiquadFilter(); rHp.type = 'highpass'; rHp.frequency.value = 600; const rLo = AC.createBiquadFilter(); rLo.type = 'lowpass'; rLo.frequency.value = 3600; const rainG = AC.createGain(); rainG.gain.value = 0;
+      rainN.connect(rHp); rHp.connect(rLo); rLo.connect(rainG); rainG.connect(AC.destination); rainN.start();
+      const rainB = noise(5, true), rbL = AC.createBiquadFilter(); rbL.type = 'lowpass'; rbL.frequency.value = 520; const rainG2 = AC.createGain(); rainG2.gain.value = 0; rainB.connect(rbL); rbL.connect(rainG2); rainG2.connect(AC.destination); rainB.start();
+      const windN = noise(6, true), wBp = AC.createBiquadFilter(); wBp.type = 'bandpass'; wBp.frequency.value = 260; wBp.Q.value = 0.7; const windG = AC.createGain(); windG.gain.value = 0; windN.connect(wBp); wBp.connect(windG); windG.connect(AC.destination); windN.start();
+      const thBus = AC.createGain(); thBus.gain.value = 0.9; const thLp = AC.createBiquadFilter(); thLp.type = 'lowpass'; thLp.frequency.value = 800; thBus.connect(thLp); thLp.connect(AC.destination);
+      snd = { fG, hG, rG, rLp, hsG, clkBuf, buf: {}, trBus, trLp, rainG, rainG2, windG, wBp, thBus };
       // registrazioni: rotolamento, frenatura e ronzio delle MDVC
       for (const k in (typeof TRAIN_SND !== 'undefined' ? TRAIN_SND : {})) { const b64 = TRAIN_SND[k].split(',')[1], bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
         AC.decodeAudioData(u.buffer).then(b => { snd.buf[k] = b; }).catch(() => {}); }
     } catch (e) { snd = null; }
     return snd;
+  }
+  // tuono sintetizzato: rumore bruno con colpo iniziale e lunga coda, in ritardo rispetto al lampo
+  function thunder(delay, power) {
+    if (!snd || !soundOn || !running) return;
+    const sr = AC.sampleRate, dur = 3 + Math.random() * 3.5, buf = AC.createBuffer(1, Math.floor(sr * dur), sr), d = buf.getChannelData(0), ph = Math.random() * 6; let l = 0;
+    for (let i = 0; i < d.length; i++) { const t = i / sr, w = Math.random() * 2 - 1; l = (l + 0.04 * w) / 1.04;
+      const env = (t < 0.07 ? t / 0.07 : Math.exp(-(t - 0.07) / (dur * 0.26))) * (0.62 + 0.38 * Math.sin(t * 5.3 + ph + Math.sin(t * 1.9) * 3));
+      d[i] = (l * 4.2 + (delay < 1.4 ? w * 0.55 * Math.exp(-t / 0.035) : 0)) * env; }
+    const s = AC.createBufferSource(); s.buffer = buf; const g = AC.createGain(); g.gain.value = Math.min(1.3, 0.55 * power); s.connect(g); g.connect(snd.thBus); s.start(AC.currentTime + delay);
   }
   function clack(vol) { if (!snd || vol < 0.004) return; const s = AC.createBufferSource(); s.buffer = snd.clkBuf; const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900 + Math.random() * 500; const g = AC.createGain(); g.gain.value = Math.min(0.5, vol); s.connect(f); f.connect(g); g.connect(AC.destination); s.start(); }
   let sndT = 0;
@@ -9452,6 +9555,10 @@ const R3 = (() => {
     if (!snd) return;
     const tt = AC.currentTime, set = (p, v) => p.setTargetAtTime(v, tt, 0.15);
     set(snd.fG.gain, on ? 0.022 : 0); set(snd.hG.gain, on ? 0.004 : 0);
+    { const w = S.wx || { rain: 0, wind: 0, fog: 0 };
+      set(snd.rainG.gain, on ? w.rain * 0.05 : 0); set(snd.rainG2.gain, on ? w.rain * 0.14 : 0);
+      set(snd.windG.gain, on ? w.wind * (0.05 + 0.03 * Math.sin(now / 1900) * Math.sin(now / 770)) : 0); snd.wBp.frequency.setTargetAtTime(230 + 170 * w.wind * (0.5 + 0.5 * Math.sin(now / 2300)), tt, 0.3);
+      snd.trLp.frequency.setTargetAtTime(650 * (1 - 0.4 * w.fog), tt, 0.5); }
     let roll = 0, hiss = 0, pitch = 300;
     const B = snd.buf, haveRec = B.roll_pax && B.roll_mrc, seen = new Set();
     // sorgente in loop per ogni treno vicino (rotolamento) e per il ronzio delle MDVC
@@ -9862,21 +9969,24 @@ const R3 = (() => {
     const sd = new THREE.Vector3(E * Math.cos(B) - N * Math.sin(B), Math.sin(el), -E * Math.sin(B) - N * Math.cos(B)).normalize();
     if (sp.el >= -0.05 && (!lastSun || lastSun.angleTo(sd) > 0.01)) { lastSun = sd.clone(); renderer.shadowMap.needsUpdate = true; }
     const eD = sp.el / DEG, now = new Date(), day = Math.floor(S.simT / 86400);
-    // meteo del giorno: sereno, poco nuvoloso o nuvoloso (senza pioggia né nebbia)
-    const wq = ((day * 2654435761) >>> 0) % 10, cover = wq < 4 ? 0.64 : wq < 8 ? 0.5 : 0.34, oc = Math.max(0, Math.min(1, (0.64 - cover) / 0.3));
+    // meteo (cambia ogni ora e mezza, calcolato dal motore): copertura, nebbia, pioggia
+    const wx = S.wx || { k: 'sereno', ovc: 0.1, rain: 0, fog: 0, wind: 0.1, storm: false }, oc = wx.ovc, cover = 0.64 - 0.42 * oc, sunK = Math.max(0, 1 - 1.05 * oc); dayK = d;
     // colori del cielo per altezza del sole: giorno, ora dorata, crepuscolo civile, nautico, astronomico, notte
     const KS = [[-90, 0x01030a, 0x070b16], [-18, 0x01030a, 0x070b16], [-12, 0x030816, 0x0d1426], [-6, 0x0b1838, 0x2a2c48], [-2, 0x203a72, 0x8a6a70], [2, 0x3f6db4, 0xe9a774], [8, 0x4f86cf, 0xc9d9e6], [20, 0x3f7fd4, 0xcfe2f1], [90, 0x2f6fca, 0xcfe0ef]];
     let a = KS[0], b = KS[KS.length - 1]; for (let k = 1; k < KS.length; k++) if (eD <= KS[k][0]) { a = KS[k - 1]; b = KS[k]; break; }
     const f = Math.max(0, Math.min(1, (eD - a[0]) / Math.max(1e-3, b[0] - a[0])));
     const top = C3(a[1], b[1], f), bot = C3(a[2], b[2], f), grey = new THREE.Color(0x8d939a).multiplyScalar(Math.max(0.04, d));
-    top.lerp(grey, oc * 0.55 * d); bot.lerp(grey, oc * 0.45 * d);
+    grey.multiplyScalar(1 - 0.42 * Math.max(0, (oc - 0.5) * 2));   // cielo di pioggia più scuro
+    top.lerp(grey, Math.min(1, oc * 0.55 + 0.35 * oc * oc * oc) * d); bot.lerp(grey, Math.min(1, oc * 0.45 + 0.4 * oc * oc * oc) * d);
+    { const fogC = bot.clone().lerp(new THREE.Color(0xaab2ba).multiplyScalar(Math.max(0.04, d)), Math.min(1, wx.fog * 1.1)); top.lerp(fogC, wx.fog * 0.8); bot.lerp(fogC, wx.fog);
+      if (scene.fog) { scene.fog.near = 90 - 89 * wx.fog; scene.fog.far = 330 - 305 * wx.fog; } }
     skyMat.uniforms.top.value.copy(top); skyMat.uniforms.bot.value.copy(bot);
     const twK = Math.max(0, 1 - Math.abs(eD + 2) / 8);    // crepuscolo: massimo con il sole 2° sotto l'orizzonte
     skyMat.uniforms.glowCol.value.copy(C3(0xff5a20, 0xffb070, Math.max(0, Math.min(1, (eD + 6) / 10)))); skyMat.uniforms.glowK.value = twK * (0.55 - 0.3 * oc);
     skyMat.uniforms.stars.value = Math.max(0, Math.min(1, (-eD - 6) / 8)) * (1 - oc * 0.85); skyMat.uniforms.city.value = Math.max(0, Math.min(1, (-eD - 3) / 6));
     skyMat.uniforms.cover.value = cover; skyMat.uniforms.tm.value = (S.simT % 86400) / 60;
     skyMat.uniforms.cloud.value.copy(C3(0x0d0f16, 0xf6f7f8, d)).lerp(new THREE.Color(0xf0a07a), twK * 0.5 * (1 - d)); skyMat.uniforms.cloudLow.value.copy(C3(0x07080c, 0xaab0b8, d)).lerp(new THREE.Color(0x1c1612), skyMat.uniforms.city.value * 0.6);
-    skyMat.uniforms.sunDir.value.copy(sd); skyMat.uniforms.sunOn.value = sp.el > -0.02 ? 1 - oc * 0.7 : 0; skyMat.uniforms.sunCol.value.copy(C3(0xff7a30, 0xfff1d8, Math.min(1, Math.max(0, eD / 12))));
+    skyMat.uniforms.sunDir.value.copy(sd); skyMat.uniforms.sunOn.value = sp.el > -0.02 ? sunK : 0; skyMat.uniforms.sunCol.value.copy(C3(0xff7a30, 0xfff1d8, Math.min(1, Math.max(0, eD / 12))));
     // luna: fase dalla data (lunazione 29,53 giorni) e posizione in ritardo sul sole di fase × 24 h
     const ph = (((now - Date.UTC(2000, 0, 6, 18, 14)) / 864e5 + (S.simT % 86400) / 86400 - (now.getHours() * 3600 + now.getMinutes() * 60) / 86400) / 29.530588 % 1 + 1) % 1;
     const mp = solar(((h - ph * 24.84) % 24 + 24) % 24), mel = mp.el, mca = Math.cos(Math.max(0.02, mel)), mE = Math.sin(mp.az) * mca, mN = Math.cos(mp.az) * mca;
@@ -9888,15 +9998,22 @@ const R3 = (() => {
     if (useMoon && (!lastSun || lastSun.angleTo(md) > 0.01)) { lastSun = md.clone(); renderer.shadowMap.needsUpdate = true; }
     sun.position.copy(ld).multiplyScalar(60).add(new THREE.Vector3(10, 0, 0)); sun.target.position.set(10, 0, 0);
     if (useMoon) { sun.intensity = 0.09 * illum * moonUp * (1 - oc * 0.7); sun.color.setHex(0x9db4ff); }
-    else { sun.intensity = 2.5 * d * (1 - 0.6 * oc); sun.color.copy(C3(0xff8a40, 0xfff4e0, Math.min(1, Math.max(0, eD / 14)))); }
+    else { sun.intensity = 2.5 * d * sunK; sun.color.copy(C3(0xff8a40, 0xfff4e0, Math.min(1, Math.max(0, eD / 14)))); }
     const nightOut = Math.max(0, Math.min(1, (2 - eD) / 8));
     glassMat.opacity = 0.12 + nightOut * 0.1;
-    renderer.toneMappingExposure = 0.85 + nightOut * 0.15;
+    renderer.toneMappingExposure = (0.85 + nightOut * 0.15) * (1 - 0.1 * oc);
     const on = g => g === 'A' ? ceilA : ceilB, cf = ceilOnF();
     for (const l of ceilLights) { l.intensity = on(l.userData.grp) ? 2.4 : 0; l.visible = l.intensity > 0; }
     for (const m of ceilMats) { const o = on(m.userData.grp); m.emissiveIntensity = o ? 1.6 : 0; m.color.setHex(o ? 0xffffff : 0x9a9a94); }
-    hemi.intensity = 0.006 + cf * 0.16 + d * 0.18 * (1 - 0.3 * oc); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
-    scene.environmentIntensity = 0.006 + cf * 0.14 + d * 0.14;
+    hemiBase = hemi.intensity = 0.006 + cf * 0.16 + d * (0.18 * (1 - 0.3 * oc) + 0.10 * oc); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
+    { const want = (quality === 'alta' || quality === 'ultra') && sp.el > 0.07 && sunK > 0.25;
+      if (want !== trainCast) { trainCast = want; for (const [, e] of trains3) e.grp.traverse(o => { if (o.isMesh) o.castShadow = want; }); renderer.shadowMap.needsUpdate = true; }
+      const ul = quality === 'ultra' ? Math.max(0, 1 - d * 1.6) : 0;
+      for (const l of platLights) { l.intensity = ul * 60; const v = ul > 0.02; if (l.visible !== v) { l.visible = v; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); } } }
+    envBase = scene.environmentIntensity = 0.006 + cf * 0.14 + d * (0.14 + 0.05 * oc); sunBase = sun.intensity;
+    // asfalto, marciapiedi e massicciata bagnati con la pioggia
+    wetK += ((wx.rain > 0.15 ? 1 : 0) - wetK) * 0.06;
+    for (const m of wetMats) { if (!m.userData.c0) { m.userData.c0 = m.color.clone(); m.userData.r0 = m.roughness; } m.color.copy(m.userData.c0).multiplyScalar(1 - 0.32 * wetK); m.roughness = m.userData.r0 * (1 - 0.5 * wetK); }
     lampSpot.intensity = lampOn ? LAMP_I : 0; lampBulbMat.emissiveIntensity = lampOn ? 1.0 : 0; lampBulbMat.color.setHex(lampOn ? 0xfff3d0 : 0x777777);
     for (const p of switchMesh) p.parent.rotation.x = on(p.userData.sw) ? -0.12 : 0.12;
     const nOut = Math.max(0, 1 - d * 1.6);
@@ -9950,7 +10067,7 @@ const R3 = (() => {
     if (camera.fov !== FOV0 && name !== 'q') setFov(FOV0);
     if (name === 'back') { go(hist.length ? hist.pop() : SEAT); return; }
     if (name === 'bench') { bench(); return; }
-    if (name === 'q') { quality = { alta: 'media', media: 'bassa', bassa: 'alta' }[quality] || 'media'; saveLS(); applyQuality(); return; }
+    if (name === 'q') { quality = { ultra: 'alta', alta: 'media', media: 'bassa', bassa: 'ultra' }[quality] || 'media'; saveLS(); applyQuality(); return; }
     hist.push(Object.assign({}, C)); if (hist.length > 20) hist.shift();
     if (PRE[name]) go(PRE[name]); else if (T[name]) go(target(T[name]));
   }
@@ -9968,9 +10085,12 @@ const R3 = (() => {
   function applyQuality() {
     if (!built) return;
     const hi = quality !== 'bassa';
-    prTarget = quality === 'alta' ? Math.min(1.5, devicePixelRatio || 1) : 1; setPR(prTarget); bloom.enabled = quality === 'alta'; goodN = 0;
+    const hq = quality === 'alta' || quality === 'ultra';
+    prTarget = quality === 'ultra' ? Math.min(2, Math.max(1.5, devicePixelRatio || 1)) : quality === 'alta' ? Math.min(1.5, devicePixelRatio || 1) : 1; setPR(prTarget); bloom.enabled = hq; bloom.strength = quality === 'ultra' ? 0.42 : 0.3; goodN = 0;
+    { const ty = quality === 'ultra' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; if (renderer.shadowMap.type !== ty) renderer.shadowMap.type = ty; }
+    if (glassMat) glassMat.envMapIntensity = quality === 'ultra' ? 2.2 : 1.5;
     renderer.shadowMap.enabled = hi; renderer.shadowMap.needsUpdate = true; sun.castShadow = hi;
-    { const ms = quality === 'alta' ? 4096 : 2048; if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
+    { const ms = quality === 'ultra' ? Math.min(8192, renderer.capabilities.maxTextureSize) : quality === 'alta' ? 4096 : 2048; if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
     scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
     const b = document.querySelector('.hud3 [data-v=q]'); if (b) b.textContent = 'Qualità: ' + quality;
     size();
@@ -10137,7 +10257,23 @@ const R3 = (() => {
 
   // ---------- ciclo di disegno ----------
   let lightT = 0;
-  let fpsN = 0, fpsT = 0, fpsEl = null;
+  const WXN = { sereno: 'Sereno', poco: 'Poco nuvoloso', nuvoloso: 'Nuvoloso', nebbia: 'Nebbia', pioggia: 'Pioggia', temporale: 'Temporale' };
+  let fpsN = 0, fpsT = 0, fpsEl = null, trainMoved = false, trainCast = false, wxT = 0, flashOn = false;
+  // pioggia, lampi e tuoni (temporale), gocce sul vetro
+  function bolt(now) { flash = 1; flash2 = now + 90 + Math.random() * 130; thunder(0.3 + Math.random() * 3.6, 0.55 + Math.random() * 0.6); }
+  function weatherFrame(now) {
+    const dt = Math.min(0.1, (now - (wxT || now)) / 1000); wxT = now;
+    const wx = S.wx; if (!rainMesh || !wx) return;
+    const rain = wx.rain;
+    rainMesh.visible = rain > 0.02; dropsMesh.visible = rain > 0.1;
+    if (rainMesh.visible) { const u = rainMesh.material.uniforms; u.t.value = now / 1000; u.a.value = (0.5 + 0.5 * rain) * (0.45 + 0.55 * dayK); u.slant.value = wx.wind * 0.32; u.col.value.setRGB(0.45 + 0.4 * dayK, 0.5 + 0.38 * dayK, 0.58 + 0.34 * dayK); markDirty(); }
+    if (dropsMesh.visible) { dropsMesh.material.opacity = Math.min(0.85, rain * 0.9); dropsTex.offset.y -= dt * 0.0025 * (0.5 + rain); }
+    if (wx.storm) { if (!nextFlash) nextFlash = now + 3000 + Math.random() * 6000; if (now >= nextFlash) { bolt(now); nextFlash = now + 7000 + Math.random() * 24000; } } else nextFlash = 0;
+    if ((S.wxFlash || 0) !== lastWxFlash) { lastWxFlash = S.wxFlash || 0; if (lastWxFlash) bolt(now); }
+    if (flash2 && now >= flash2) { flash = Math.max(flash, 0.8); flash2 = 0; }
+    if (flash > 0.01) { flash *= Math.exp(-dt * 11); flashOn = true; hemi.intensity = hemiBase + flash * 2.4; scene.environmentIntensity = envBase + flash * 0.9; sun.intensity = sunBase + flash * 0.9; skyMat.uniforms.flash.value = flash; markDirty(); }
+    else if (flashOn) { flashOn = false; flash = 0; hemi.intensity = hemiBase; scene.environmentIntensity = envBase; sun.intensity = sunBase; skyMat.uniforms.flash.value = 0; markDirty(); }
+  }
   // gli schermi sono elementi HTML sovrapposti alla scena, ognuno nel proprio livello: se un altro monitor è più vicino
   // al punto di vista, dal livello dello schermo posteriore si ritaglia (in pixel dello schermo) la sagoma di quello anteriore
   const _v = new THREE.Vector3();
@@ -10160,13 +10296,14 @@ const R3 = (() => {
     requestAnimationFrame(frame);
     if (benching) return; rafN++;
     updateQL(now); updatePanel(now); drawClock(); drawPhone(now); updateDisplays(now); walk(now);
-    if (syncTrains() && speed > 0) markDirty(); updateSound(now);
+    if (syncTrains() && speed > 0) { markDirty(); trainMoved = true; } updateSound(now); weatherFrame(now);
     if (now - lightT > 500) { lightT = now; light(); const mc = document.querySelector('#r3m1 .mclk'); if (mc) mc.textContent = fmt(S.simT); }
     if (!dirty && !camDirty) return;
+    if (trainMoved) { trainMoved = false; if (trainCast) renderer.shadowMap.needsUpdate = true; }
     if (quality !== 'bassa') composer.render(); else renderer.render(scene, camera);
     if (camDirty) { clipScreens(); for (const A of SCR) A.cr.render(A.cs, cssCam); }
     dirty = camDirty = false; fpsN++;
-    if (now - fpsT > 1000) { if (!fpsEl) fpsEl = document.querySelector('.hud3 .fps'); if (fpsEl) { const f = Math.round(fpsN * 1000 / (now - fpsT)); fpsEl.textContent = `${f} fps · ${gpuTag}${prNow < prTarget - 0.01 ? ' · ' + prNow.toFixed(2) + '×' : ''}`; fpsEl.title = 'GPU in uso: ' + gpuName + ' · scala di disegno ' + prNow.toFixed(2); adapt(f, fpsN >= rafN * 0.9 && rafN > 20); } fpsN = 0; rafN = 0; fpsT = now; }
+    if (now - fpsT > 1000) { if (!fpsEl) fpsEl = document.querySelector('.hud3 .fps'); if (fpsEl) { const f = Math.round(fpsN * 1000 / (now - fpsT)); fpsEl.textContent = `${S.wx ? (WXN[S.wx.k] || S.wx.k) + ' · ' : ''}${f} fps · ${gpuTag}${prNow < prTarget - 0.01 ? ' · ' + prNow.toFixed(2) + '×' : ''}`; fpsEl.title = 'GPU in uso: ' + gpuName + ' · scala di disegno ' + prNow.toFixed(2); adapt(f, fpsN >= rafN * 0.9 && rafN > 20); } fpsN = 0; rafN = 0; fpsT = now; }
   }
 
   // ---------- passaggio 2D <-> 3D ----------
@@ -10202,7 +10339,7 @@ const R3 = (() => {
     U.forEach((u, i) => { const g = vehicle(u); g.position.set(M(TRK3[trk]), 0, M(z - u.L * 500)); grp.add(g); if (i === 0) lightsAt(g, u.L * 1000, true, true); if (i === U.length - 1) lightsAt(g, u.L * 1000, false, false); z -= u.L * 1000 + 300; });
     markDirty && markDirty(); return U.length;
   }
-  return { _demo: demo, get _dbg() { return { scene, renderer, composer }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
+  return { _demo: demo, get _dbg() { return { scene, renderer, composer, rainMesh, dropsMesh, wetK, flash }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
     _cellXY(sel) { const d = $('tab').querySelector(sel) || $('pls').querySelector(sel); const c = layout.cells.find(c => domCell(c) === d); const v = new THREE.Vector3(px2x(c.x + c.w / 2), px2y(c.y + c.h / 2), 0).applyMatrix4(pulsGroup.matrixWorld).project(camera); const r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 })();
 try { if (localStorage.getItem('cs-latisana-view') === '3d') R3.enter(); } catch (e) { }
