@@ -552,7 +552,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.5.1';
+window.SIM_BUILD = '2.5.2';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5544,6 +5544,7 @@ function sigLever(sg, pos) {
   if (!rid) return result(false, `Leva ${sigLab(sg)}: nessun itinerario formato`);
   const why = openBlock(sg, rid, false, true);
   if (why) return result(false, `Segnale ${sigLab(sg)}: ${why}`, 'warn');
+  onSound('route');   // cicalino anche alla disposizione del segnale a via libera
   return result(true, `Leva ${sigLab(sg)} in posizione treno: apertura in corso`);
 }
 // condizioni per la via libera (null = consentita)
@@ -7025,7 +7026,7 @@ function routeBuzz() {   // in ciclo finché un itinerario è in formazione o un
   else if (bzWant.route && now > routeHold) bzStop('route');
 }
 function playLeop() { bzStop('leop'); bzPlay('leop', true, 0.7, 60); }
-onSound = k => { if (k === 'entry') { playEntry(); return; } if (k === 'route') return; if (k === 'leop') { playLeop(); return; } if (k === 'err') beep(200, .3, 'sawtooth'); if (k === 'ring') { beep(1300, .12); setTimeout(() => beep(1300, .12), 180); } if (k === 'emerg') { for (let r = 0; r < 3; r++) for (let i = 0; i < 6; i++) setTimeout(() => beep(i % 2 ? 1450 : 980, .16, 'sawtooth', .06), r * 1100 + i * 170); return; } if (k === 'phone') { for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), i * 60); for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), 1300 + i * 60); } };
+onSound = k => { if (k === 'entry') { playEntry(); return; } if (k === 'route') { routeHold = performance.now() + 3000; bzPlay('route', true, 0.5); return; } if (k === 'leop') { playLeop(); return; } if (k === 'err') beep(200, .3, 'sawtooth'); if (k === 'ring') { beep(1300, .12); setTimeout(() => beep(1300, .12), 180); } if (k === 'emerg') { for (let r = 0; r < 3; r++) for (let i = 0; i < 6; i++) setTimeout(() => beep(i % 2 ? 1450 : 980, .16, 'sawtooth', .06), r * 1100 + i * 170); return; } if (k === 'phone') { for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), i * 60); for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), 1300 + i * 60); } };
 onLog = (m, cls, t) => {
   const el = $('log'); if (!el) return;
   const d = document.createElement('div'); d.className = cls;
@@ -7503,6 +7504,7 @@ function renderTT() {
     h += `<tr data-tt="${t.uid}" class="${t.done ? 'done' : live ? 'live' : wait ? 'wait' : ''} click"><td><span class="cat" style="background:${CATS[t.cat].col}">${t.cat}</span> ${t.num}${t.rid ? ' <span class="rid" title="Merci pericolose (RID)"></span>' : ''}${t.prmCall ? ' <span title="Persona a ridotta mobilità: bin. I o IV">♿</span>' : ''}<div class="if">${t.impresa}</div></td><td>${t.orig} → ${t.dest}</td><td>${showArr ? fmtM(t.arr) + eff(t.arr, t.arrT || (t.late ? eta0(t) : 0)) : '—'}</td><td>${fmtM(t.dep)}${eff(t.dep, t.depT || (t.late ? t.dep + t.late * 60 : 0))}</td><td>${binCell(t)}</td><td class="note">${svcLabel(t)}${t.note && (!t.precFor || t.stopType !== 'sosta programmata') ? `<div class="if">${t.note}</div>` : ''}</td><td>${st}</td></tr>`;
   }
   h = h || '<tr><td colspan="7" style="color:#8b939c">Nessun treno nelle prossime ore</td></tr>'; if (tb._h !== h) { tb._h = h; tb.innerHTML = h; }
+  for (const x of tb.querySelectorAll('tr.ttdet')) x.remove();   // le righe di dettaglio si rigenerano ad ogni giro (altrimenti si accumulano)
   for (const uid of TTOPEN) { const row = tb.querySelector(`tr[data-tt="${uid}"]`), t = S.TT.find(x => String(x.uid) === String(uid)); if (!row || !t) continue; const d = document.createElement('tr'); d.className = 'ttdet'; d.innerHTML = `<td colspan="7">${t.matName ? `Materiale <b>${t.matName}</b> · ` : ''}${t.rid ? '<span class="rid"></span> <b>merci pericolose (RID)</b> · ' : ''}Lunghezza <b>${t.len} m</b> · velocità massima <b>${t.vmax} km/h</b> · ${t.can ? 'treno cantiere' : t.dir === 'R' ? 'pari, da S. Giorgio' : 'dispari, da Portogruaro'} · ${CATS[t.cat].name}${t.note ? ' · ' + t.note : ''}</td>`; row.after(d); }
   const d = Math.floor(S.simT / 86400) % 7;
   $('ttDay').textContent = DOWL[d] + (d <= 4 ? ' · feriale' : d === 5 ? ' · sabato' : ' · festivo');
