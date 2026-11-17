@@ -496,7 +496,7 @@ body.v3d #ql{min-width:0;width:100%;height:auto;display:block}
 <div id="errBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a0f0f;color:#fff;font:12px/1.4 monospace;padding:8px 12px;max-height:40vh;overflow:auto;border-top:2px solid #ff3b30"></div>
 
 <script>
-window.SIM_BUILD = '2.1.0';
+window.SIM_BUILD = '2.1.1';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -8138,8 +8138,7 @@ const R3 = (() => {
       const col = new THREE.InstancedMesh(new THREE.CylinderGeometry(M(90), M(100), M(3300), 16), mSteelD, pos.length), gl = new THREE.InstancedMesh(new THREE.SphereGeometry(M(170), 18, 12), glob, pos.length), o = new THREE.Object3D();
       pos.forEach((z, i) => { o.position.set(M(X1 + 2350), M(1650), M(z)); o.updateMatrix(); col.setMatrixAt(i, o.matrix); o.position.set(M(X1 + 2050), M(2700), M(z)); o.updateMatrix(); gl.setMatrixAt(i, o.matrix); });
       stn.add(col); stn.add(gl);
-      const nz = pos.slice().sort((a, b) => Math.abs(a - 300) - Math.abs(b - 300)).slice(0, 4);
-      for (const z of nz) { const pl2 = new THREE.PointLight(0xffd9a0, 0, 20, 2); pl2.position.set(M(X1 + 2050), M(2600), M(z)); pl2.visible = false; stn.add(pl2); platLights.push(pl2); } }
+    }
     // tabellone, numero di binario, segnale P.B. e orologio vicino all'ufficio
     const blueSign = (txt, w, h, fs) => ctex(Math.round(w), Math.round(h), (g, W2, H2) => { g.fillStyle = '#1e4fa3'; g.fillRect(0, 0, W2, H2); g.strokeStyle = '#fff'; g.lineWidth = 6; g.strokeRect(8, 8, W2 - 16, H2 - 16); g.fillStyle = '#fff'; g.font = `bold ${fs}px Arial`; g.textAlign = 'center'; g.fillText(txt, W2 / 2, H2 / 2 + fs * 0.35); });
     const hang = (x, y, z, w, h, tex, ry = -90, thick = 60, roof = 3300) => { box(x, y - h / 2, z, thick, h, w, mSteelD, stn); for (const s of [-1, 1]) box(x, y + h / 2, z + s * w / 3, 20, roof - y - h / 2, 20, mSteelD, stn); const m = lit(mat({ map: tex, roughness: 0.5 }), 0.8); const p = plane(x - thick / 2 - 2, y, z, w, h, m, ry, 0, stn); p.castShadow = false; const p2 = plane(x + thick / 2 + 2, y, z, w, h, m, -ry, 0, stn); p2.castShadow = false; return p; };
@@ -10008,8 +10007,7 @@ const R3 = (() => {
     hemiBase = hemi.intensity = 0.006 + cf * 0.16 + d * (0.18 * (1 - 0.3 * oc) + 0.10 * oc); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
     { const want = (quality === 'alta' || quality === 'ultra') && sp.el > 0.07 && sunK > 0.25;
       if (want !== trainCast) { trainCast = want; for (const [, e] of trains3) e.grp.traverse(o => { if (o.isMesh) o.castShadow = want; }); renderer.shadowMap.needsUpdate = true; }
-      const ul = quality === 'ultra' ? Math.max(0, 1 - d * 1.6) : 0;
-      for (const l of platLights) { l.intensity = ul * 60; const v = ul > 0.02; if (l.visible !== v) { l.visible = v; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); } } }
+    }
     envBase = scene.environmentIntensity = 0.006 + cf * 0.14 + d * (0.14 + 0.05 * oc); sunBase = sun.intensity;
     // asfalto, marciapiedi e massicciata bagnati con la pioggia
     wetK += ((wx.rain > 0.15 ? 1 : 0) - wetK) * 0.06;
@@ -10086,11 +10084,11 @@ const R3 = (() => {
     if (!built) return;
     const hi = quality !== 'bassa';
     const hq = quality === 'alta' || quality === 'ultra';
-    prTarget = quality === 'ultra' ? Math.min(2, Math.max(1.5, devicePixelRatio || 1)) : quality === 'alta' ? Math.min(1.5, devicePixelRatio || 1) : 1; setPR(prTarget); bloom.enabled = hq; bloom.strength = quality === 'ultra' ? 0.42 : 0.3; goodN = 0;
+    prTarget = quality === 'ultra' ? Math.min(2, Math.max(1.5, devicePixelRatio || 1)) : quality === 'alta' ? Math.min(1.5, devicePixelRatio || 1) : 1; setPR(prTarget); bloom.enabled = hq; goodN = 0;
     { const ty = quality === 'ultra' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; if (renderer.shadowMap.type !== ty) renderer.shadowMap.type = ty; }
-    if (glassMat) glassMat.envMapIntensity = quality === 'ultra' ? 2.2 : 1.5;
+    if (glassMat) glassMat.envMapIntensity = 1.5;
     renderer.shadowMap.enabled = hi; renderer.shadowMap.needsUpdate = true; sun.castShadow = hi;
-    { const ms = quality === 'ultra' ? Math.min(8192, renderer.capabilities.maxTextureSize) : quality === 'alta' ? 4096 : 2048; if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
+    { const ms = quality === 'ultra' ? 4096 : quality === 'alta' ? 4096 : 2048; if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
     scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
     const b = document.querySelector('.hud3 [data-v=q]'); if (b) b.textContent = 'Qualità: ' + quality;
     size();
