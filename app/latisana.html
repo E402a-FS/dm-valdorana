@@ -552,7 +552,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.6.1';
+window.SIM_BUILD = '2.6.2';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -9913,25 +9913,25 @@ const R3 = (() => {
   }
   function synthTrainSounds() {
     const sr = AC.sampleRate, B = {}, n = Math.floor(sr * 4), N = n + Math.floor(sr * 0.4);
-    // rotolamento merci: rombo basso + fragore largo a raffiche irregolari ("sferragliato") + tintinnio metallico
-    { const rum = bqRun(wn(N), 'lp', 170, 0.7), roar = bqRun(wn(N), 'bp', 850, 0.5), ring = bqRun(wn(N), 'bp', 2500, 3), e = bqRun(wn(N), 'lp', 38, 0.7);
-      const kr = 1 / rmsN(rum), ko = 1 / rmsN(roar), kg = 1 / rmsN(ring), ke = 1 / rmsN(e), o = new Float32Array(N);
-      for (let i = 0; i < N; i++) { const env = Math.min(1, 0.2 + Math.abs(e[i] * ke) * 0.85); o[i] = rum[i] * kr * 1.0 + roar[i] * ko * 0.95 * env + ring[i] * kg * 0.3 * env * env; }
+    // rotolamento merci: rombo basso + fragore largo a raffiche irregolari ("sferragliato"), tutto rumore a banda larga (niente toni puri)
+    { const rum = bqRun(wn(N), 'lp', 170, 0.7), roar = bqRun(wn(N), 'bp', 850, 0.4), hi = bqRun(wn(N), 'bp', 1800, 0.4), e = bqRun(wn(N), 'lp', 38, 0.7);
+      const kr = 1 / rmsN(rum), ko = 1 / rmsN(roar), kg = 1 / rmsN(hi), ke = 1 / rmsN(e), o = new Float32Array(N);
+      for (let i = 0; i < N; i++) { const env = Math.min(1, 0.2 + Math.abs(e[i] * ke) * 0.85); o[i] = rum[i] * kr * 1.0 + roar[i] * ko * 0.95 * env + hi[i] * kg * 0.22 * env * env; }
       B.rollF = mkBuf(loopify(o, n), 0.9); }
     // rotolamento viaggiatori / materiale leggero: fruscio morbido, poco rombo, nessuna raffica
-    { const rum = bqRun(wn(N), 'lp', 230, 0.7), roar = bqRun(wn(N), 'bp', 650, 0.45), sw = bqRun(wn(N), 'lp', 3, 0.7), o = new Float32Array(N), kr = 1 / rmsN(rum), ko = 1 / rmsN(roar), ks = 1 / rmsN(sw);
+    { const rum = bqRun(wn(N), 'lp', 230, 0.7), roar = bqRun(wn(N), 'bp', 650, 0.4), sw = bqRun(wn(N), 'lp', 3, 0.7), o = new Float32Array(N), kr = 1 / rmsN(rum), ko = 1 / rmsN(roar), ks = 1 / rmsN(sw);
       for (let i = 0; i < N; i++) o[i] = rum[i] * kr * 0.9 + roar[i] * ko * 0.45 * (0.85 + 0.15 * sw[i] * ks);
       B.rollP = mkBuf(loopify(o, n), 0.9); }
-    // giunto delle rotaie, materiale leggero: tic-tac secco e sottile (doppio colpo ravvicinato)
-    B.clkL = [0, 1, 2].map(v => { const L = Math.floor(sr * 0.2), a = new Float32Array(L), f1 = 1100 + v * 160, f2 = 2300 + v * 210, nz = bqRun(wn(L), 'hp', 1500, 0.7);
-      for (const [t0, g] of [[0, 1], [0.009 + v * 0.002, 0.62]]) for (let i = Math.floor(t0 * sr); i < L; i++) { const t = i / sr - t0;
-        a[i] += g * (Math.sin(2 * Math.PI * f1 * t) * Math.exp(-t / 0.028) * 0.5 + Math.sin(2 * Math.PI * f2 * t) * Math.exp(-t / 0.016) * 0.35 + nz[i] * Math.exp(-t / 0.004) * 0.7 + Math.sin(2 * Math.PI * 105 * t) * Math.exp(-t / 0.04) * 0.3); }
+    // giunto delle rotaie, materiale leggero: colpo secco e sottile (doppio impatto ravvicinato), solo rumore filtrato a banda larga
+    B.clkL = [0, 1, 2].map(v => { const L = Math.floor(sr * 0.14), a = new Float32Array(L), clk = bqRun(wn(L), 'hp', 1300 + v * 150, 0.6), bd = bqRun(wn(L), 'bp', 1500 + v * 450, 0.45), th = bqRun(wn(L), 'lp', 190, 0.7);
+      for (const [t0, g] of [[0, 1], [0.008 + v * 0.002, 0.6]]) for (let i = Math.floor(t0 * sr); i < L; i++) { const t = i / sr - t0;
+        a[i] += g * (clk[i] * Math.exp(-t / 0.004) * 0.9 + bd[i] * Math.exp(-t / 0.013) * 1.1 + th[i] * Math.exp(-t / 0.03) * 2.2); }
       return mkBuf(a, 0.9); });
-    // giunto, carro merci: colpo pesante e sordo + scuotimento di sale, respingenti e telaio
-    B.clkF = [0, 1, 2].map(v => { const L = Math.floor(sr * 0.5), a = new Float32Array(L), nz = bqRun(wn(L), 'bp', 1300 + v * 250, 0.8), nz2 = bqRun(wn(L), 'lp', 400, 0.7);
+    // giunto, carro merci: colpo pesante e sordo + scuotimento di sale, respingenti e telaio (tutto rumore, niente note)
+    B.clkF = [0, 1, 2].map(v => { const L = Math.floor(sr * 0.45), a = new Float32Array(L), th = bqRun(wn(L), 'lp', 130 + v * 25, 0.7), cl = bqRun(wn(L), 'bp', 900 + v * 300, 0.45), hs = bqRun(wn(L), 'hp', 1800, 0.6), rt = bqRun(wn(L), 'bp', 1100 + v * 200, 0.35);
       for (const [t0, g] of [[0, 1], [0.011 + v * 0.002, 0.7]]) for (let i = Math.floor(t0 * sr); i < L; i++) { const t = i / sr - t0;
-        a[i] += g * (Math.sin(2 * Math.PI * (68 + v * 9) * t) * Math.exp(-t / 0.085) * 0.9 + Math.sin(2 * Math.PI * 150 * t) * Math.exp(-t / 0.06) * 0.5 + Math.sin(2 * Math.PI * (520 + v * 80) * t) * Math.exp(-t / 0.05) * 0.35 + nz2[i] * Math.exp(-t / 0.02) * 1.4); }
-      let tr = 0.03; while (tr < 0.32) { const i0 = Math.floor(tr * sr), g = 0.18 + Math.random() * 0.22; for (let i = i0; i < Math.min(L, i0 + sr * 0.05); i++) a[i] += nz[i] * g * Math.exp(-(i - i0) / (sr * 0.012)); tr += 0.025 + Math.random() * 0.045; }
+        a[i] += g * (th[i] * Math.exp(-t / 0.07) * 4.5 + Math.sin(2 * Math.PI * (58 + v * 6) * t) * Math.exp(-t / 0.09) * 0.35 + cl[i] * Math.exp(-t / 0.028) * 1.6 + hs[i] * Math.exp(-t / 0.005) * 0.9); }
+      let tr = 0.03; while (tr < 0.32) { const i0 = Math.floor(tr * sr), g = 0.45 * (1 - tr) * (0.5 + Math.random() * 0.6); for (let i = i0; i < Math.min(L, i0 + sr * 0.05); i++) a[i] += rt[i] * g * Math.exp(-(i - i0) / (sr * 0.012)); tr += 0.022 + Math.random() * 0.05; }
       return mkBuf(a, 0.9); });
     // scarico dell'aria dei freni (pneumatico): sfiato
     const hiss = (sec, f0, f1, att) => { const L = Math.floor(sr * sec), a = bqRun(wn(L), 'bp', f0, 0.6), b = bqRun(wn(L), 'hp', f1, 0.7); for (let i = 0; i < L; i++) { const t = i / sr, env = Math.min(1, t / att) * Math.exp(-t / (sec * 0.33)); a[i] = (a[i] * 1.2 + b[i] * 0.5) * env; } return mkBuf(a, 0.9); };
