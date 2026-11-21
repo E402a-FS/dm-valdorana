@@ -552,7 +552,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.6.0';
+window.SIM_BUILD = '2.6.1';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5278,9 +5278,9 @@ function genDay(d) {
     const C = CATS[cat], q = r();
     let stopType = 'transito', mins = 0;
     // le soste tecniche non sono più in orario: nascono solo dalle avarie (sosta straordinaria)
-    if (cat === 'MRC') { if (q < 0.70) stopType = 'transito'; else if (q < 0.80) stopType = 'sosta programmata'; else { stopType = 'cambio personale'; mins = 5; } }
-    else if (cat === 'MAT') { if (q < 0.55) stopType = 'transito'; else if (q < 0.8) { stopType = 'cambio personale'; mins = 5; } else stopType = 'sosta programmata'; }
-    else { if (q < 0.75) stopType = 'transito'; else { stopType = 'cambio personale'; mins = 5; } }
+    if (cat === 'MRC') { if (q < 0.88) stopType = 'transito'; else if (q < 0.98) stopType = 'sosta programmata'; else { stopType = 'cambio personale'; mins = 5; } }
+    else if (cat === 'MAT') { if (q < 0.75) stopType = 'transito'; else if (q < 0.95) stopType = 'sosta programmata'; else { stopType = 'cambio personale'; mins = 5; } }
+    else { if (q < 0.97) stopType = 'transito'; else { stopType = 'cambio personale'; mins = 5; } }
     const stops = stopType !== 'transito', len = C.lens.length === 2 ? Math.round((C.lens[0] + r() * (C.lens[1] - C.lens[0])) / 10) * 10 : C.lens[0];
     const prog = stopType === 'sosta programmata' ? 10 + Math.floor(r() * 36) : 0;   // fermata d'orario da 10 a 45 minuti
     const o = dir === 'R' ? pick(ORIG_E, r) : pick(ORIG_W, r), de = dir === 'R' ? pick(ORIG_W, r) : pick(ORIG_E, r);
@@ -5293,7 +5293,12 @@ function genDay(d) {
     add('MRC', dir, base + h * 3600 + Math.floor(r() * 60) * 60, pick(IF_MERCI, r), 40000 + Math.floor(r() * 4000) * 2 + (dir === 'L' ? 1 : 0));
   }
   for (let i = 0; i < (dow <= 4 ? 4 : 2); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('MAT', dir, base + (5 + Math.floor(r() * 17)) * 3600 + Math.floor(r() * 60) * 60, 'Trenitalia', 96000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
-  for (let i = 0; i < (dow <= 4 ? 6 : 3); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('LIS', dir, base + Math.floor(r() * 24) * 3600 + Math.floor(r() * 60) * 60, r() < 0.55 ? 'Trenitalia' : IF_MERCI[Math.floor(r() * IF_MERCI.length)], 69000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
+  for (let i = 0; i < (dow <= 4 ? 8 : 4); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('LIS', dir, base + Math.floor(r() * 24) * 3600 + Math.floor(r() * 60) * 60, r() < 0.3 ? 'Trenitalia' : IF_MERCI[Math.floor(r() * IF_MERCI.length)], 69000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
+  // invio materiale serale (lun-gio): alle 21:50 arriva da S. Giorgio, stazionamento in bin. IV fino alle 05:30, poi riparte per Portogruaro con un'altra traccia
+  if (dow <= 3) {
+    const n1 = 96610 + dow * 2, n2 = 96702 + dow * 2;
+    list.push(mkTT({ num: n1, num2: n2, cat: 'MAT', dir: 'R', arr: base + 21 * 3600 + 50 * 60, stops: true, stopMin: 0, dwell: 0, stopType: 'stazionamento', len: 0, vmax: CATS.MAT.vmax[0], orig: 'TRIESTE C.LE', dest: 'PORTOGRUARIO-CAORLE', impresa: 'Trenitalia', plan: 'IV', dep: base + 86400 + 5.5 * 3600, note: `invio materiale: stazionamento in bin. IV fino alle 05:30, riparte come treno ${n2} per Portogruaro (l'AdC si dà pronto al DM)` }));
+  }
   for (const t of list) assignStock(t);
   // viaggiatori con persona a ridotta mobilità (salita o discesa): da ricevere sul binario I o IV (ascensori)
   const rp = rng(d * 4243 + 17);
@@ -5683,6 +5688,7 @@ function trainByNum(num) { return S.trains.find(x => String(x.num) === String(nu
 function doAct(x) {
   if (x.t === 'fdook') { const tr = trainByNum(x.num); if (tr && tr.fdo) { tr.fdo.state = 'ripresa'; log(`${tr.cat} ${tr.num}: Mod. M40a di ripresa della corsa registrato, il segnale di partenza può essere disposto a via libera`, 'ok'); } return; }
   if (x.t === 'gack') { giuntoAck({ num: x.num }, x.n); S.ringing = true; return; }
+  if (x.t === 'stazok' || x.t === 'stazno') { stazDo(x); return; }
   if (x.t === 'inook') { const t = S.TT.find(q => q.uid === x.uid); if (t) { t.inoOk = true; t.inoAsk = false; } return; }
   const tr = x.num && trainByNum(x.num);
   if (x.t === 'm40aok' && tr) {
@@ -6181,7 +6187,8 @@ function computeOcc() {
 function spawn(t, L) {
   const l = LINES[L], C = CATS[t.cat], path = linePieces(L, true, t.can), vcap = KMH(t.vmax);
   const tr = { t, num: t.num, cat: t.cat, dir: t.dir, len: t.len, path, L: path.reduce((x, p) => x + p.len, 0), head: 1, v: Math.min(vcap, t.can ? VCAN : VLINE), await: LPROT[L], stops: t.stops, dwell: t.dwell, served: !t.stops, stopS: null, dw: 0, vcap, acc: C.acc, dec: C.dec, track: null, depS: null, rec: false, exit: false, ack: false, lineIn: L, plMav: [], plSeen: {} };
-  if (!t.can && Math.random() < (C.pax ? 0.03 : 0.06)) tr.avaria = { kind: C.pax || t.cat === 'LIS' || Math.random() < 0.5 ? 'udt' : 'carri', at: S.simT + 40 + Math.random() * 120 };
+  if (!t.can && t.stopType !== 'stazionamento' && Math.random() < (C.pax ? 0.03 : 0.06)) tr.avaria = { kind: C.pax || t.cat === 'LIS' || Math.random() < 0.5 ? 'udt' : 'carri', at: S.simT + 40 + Math.random() * 120 };
+  if (!tr.avaria && !t.can && t.cat === 'MRC' && t.stopType === 'transito' && Math.random() < 0.025) tr.avaria = { kind: 'cp', at: S.simT + 40 + Math.random() * 120 };   // l'IF chiede al DC un cambio del personale a Latisana
   if (!t.can && singleTrack(l.side)) tr.giuntoObbl = true;
   S.trains.push(tr); t.sent = true; t.status = 'in linea';
   log(`${SIDES[l.side].name}: licenziato ${t.cat} ${t.num} sul ${cname(L)}${l.legal === 'in' ? '' : ' (senso illegale)'}${t.late ? ` — in ritardo di ${t.late}'` : ''}`, C.pax ? (t.late >= 15 ? 'warn' : '') : 'warn');
@@ -6199,6 +6206,7 @@ function commit(tr, rid) {
   if (r.kind === 'est') { tr.await = r.int; return; }
   if (r.kind === 'arr') {
     if (PROTTYPE[r.sig]) tr.leopAt = oldL;
+    tr.arrSig = r.sig;
     if (tr.lineIn && LINES[tr.lineIn]) tr.t.arrIn = tr.lineIn;
     if (tr.lineIn && LINES[tr.lineIn]) S.lineLast[tr.lineIn] = { uid: tr.t.uid, num: tr.num, cat: tr.cat, way: 'in', t: S.simT };
     if (tr.giuntoObbl && !tr.giunto) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} giunto dal binario unico senza la richiesta del giunto treno`, 'err'); onSound('err'); }
@@ -6265,7 +6273,7 @@ function moveTrain(tr, dt) {
     tr.dw += dt;
     const C = CATS[tr.cat];
     // viaggiatori: sosta e orario di partenza; merci/MAT/LIS: sosta tecnica o cambio personale; sosta programmata: subito
-    let ready = C.pax ? (tr.dw >= tr.dwell && S.simT >= tr.t.dep) : tr.dw >= tr.dwell;
+    let ready = C.pax ? (tr.dw >= tr.dwell && S.simT >= tr.t.dep) : tr.t.stopType === 'stazionamento' ? S.simT >= tr.t.dep : tr.dw >= tr.dwell;
     if (tr.av && tr.dw < tr.av.dur) ready = false;
     // eventi in sosta dei viaggiatori: ritardo per incarrozzamento o intervento delle Forze dell'Ordine (richiesta verbale dell'AdC)
     if (C.pax && !tr.evChk && tr.dw > 12 && tr.track && !tr.rec) { tr.evChk = true; const q = Math.random();
@@ -6275,9 +6283,10 @@ function moveTrain(tr, dt) {
         log(`${tr.cat} ${tr.num}: richiesto l'intervento delle Forze dell'Ordine (${why})`, 'err'); } }
     if (tr.imb && tr.dw < tr.imb) ready = false;
     if (tr.fdo && tr.fdo.state !== 'ripresa') ready = false;
-    if (ready && (tr.t.stopType === 'cambio personale' || tr.av || tr.giunto) && !tr.prontoAck) {
-      if (tr.giunto && !tr.prontoCall) { tr.prontoCall = true; tr.t.giuntoN = tr.giunto.n; ring(`AdC ${tr.cat} ${tr.num}`, giuntoTxt(tr, tr.giunto.n, 'Latisana', tr.track, `AdC treno ${tr.num}`) + (tr.av ? ` ${tr.av.kind === 'carri' ? 'Verifica dei carri ultimata' : 'Avaria risolta'}, pronti a ripartire.` : tr.t.stopType === 'cambio personale' ? ' Cambio personale effettuato, pronti a ripartire.' : ' Pronti a ripartire.')); }
-      if (!tr.prontoCall) { tr.prontoCall = true; ring(`AdC ${tr.cat} ${tr.num}`, tr.av ? `${STN}, qui il macchinista del treno ${tr.num}: ${tr.av.kind === 'carri' ? 'verifica dei carri ultimata, il carro è stato riscontrato idoneo' : 'avaria risolta, i rilievi sono conclusi'}. Treno pronto a partire dal binario ${tr.track}.` : `${STN}, qui il macchinista del treno ${tr.num}: cambio personale effettuato, treno pronto a partire dal binario ${tr.track}.`); }
+    if (ready && tr.t.stopType === 'stazionamento' && tr.t.num2 && !tr.numSwapped) { tr.numSwapped = true; tr.t.numArr = tr.t.num; tr.t.num = tr.num = tr.t.num2; log(`Il treno ${tr.t.numArr} (stazionamento) riparte come treno ${tr.num} per ${tr.t.dest}`); }
+    if (ready && (tr.t.stopType === 'cambio personale' || tr.t.stopType === 'stazionamento' || tr.av || tr.giunto) && !tr.prontoAck) {
+      if (tr.giunto && !tr.prontoCall) { tr.prontoCall = true; tr.t.giuntoN = tr.giunto.n; ring(`AdC ${tr.cat} ${tr.num}`, giuntoTxt(tr, tr.giunto.n, 'Latisana', tr.track, `AdC treno ${tr.num}`) + (tr.av ? ` ${tr.av.kind === 'carri' ? 'Verifica dei carri ultimata' : tr.av.kind === 'cp' ? 'Cambio personale effettuato' : 'Avaria risolta'}, pronti a ripartire.` : tr.t.stopType === 'cambio personale' ? ' Cambio personale effettuato, pronti a ripartire.' : ' Pronti a ripartire.')); }
+      if (!tr.prontoCall) { tr.prontoCall = true; ring(`AdC ${tr.cat} ${tr.num}`, tr.av ? `${STN}, qui il macchinista del treno ${tr.num}: ${tr.av.kind === 'carri' ? 'verifica dei carri ultimata, il carro è stato riscontrato idoneo' : tr.av.kind === 'cp' ? 'cambio del personale effettuato' : 'avaria risolta, i rilievi sono conclusi'}. Treno pronto a partire dal binario ${tr.track}.` : tr.t.stopType === 'stazionamento' ? `${STN}, qui il macchinista del treno ${tr.num} (ex ${tr.t.numArr}): treno pronto a partire dal binario ${tr.track} per ${tr.t.dest}. Chiedo l'itinerario di partenza.` : `${STN}, qui il macchinista del treno ${tr.num}: cambio personale effettuato, treno pronto a partire dal binario ${tr.track}.`); }
       ready = false;
     }
     if (ready) { tr.served = true; log(`${tr.cat} ${tr.num}: ${C.pax ? 'servizio viaggiatori ultimato' : tr.t.stopType + ' ultimata'}, pronto a partire dal bin. ${tr.track}`); }
@@ -6699,7 +6708,7 @@ function intConcedi(id, num, g) {
 }
 // richieste straordinarie: persona a ridotta mobilità (DC) e avarie in linea (AdC)
 const AV_UDT = ['allarme di trazione sulla locomotiva', 'anomalia al pantografo', 'avaria all\'impianto frenante del mezzo di trazione', 'intervento ripetuto del dispositivo di vigilanza'];
-const AV_CARRI = ['segnalazione di boccola calda su un carro', 'sospetto spostamento del carico su un carro', 'anomalia alla condotta generale del freno', 'telone di un carro lacerato'];
+const AV_CARRI = ['segnalazione di boccola calda su un carro', 'avaria all\'impianto frenante di uno o più carri', 'anomalia alla condotta generale del freno', 'telone di un carro lacerato'];
 const AV_PAX = ['avaria a una porta di salita', 'allarme di trazione', 'anomalia all\'impianto di climatizzazione con guasto alla trazione', 'avaria all\'impianto frenante'];
 const FDO_WHY = ['un viaggiatore molesto si rifiuta di scendere dal treno', 'lite tra viaggiatori a bordo', 'viaggiatore sprovvisto di titolo di viaggio che si rifiuta di farsi identificare', 'aggressione al personale di bordo', 'segnalazione di un bagaglio incustodito'];
 function updateFdo() {
@@ -6722,6 +6731,51 @@ function sendM40aRipresa(num) {
   queuePhone(13, 'DM', 'Esatto.', { t: 'fdook', num: tr.num });
   return result(true, `Mod. M40a n. ${n} di ripresa della corsa in trasmissione al ${nm}`, 'warn');
 }
+// ---------- stazionamento notturno (invio materiale in bin. IV) ----------
+const STAZ_NAME = { I: 'al binario I di Latisana', PG: 'a Portogruaro-Caorle', SG: 'a S. Giorgio di Nogaro' };
+function stazTrain() { return S.trains.find(tr => !tr.gone && tr.t.stopType === 'stazionamento' && tr.track === 'IV' && tr.stopS != null && tr.v < 0.05 && tr.head >= tr.stopS - 1 && !tr.exit && !tr.depS); }
+function b4Wanted() { return S.ints.some(x => x.ente === 'B4' && (x.state === 'pending' || x.state === 'granted' || x.state === 'sched') && x.ask - 1800 <= S.simT); }
+function stazAsk(d0) {
+  const tr = stazTrain(); if (!tr) return result(false, 'Nessun treno in stazionamento notturno fermo in stazione');
+  const d = ({ '1': 'I', I: 'I', PG: 'PG', PORTOGRUARO: 'PG', SG: 'SG', 'S.GIORGIO': 'SG' })[String(d0 || '').toUpperCase()];
+  if (!d) return result(false, 'STAZ I | STAZ PG | STAZ SG (dove stazionare il treno)');
+  if (tr.stazReq) return result(false, 'Richiesta già inoltrata al DC');
+  tr.stazReq = d; const why = b4Wanted() ? 'la Manutenzione deve operare sul binario IV' : 'per esigenze di circolazione';
+  phone('DM', `DC Ve. Mestre, qui ${STN}: il treno ${tr.num} è in stazionamento al binario IV fino alle ${fmtM(tr.t.dep)}; ${why}. Chiedo di poterlo far stazionare ${STAZ_NAME[d]}.`);
+  let ok = true, txt;
+  if (d === 'I') {
+    const busy = S.cdb.B1.occ || S.cdb.B1.lock || S.cdb.B1.fault || Object.keys(S.active).some(id => ROUTES[id].segs.some(s => s.cdb === 'B1'));
+    const need = S.TT.find(q => !q.done && !q.track && q.plan === 'I' && q.uid !== tr.t.uid && eta0(q) - S.simT < 7200 && eta0(q) > S.simT - 600);
+    if (busy) { ok = false; txt = `${STN}, qui DC: negativo, il binario I è occupato o impegnato. Trovate un'altra soluzione.`; }
+    else if (need) { ok = false; txt = `${STN}, qui DC: negativo, il binario I serve al ${need.cat} ${need.num} in arrivo alle ${fmtM(eta0(need))}. Valutate lo stazionamento in una stazione limitrofa.`; }
+    else txt = `${STN}, qui DC: accordato lo stazionamento del treno ${tr.num} al binario I. Eseguite lo spostamento in manovra e avvisatemi a manovra ultimata.`;
+  } else {
+    ok = Math.random() < (d === 'PG' ? 0.8 : 0.65);
+    txt = ok ? `${STN}, qui DC: d'accordo con il DM di ${STAZ_NAME[d].replace(/^a /, '')}: potete inoltrare il treno ${tr.num} anticipatamente, stazionerà lì fino all'orario.`
+      : `${STN}, qui DC: negativo, ${STAZ_NAME[d].replace(/^a /, '')} non ha binari disponibili per stazionare il treno ${tr.num}.`;
+  }
+  queuePhone(25, 'DC', txt, { t: ok ? 'stazok' : 'stazno', uid: tr.t.uid, dest: d });
+  return result(true, `Richiesta di stazionamento ${STAZ_NAME[d]} inoltrata al DC`);
+}
+function stazDo(x) {
+  const tr = S.trains.find(q => q.t.uid === x.uid && !q.gone); if (!tr) return;
+  if (x.t === 'stazno') { tr.stazReq = null; return; }
+  if (x.dest === 'I') { tr.stazMove = S.simT + 420; log(`Treno ${tr.num}: spostamento in manovra al binario I autorizzato dal DC`, 'warn'); return; }
+  tr.t.dep = Math.min(tr.t.dep, S.simT + 90); tr.t.dest = x.dest === 'PG' ? 'PORTOGRUARIO-CAORLE' : 'S. GIORGIO DI NOGARO'; tr.t.note = `inoltro anticipato per stazionamento ${STAZ_NAME[x.dest]} (accordo DC)`;
+  log(`Treno ${tr.num}: autorizzato l'inoltro anticipato ${STAZ_NAME[x.dest]}`, 'warn');
+}
+function updateStaz() {
+  for (const tr of S.trains) {
+    if (!tr.stazMove || S.simT < tr.stazMove || tr.gone) continue;
+    tr.stazMove = null;
+    const rI = Object.keys(ROUTES).find(id => ROUTES[id].kind === 'arr' && ROUTES[id].trk === 'I' && ROUTES[id].sig === tr.arrSig);
+    if (!rI || S.cdb.B1.occ || S.cdb.B1.lock) { tr.stazReq = null; ring('DC', `${STN}, qui DC: lo spostamento in manovra del treno ${tr.num} al binario I non è stato eseguito: ripetete la richiesta.`); continue; }
+    const path = linePieces(tr.t.arrIn, true, false); path.push(...routePieces(ROUTES[rI], false));
+    tr.path = path; tr.L = path.reduce((x, p) => x + p.len, 0); tr.stopS = tr.L - 12; tr.head = tr.stopS; tr.v = 0; tr.track = 'I'; tr.t.track = 'I'; tr.await = ROUTES[rI].next; tr.stazReq = null; tr.leopAt = null;
+    tr.t.note = 'in stazionamento al bin. I (spostato dal bin. IV)';
+    log(`Treno ${tr.num}: spostato in manovra dal binario IV al binario I`, 'ok');
+  }
+}
 function updateRequests() {
   updateFdo();
   for (const t of S.TT) if (t.prm && !t.prmCall && !t.done && !t.track && S.simT >= eta0(t) - 900 && S.simT < eta0(t) + 600) {
@@ -6732,11 +6786,12 @@ function updateRequests() {
     const a = tr.avaria; if (!a || a.done || S.simT < a.at) continue;
     if (tr.track || tr.exit || !tr.lineIn) { a.done = true; continue; }   // già in stazione: la richiesta decade
     a.done = true; const t = tr.t, C = CATS[tr.cat], rr = Math.random;
-    const why = C.pax ? AV_PAX[Math.floor(rr() * AV_PAX.length)] : a.kind === 'carri' ? AV_CARRI[Math.floor(rr() * AV_CARRI.length)] : AV_UDT[Math.floor(rr() * AV_UDT.length)];
-    tr.av = { kind: a.kind, dur: 600 + Math.floor(rr() * 2401), why };
+    const cp = a.kind === 'cp', why = cp ? 'cambio del personale di condotta richiesto dall\'impresa' : C.pax ? AV_PAX[Math.floor(rr() * AV_PAX.length)] : a.kind === 'carri' ? AV_CARRI[Math.floor(rr() * AV_CARRI.length)] : AV_UDT[Math.floor(rr() * AV_UDT.length)];
+    tr.av = { kind: a.kind, dur: cp ? 420 + Math.floor(rr() * 481) : 600 + Math.floor(rr() * 2401), why };
     tr.stops = true; tr.served = false; t.stops = true; tr.dw = 0;
-    if (!C.pax) { t.stopType = 'sosta straordinaria'; t.dwell = 0; } t.note = (t.note ? t.note + ' · ' : '') + `sosta straordinaria: ${why}`;
+    if (!C.pax) { t.stopType = cp ? 'cambio personale' : 'sosta straordinaria'; t.dwell = 0; } t.note = (t.note ? t.note + ' · ' : '') + (cp ? 'cambio personale su richiesta dell\'IF' : `sosta straordinaria: ${why}`);
     if (!t.plan) t.plan = C.pax ? (t.dir === 'R' ? 'III' : 'II') : (t.dir === 'R' ? 'IV' : 'I');
+    if (cp) { dcSay(`${STN}, qui DC: l'impresa ${t.impresa} ha chiesto di far effettuare il cambio del personale di condotta del treno ${tr.num} nella stazione di Latisana. Fermate il treno in stazione; l'AdC vi darà il pronto a cambio ultimato.`); log(`${tr.cat} ${tr.num}: cambio del personale a Latisana su richiesta dell'impresa`, 'warn'); continue; }
     ring(`AdC ${tr.cat} ${tr.num}`, `${STN}, qui il macchinista del ${tr.cat} ${tr.num} in arrivo sul ${cname(tr.lineIn)}: ${why}. Chiedo di essere fermato a Latisana per una sosta straordinaria. Vi darò il pronto quando potremo ripartire.`);
     log(`${tr.cat} ${tr.num}: richiesta di sosta straordinaria a Latisana (${why})`, 'warn');
   }
@@ -6774,7 +6829,7 @@ function tick(dt) {
   updateExtM40a(dt);
   updateInts();
   updateDC();
-  updateRequests();
+  updateRequests(); updateStaz();
   updateEvents();
   if (Math.floor(S.simT / 15) !== Math.floor((S.simT - dt) / 15)) for (const tr of S.trains) { if (tr.stab) continue; const p = pointAt(tr.path, tr.head); tr.t.hist.push([Math.round(S.simT), +kmOfX(p[0]).toFixed(3)]); }
   if (Math.floor(S.simT) % 60 === 0 && Math.floor(S.simT - dt) % 60 !== 0) ensureDays(false);
@@ -7019,14 +7074,9 @@ function bzPlay(k, loop, vol, maxSec) {
 }
 function playEntry() { bzPlay('entry', false, 0.26); }
 let routeHold = 0;
-function routeBuzz() {   // in ciclo finché un itinerario è in formazione o un segnale sta per essere disposto a via libera
-  const busy = speed > 0 && Object.values(S.active).some(a => a.state === 'forming' || (a.openAt != null && !a.open && !a.deg));
-  const now = performance.now();
-  if (busy) { routeHold = now + 1200; bzPlay('route', true, 0.18); }
-  else if (bzWant.route && now > routeHold) bzStop('route');
-}
-function playLeop() { bzStop('leop'); bzPlay('leop', true, 0.24, 60); }
-onSound = k => { if (k === 'entry') { playEntry(); return; } if (k === 'route') { routeHold = performance.now() + 3000; bzPlay('route', true, 0.18); return; } if (k === 'leop') { playLeop(); return; } if (k === 'err') beep(200, .3, 'sawtooth'); if (k === 'ring') { beep(1300, .12); setTimeout(() => beep(1300, .12), 180); } if (k === 'emerg') { for (let r = 0; r < 3; r++) for (let i = 0; i < 6; i++) setTimeout(() => beep(i % 2 ? 1450 : 980, .16, 'sawtooth', .06), r * 1100 + i * 170); return; } if (k === 'phone') { for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), i * 60); for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), 1300 + i * 60); } };
+function routeBuzz() { }   // cicalino dell'itinerario eliminato
+function playLeop() { bzStop('leop'); bzPlay('leop', true, 0.24, 20); }
+onSound = k => { if (k === 'entry') { playEntry(); return; } if (k === 'route') return; if (k === 'leop') { playLeop(); return; } if (k === 'err') beep(200, .3, 'sawtooth'); if (k === 'ring') { beep(1300, .12); setTimeout(() => beep(1300, .12), 180); } if (k === 'emerg') { for (let r = 0; r < 3; r++) for (let i = 0; i < 6; i++) setTimeout(() => beep(i % 2 ? 1450 : 980, .16, 'sawtooth', .06), r * 1100 + i * 170); return; } if (k === 'phone') { for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), i * 60); for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), 1300 + i * 60); } };
 onLog = (m, cls, t) => {
   const el = $('log'); if (!el) return;
   const d = document.createElement('div'); d.className = cls;
@@ -7222,6 +7272,7 @@ function execCommand(raw) {
     case 'INT': if (!a) return result(false, 'INT SI | INT NO | INT ALLE <HH:MM> | INT <ente> <minuti>'); if (a.toUpperCase() === 'SI') return intAnswer(true); if (a.toUpperCase() === 'NO') return intAnswer(false); if (a.toUpperCase() === 'ALLE') return intAnswerAt(b); return intByDM(normEnte(a), +b || 30);
     case 'RIP': return a ? intRestore(normEnte(a)) : result(false, 'RIP <ente>');
     case 'PRE': return a ? precAsk(a, b) : result(false, 'PRE <treno da fermare> [<treno da far precedere>] (richiesta al DC)');
+    case 'STAZ': return stazAsk(a);
     case 'GIU': return a ? giuntoReq(a) : result(false, 'GIU <treno> (richiesta del giunto treno)');
     case 'INO': if (!a) return result(false, 'INO <treno> (chiedi inoltro) · INO SI | INO NO (risposta alla stazione limitrofa)'); if (a.toUpperCase() === 'SI') return inoltroAnswer(true); if (a.toUpperCase() === 'NO') return inoltroAnswer(false); return inoltroAsk(a);
     case 'VIA': return a && b !== undefined ? intConcedi(a, b, p[3]) : result(false, 'VIA <n. interruzione> <treno delimitante> <giunto>');
@@ -7481,7 +7532,7 @@ function trainStatus(t) {
   if (tr.stops && !tr.served) return tr.v < 0.02 && tr.stopS != null && tr.head >= tr.stopS - 1 ? `in sosta bin. ${tr.track}` : `entra bin. ${tr.track}`;
   return tr.v < 0.02 ? `bin. ${tr.track}, attende ${tr.await ? sigLab(tr.await) : 'via'}` : `in corsa bin. ${tr.track}`;
 }
-function svcLabel(t) { if (CATS[t.cat].pax) return t.stops ? 'fermata' : 'transito'; if (t.stopType === 'transito') return 'transito'; if (t.stopType === 'sosta programmata') return 'sosta programmata' + (t.precFor ? ` (prec. ${t.precCat} ${t.precFor})` : ''); if (t.dwell) return `${t.stopType} ${Math.round(t.dwell / 60)}'`; return t.stopType; }
+function svcLabel(t) { if (CATS[t.cat].pax) return t.stops ? 'fermata' : 'transito'; if (t.stopType === 'transito') return 'transito'; if (t.stopType === 'stazionamento') return `stazionamento fino alle ${fmtM(t.dep)}`; if (t.stopType === 'sosta programmata') return 'sosta programmata' + (t.precFor ? ` (prec. ${t.precCat} ${t.precFor})` : ''); if (t.dwell) return `${t.stopType} ${Math.round(t.dwell / 60)}'`; return t.stopType; }
 function binCell(t) {
   if (!t.stops || t.can) return t.track ? `<b>${t.track === 'M' ? 'asta' : t.track}</b>` : '<span style="color:#666">—</span>';
   if (t.track || t.done) return `<b>${t.track || t.plan || '—'}</b>`;
@@ -7518,6 +7569,7 @@ function renderTT() {
     }
     if (x.state === 'active') r += `<div class="r hot"><span>Interruzione n. ${x.id} ${cname(x.ente)} in atto fino alle ${fmtM(x.to)}${x.can ? ` · treno cantiere ${x.can.mode === 'out' ? 'in uscita dall\'asta' : 'in arrivo per il ricovero'}` : ''}</span><button class="hb sm" data-c="RIP ${x.ente}">RIP</button></div>`;
   }
+  { const st = stazTrain(); if (st) r += `<div class="r${b4Wanted() ? ' hot' : ''}"><span>Treno ${st.num} in stazionamento al bin. IV fino alle ${fmtM(st.t.dep)}${b4Wanted() ? ' — <b>la Manutenzione richiede il bin. IV</b>' : ''}${st.stazReq ? ' · richiesta al DC inoltrata' : ' · stazionamento altrove (accordo col DC):'}</span>${st.stazReq ? '' : '<button class="hb sm" data-c="STAZ I">Bin. I</button><button class="hb sm" data-c="STAZ PG">Portogruaro</button><button class="hb sm" data-c="STAZ SG">S. Giorgio</button>'}</div>`; }
   for (const t of S.TT) if (t.dcHold && !t.done) r += `<div class="r hot"><span>Ordine DC: trattenere ${t.cat} ${t.num} fino al ${t.dcHold}</span></div>`;
   for (const L in LINES) { const st = S.line[L]; if (st.orient !== LINES[L].legal && !st.interr) r += `<div class="r"><span>Blocco ${cname(L)} orientato in senso illegale</span><button class="hb sm" data-c="CO ${L}">CO</button></div>`; }
   if (S.key === 'R') r += `<div class="r hot"><span>Chiave FD101 liberata: deviatoio 101 al personale di manutenzione (${S.sw.D101.pos === 'R' ? 'rovescio' : 'normale'})</span></div>`;
@@ -8533,7 +8585,7 @@ const R3 = (() => {
       const ms = Array.isArray(o.material) ? o.material : [o.material], gg = g.index ? g.toNonIndexed() : g, P = gg.attributes.position, N = gg.attributes.normal, U = gg.attributes.uv;
       const parts = (Array.isArray(o.material) && gg.groups.length) ? gg.groups.map(q => [ms[q.materialIndex], q.start, q.count]) : [[ms[0], 0, P.count]];
       // se un solo pezzo non è fondibile, lascio la mesh com'è
-      for (const [m] of parts) if (!m || m.transparent || m.isShaderMaterial || m.isRawShaderMaterial) return;
+      for (const [m] of parts) if (!m || m.transparent || m.vertexColors || m.isShaderMaterial || m.isRawShaderMaterial) return;
       mm.multiplyMatrices(inv, o.matrixWorld); nm.getNormalMatrix(mm);
       const v = new THREE.Vector3();
       for (const [m, st, cnt] of parts) {
@@ -9747,7 +9799,7 @@ const R3 = (() => {
   }
   function syncTrains() {
     if (!trainGrp) { trainGrp = new THREE.Group(); trainGrp.name = 'treni'; scene.add(trainGrp); }
-    const live = new Set();
+    const live = new Set(); let moved = false;
     for (const tr of S.trains) {
       if (!tr.path || !tr.path.length) continue;
       live.add(tr);
@@ -9755,11 +9807,14 @@ const R3 = (() => {
       if (!e) {
         const U = consist(tr.t || {}), grp = new THREE.Group(); trainGrp.add(grp);
         let off = 0; const veh = U.map((u, i) => { const g = vehicle(u); grp.add(g); const o = { g, L: u.L, off, wag: u.kind === 'wag', loco: !!u.loco }; off += u.L + 0.3; return o; });
+        for (const v of veh) { try { mergeStatic(v.g, new Set()); } catch (er) { } }   // meno chiamate di disegno per ogni veicolo
         lightsAt(veh[0].g, veh[0].L * 1000, true, !tr.stab); lightsAt(veh[veh.length - 1].g, veh[veh.length - 1].L * 1000, false, false);
         grp.traverse(o => { if (o.isMesh) { o.castShadow = trainCast; o.receiveShadow = false; } });
         e = { grp, veh, clk: 0 }; trains3.set(tr, e);
       }
-      // posizione dei veicoli lungo il percorso
+      // posizione dei veicoli lungo il percorso (solo se il treno si è mosso)
+      if (e.hd === tr.head && e.pl === tr.path.length) continue;
+      e.hd = tr.head; e.pl = tr.path.length;
       let vis = false;
       for (const v of e.veh) {
         const sF = tr.head - v.off, sR = sF - v.L;
@@ -9768,10 +9823,10 @@ const R3 = (() => {
         const zc = (a[1] + b[1]) / 2; v.g.visible = Math.abs(zc) < 330000; if (!v.g.visible) continue; vis = true;
         v.g.position.set(M((a[0] + b[0]) / 2), 0, M(zc)); v.g.rotation.y = Math.atan2(a[0] - b[0], a[1] - b[1]);
       }
-      e.vis = vis; e.zMin = null;
+      e.vis = vis; e.zMin = null; if (vis || e.visPrev) moved = true; e.visPrev = vis;
     }
     for (const [tr, e] of trains3) if (!live.has(tr)) { trainGrp.remove(e.grp); if (e.bk) { e.bk.kill(); e.bk = null; } for (const key of ['sRoll', 'sHum']) if (e[key]) { try { e[key].g.gain.value = 0; e[key].s.stop(); } catch (_) { } } trains3.delete(tr); }
-    return trains3.size;
+    return moved;
   }
   // ---------- suoni: ronzio dell'ufficio e passaggio dei treni ----------
   let snd = null;
@@ -10737,7 +10792,7 @@ const R3 = (() => {
     U.forEach((u, i) => { const g = vehicle(u); g.position.set(M(TRK3[trk]), 0, M(z - u.L * 500)); grp.add(g); if (i === 0) lightsAt(g, u.L * 1000, true, true); if (i === U.length - 1) lightsAt(g, u.L * 1000, false, false); z -= u.L * 1000 + 300; });
     markDirty && markDirty(); return U.length;
   }
-  return { _demo: demo, get quality() { return quality; }, get _dbg() { return { scene, renderer, composer, rainMesh, dropsMesh, wetK, flash, get snd() { return snd; }, get trains3() { return trains3; } }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
+  return { _demo: demo, get quality() { return quality; }, get _dbg() { return { scene, renderer, composer, rainMesh, dropsMesh, wetK, flash, get camera() { return camera; }, get snd() { return snd; }, get trains3() { return trains3; } }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
     _cellXY(sel) { const d = $('tab').querySelector(sel) || $('pls').querySelector(sel); const c = layout.cells.find(c => domCell(c) === d); const v = new THREE.Vector3(px2x(c.x + c.w / 2), px2y(c.y + c.h / 2), 0).applyMatrix4(pulsGroup.matrixWorld).project(camera); const r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 })();
 try { if (localStorage.getItem('cs-latisana-view') === '3d') R3.enter(); } catch (e) { }
