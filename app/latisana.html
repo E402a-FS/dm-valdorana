@@ -495,6 +495,7 @@ body.native-menu header{display:none}
     <div class="calls" id="calls"></div>
     <div class="chat" id="chat"></div>
     <form class="tel" id="telForm" autocomplete="off"><select id="telTr"></select><button type="button" class="hb sm" id="telCall" title="Chiama l'AdC del treno selezionato">☎ Chiama</button><button type="button" class="hb sm" id="telPre" title="Chiedi al DC di fermare il treno selezionato per dare la precedenza">Precedenza</button><button type="button" class="hb sm" id="telGiu" title="Chiedi il giunto treno al treno selezionato (solo treni diretti a Latisana)">Giunto</button><input id="telTxt" placeholder="messaggio…"><button class="hb sm">Invia</button></form>
+    <div class="telhold" id="telSend"><span>Invio treni</span><select id="telSendSide"><option value="ALL">tutte le direzioni</option><option value="PG">da Portogruaro</option><option value="SG">da S. Giorgio</option></select><span>causa</span><select id="telSendC"><option value="app">apparato centrale</option><option value="dev">deviatoi</option><option value="ali">alimentazione impianti</option><option value="blo">blocco automatico</option><option value="ban">binari di stazione</option></select><button type="button" class="hb sm" id="telSendStop" title="Chiama DC e stazioni limitrofe: non inviare treni verso Latisana per guasto">Non inviare treni</button><input id="telSendN" placeholder="n. traccia: 2315 2317…" style="width:150px"><button type="button" class="hb sm" id="telSendList" title="Chiama DC e stazioni limitrofe: inviare solo i treni con i numeri traccia indicati">Invia solo questi</button><button type="button" class="hb sm" id="telSendOff" title="Comunica la ripresa della normale circolazione">Riprendi invii</button></div>
     <div class="telhold" id="telHold" style="display:none"><span>Partenza non prima delle</span><input id="telHoldT" type="time"><span>causa</span><select id="telHoldC"><option value="G">guasto</option><option value="T">intervento tecnici in corso</option><option value="C" selected>esigenze di circolazione</option></select><button type="button" class="hb sm" id="telHoldBtn">Comunica all'AdC</button></div>
   </div>
   <div class="card panel" id="pReq"><h2 class="ph"><span>Richieste, ordini DC e anormalità</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="reqs" id="reqs"></div></div>
@@ -552,7 +553,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.6.2';
+window.SIM_BUILD = '2.7.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5946,7 +5947,7 @@ function updateDC() {
   }
   // treni fermi nelle stazioni vicine perché il blocco non è orientato verso Latisana
   for (const side of ['SG', 'PG']) {
-    const w = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready + 60 && !t.dcSpawnHold);
+    const w = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready + 60 && !t.dcSpawnHold && !noSendBlocks(t));
     const ok = SIDES[side].lines.some(L => S.line[L].orient === 'in' && !S.line[L].interr);
     if (w && !ok && !S.coReq && !(S.coAsk) && !(S.coRetry && S.coRetry[side] > S.simT)) {
       const L = SIDES[side].lines.find(L => !S.line[L].interr && !S.line[L].chg && lineAllFree(L) && !Object.keys(S.active).some(id => ROUTES[id].line === L) && !S.ints.some(x => x.ente === L && x.limOk && x.state === 'granted'));
@@ -6359,7 +6360,7 @@ function updateLines(dt) {
   // invio dei treni dalle stazioni vicine (il DC regola la circolazione)
   for (const side of ['SG', 'PG']) {
     if (evStop(side)) continue;
-    const nx = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready && !t.dcSpawnHold && !(evLimited(side) && !t.inoOk));
+    const nx = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready && !t.dcSpawnHold && !noSendBlocks(t) && !(evLimited(side) && !t.inoOk));
     if (!nx) continue;
     const L = SIDES[side].lines.find(L => {
       const st = S.line[L], l = LINES[L];
@@ -6614,6 +6615,56 @@ function inoltroAnswer(yes) {
   t.inoRetry = S.simT + 300; phone('DM', `DM di ${nb}, qui ${STN}: attendete, al momento non posso ricevere il ${t.cat} ${t.num}. Vi richiamo.`);
   return result(true, `Inoltro del ${t.cat} ${t.num} rinviato`, 'warn');
 }
+
+// ======================= INVIO DEI TRENI REGOLATO DAL DM =======================
+// il DM chiama il DC e le stazioni limitrofe: non inviare treni verso Latisana per un guasto, oppure inviare solo i treni
+// con i numeri traccia indicati. Resta in vigore finché non viene revocato; i treni già in tratta proseguono.
+const NS_CAUSE = { app: 'guasto all\'apparato centrale', dev: 'guasto ai deviatoi', ali: 'guasto all\'alimentazione degli impianti di sicurezza', blo: 'guasto al blocco automatico', ban: 'guasto ai binari di stazione' };
+function noSendBlocks(t) {
+  const n = S.nosend; if (!n || !t) return false;
+  if (n.side !== 'ALL' && t.from !== n.side) return false;
+  return n.mode === 'stop' ? true : !n.nums.includes(String(t.num));
+}
+const nsSides = side => side === 'ALL' ? ['PG', 'SG'] : [side];
+function nsTxt(n) { return n.mode === 'stop' ? 'sospeso l\'invio dei treni' : `invio dei soli treni ${n.nums.join(', ')}`; }
+function sendHold(mode, side, numsStr, cause) {
+  side = side || 'ALL';
+  const why = NS_CAUSE[cause] || NS_CAUSE.app;
+  if (mode === 'off') {
+    const n = S.nosend; if (!n) return result(false, 'Nessuna limitazione all\'invio dei treni in atto');
+    S.nosend = null;
+    phone('DM', `DC e DM ${nsSides(n.side).map(x => SIDES[x].name).join(' / ')}, qui ${STN}: guasto risolto, potete riprendere a inviare i treni verso Latisana secondo orario.`);
+    queuePhone(18 + Math.random() * 15, 'DC', `${STN}, qui DC: preso nota, riprendo la normale circolazione verso Latisana.`);
+    for (const x of nsSides(n.side)) queuePhone(30 + Math.random() * 40, `DM ${SIDES[x].name}`, `${STN}, qui ${SIDES[x].name}: ricevuto, ricominciamo a inviare i treni.`);
+    return result(true, 'Invio dei treni ripreso', 'ok');
+  }
+  let nums = [];
+  if (mode === 'list') {
+    const toks = String(numsStr || '').split(/[\s,;.]+/).filter(Boolean), ok = [], bad = [];
+    for (const k of toks) { if (S.TT.some(t => String(t.num) === k && !t.done && !t.can)) ok.push(k); else bad.push(k); }
+    if (!ok.length) return result(false, bad.length ? `Numeri traccia non in programma: ${bad.join(', ')}` : 'Indica i numeri traccia dei treni da inviare');
+    nums = ok.filter((k, i) => ok.indexOf(k) === i);
+    if (bad.length) log(`Numeri traccia non riconosciuti e non comunicati: ${bad.join(', ')}`, 'warn');
+  }
+  const prev = S.nosend; S.nosend = { mode, side, nums, why, t0: prev ? prev.t0 : S.simT, rem: S.simT + 2400 };
+  const nbs = nsSides(side).map(x => SIDES[x].name).join(' e ');
+  const txt = mode === 'stop'
+    ? `DC e DM ${nbs}, qui ${STN}: per ${why} non inviate treni verso Latisana fino a nuova comunicazione. I treni già in tratta li ricevo.`
+    : `DC e DM ${nbs}, qui ${STN}: per ${why} la circolazione verso Latisana è regolata dai numeri traccia: inviate solo i treni ${nums.join(', ')}, gli altri tenetli fermi.`;
+  phone('DM', txt);
+  queuePhone(20 + Math.random() * 25, 'DC', mode === 'stop'
+    ? `${STN}, qui DC: preso nota del ${why}. Dispongo di non inviare treni verso Latisana; i treni già in tratta proseguono. Comunicatemi la previsione di ripresa.`
+    : `${STN}, qui DC: preso nota del ${why}. Verso Latisana vengono inviati solo i treni ${nums.join(', ')}; tutti gli altri restano fermi nelle stazioni limitrofe. Comunicatemi la previsione di ripresa.`);
+  for (const x of nsSides(side)) queuePhone(35 + Math.random() * 45, `DM ${SIDES[x].name}`, mode === 'stop'
+    ? `${STN}, qui ${SIDES[x].name}: ricevuto, tratteniamo tutti i treni diretti a voi fino a vostra comunicazione.`
+    : `${STN}, qui ${SIDES[x].name}: ricevuto, inviamo solo i treni ${nums.join(', ')}; gli altri restano fermi da noi.`);
+  return result(true, mode === 'stop' ? 'Invio dei treni sospeso (DC e stazioni limitrofe avvisati)' : `Invio limitato ai treni ${nums.join(', ')}`, 'warn');
+}
+function updateNosend() {
+  const n = S.nosend; if (!n || S.simT < n.rem) return;
+  n.rem = S.simT + 2400;
+  phone('DC', `Latisana, qui DC: sono trascorsi ${Math.round((S.simT - n.t0) / 60)} minuti dalla limitazione dell'invio dei treni (${nsTxt(n)}). Quando prevedete di riprendere la circolazione normale?`);
+}
 // ======================= RICHIESTA DI PRECEDENZA AL DC =======================
 // il DM chiede di fermare un treno a Latisana per far passare un treno più veloce che lo segue;
 // il DC valuta rango, orari di transito, distacco fino alla stazione successiva e incroci a binario unico
@@ -6829,7 +6880,7 @@ function tick(dt) {
   updateExtM40a(dt);
   updateInts();
   updateDC();
-  updateRequests(); updateStaz();
+  updateRequests(); updateStaz(); updateNosend();
   updateEvents();
   if (Math.floor(S.simT / 15) !== Math.floor((S.simT - dt) / 15)) for (const tr of S.trains) { if (tr.stab) continue; const p = pointAt(tr.path, tr.head); tr.t.hist.push([Math.round(S.simT), +kmOfX(p[0]).toFixed(3)]); }
   if (Math.floor(S.simT) % 60 === 0 && Math.floor(S.simT - dt) % 60 !== 0) ensureDays(false);
@@ -7273,6 +7324,7 @@ function execCommand(raw) {
     case 'RIP': return a ? intRestore(normEnte(a)) : result(false, 'RIP <ente>');
     case 'PRE': return a ? precAsk(a, b) : result(false, 'PRE <treno da fermare> [<treno da far precedere>] (richiesta al DC)');
     case 'STAZ': return stazAsk(a);
+    case 'INVIO': { const u = (a || '').toUpperCase(); if (u === 'OFF') return sendHold('off'); if (!u || u === 'STOP') return sendHold('stop', 'ALL', '', 'app'); return sendHold('list', 'ALL', a, 'app'); }
     case 'GIU': return a ? giuntoReq(a) : result(false, 'GIU <treno> (richiesta del giunto treno)');
     case 'INO': if (!a) return result(false, 'INO <treno> (chiedi inoltro) · INO SI | INO NO (risposta alla stazione limitrofa)'); if (a.toUpperCase() === 'SI') return inoltroAnswer(true); if (a.toUpperCase() === 'NO') return inoltroAnswer(false); return inoltroAsk(a);
     case 'VIA': return a && b !== undefined ? intConcedi(a, b, p[3]) : result(false, 'VIA <n. interruzione> <treno delimitante> <giunto>');
@@ -7350,6 +7402,9 @@ $('telHoldBtn').addEventListener('click', () => { const v = $('telTr').value; if
 $('telTr').addEventListener('change', () => { const tr = trainByNum($('telTr').value); $('telHold').style.display = tr ? '' : 'none'; if (tr && !$('telHoldT').value) $('telHoldT').value = fmtM(S.simT + 600); });
 $('telPre').addEventListener('click', () => { const v = $('telTr').value; if (!v || ['DC', 'MT', 'CEI'].includes(v)) { msg('Seleziona il treno da fermare', 'warn'); return; } show(precAsk(v)); });
 $('telGiu').addEventListener('click', () => { const v = $('telTr').value; if (!v || ['DC', 'MT', 'CEI'].includes(v)) { msg('Seleziona un treno', 'warn'); return; } show(giuntoReq(v)); });
+$('telSendStop').addEventListener('click', () => show(sendHold('stop', $('telSendSide').value, '', $('telSendC').value)));
+$('telSendList').addEventListener('click', () => show(sendHold('list', $('telSendSide').value, $('telSendN').value, $('telSendC').value)));
+$('telSendOff').addEventListener('click', () => show(sendHold('off')));
 $('telCall').addEventListener('click', () => { const v = $('telTr').value; if (!v) return; if (['DC', 'MT', 'CEI'].includes(v)) { msg('Scrivi il messaggio e premi Invia', 'warn'); return; } show(callTrain(v)); });
 const INTT = {}, VIAV = {};
 function renderPhone() {
@@ -7569,6 +7624,7 @@ function renderTT() {
     }
     if (x.state === 'active') r += `<div class="r hot"><span>Interruzione n. ${x.id} ${cname(x.ente)} in atto fino alle ${fmtM(x.to)}${x.can ? ` · treno cantiere ${x.can.mode === 'out' ? 'in uscita dall\'asta' : 'in arrivo per il ricovero'}` : ''}</span><button class="hb sm" data-c="RIP ${x.ente}">RIP</button></div>`;
   }
+  if (S.nosend) { const n = S.nosend; r += `<div class="r hot"><span>Invio treni limitato (${n.side === 'ALL' ? 'tutte le direzioni' : SIDES[n.side].name}): ${n.mode === 'stop' ? 'nessun treno inviato' : 'solo i treni ' + n.nums.join(', ')} · ${n.why}</span><button class="hb sm" data-c="INVIO OFF">Riprendi</button></div>`; }
   { const st = stazTrain(); if (st) r += `<div class="r${b4Wanted() ? ' hot' : ''}"><span>Treno ${st.num} in stazionamento al bin. IV fino alle ${fmtM(st.t.dep)}${b4Wanted() ? ' — <b>la Manutenzione richiede il bin. IV</b>' : ''}${st.stazReq ? ' · richiesta al DC inoltrata' : ' · stazionamento altrove (accordo col DC):'}</span>${st.stazReq ? '' : '<button class="hb sm" data-c="STAZ I">Bin. I</button><button class="hb sm" data-c="STAZ PG">Portogruaro</button><button class="hb sm" data-c="STAZ SG">S. Giorgio</button>'}</div>`; }
   for (const t of S.TT) if (t.dcHold && !t.done) r += `<div class="r hot"><span>Ordine DC: trattenere ${t.cat} ${t.num} fino al ${t.dcHold}</span></div>`;
   for (const L in LINES) { const st = S.line[L]; if (st.orient !== LINES[L].legal && !st.interr) r += `<div class="r"><span>Blocco ${cname(L)} orientato in senso illegale</span><button class="hb sm" data-c="CO ${L}">CO</button></div>`; }
@@ -7831,8 +7887,8 @@ const R3 = (() => {
   const T = {};                  // superfici inquadrabili (mm)
   const tick = [];               // funzioni chiamate a ogni fotogramma
   const LS = (() => { try { return JSON.parse(localStorage.getItem('cs-latisana-luci')) || {}; } catch (e) { return {}; } })();
-  let ceilA = LS.ceilA !== undefined ? LS.ceilA : LS.ceil !== false, ceilB = LS.ceilB !== undefined ? LS.ceilB : LS.ceil !== false, lampOn = LS.lamp !== false; const ceilOnF = () => (ceilA ? 0.5 : 0) + (ceilB ? 0.5 : 0); quality = LS.q || 'media';
-  const saveLS = () => { try { localStorage.setItem('cs-latisana-luci', JSON.stringify({ ceilA, ceilB, lamp: lampOn, q: quality })); } catch (e) { } };
+  let ceilA = LS.ceilA !== undefined ? LS.ceilA : LS.ceil !== false, ceilB = LS.ceilB !== undefined ? LS.ceilB : LS.ceil !== false, lampOn = LS.lamp !== false, acOn = !!LS.ac; const bLv = Array.isArray(LS.bl) && LS.bl.length === 3 ? LS.bl.map(v => Math.max(0, Math.min(1, +v || 0))) : [0, 0, 0], bTg = bLv.slice(); let blindCover = 0, blindDrag = -1, acLed = null, acHit = [], blindHit = [], blindObj = [], lastCoverL = -1; const ceilOnF = () => (ceilA ? 0.5 : 0) + (ceilB ? 0.5 : 0); quality = LS.q || 'media';
+  const saveLS = () => { try { localStorage.setItem('cs-latisana-luci', JSON.stringify({ ceilA, ceilB, lamp: lampOn, q: quality, ac: acOn, bl: bTg.map(v => +v.toFixed(2)) })); } catch (e) { } };
 
   // ---------- texture procedurali ----------
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -7882,6 +7938,55 @@ const R3 = (() => {
   const SCR = [], stLights = [];
   let torch = null, torchOn = false, phoneHit = [], phoneScr, phoneLed, sun, hemi, lampSpot, lampBulbMat, ceilLights = [], ceilMats = [], skyMat, qlTex, qlMesh, pulsGroup, pulsTex, cellObjs = [], monLights = [], glassMat, switchMesh, lampHit, clockTex, starPts;
   const mats = {};
+
+
+  // tastiera nera a 105 tasti con tastierino numerico (stile della tastiera reale della foto)
+  let _kbM = null;
+  function kbMat() {
+    if (_kbM) return _kbM;
+    const tex = ctex(1880, 600, (g, w, h) => {
+      g.fillStyle = '#0d0e10'; g.fillRect(0, 0, w, h);
+      const u = 78, ox = 44, oy = 40;           // unità tasto (px) e passo
+      const key = (x, y, kw, kh, lab, lab2, sz) => {
+        const X = ox + x * u, Y = oy + y * u, Wk = kw * u - 7, Hk = kh * u - 7;
+        g.fillStyle = '#050506'; g.fillRect(X - 2, Y - 2, Wk + 4, Hk + 4);
+        const gr = g.createLinearGradient(0, Y, 0, Y + Hk); gr.addColorStop(0, '#2c2e33'); gr.addColorStop(1, '#1c1d21'); g.fillStyle = gr;
+        g.beginPath(); g.roundRect ? g.roundRect(X, Y, Wk, Hk, 7) : g.rect(X, Y, Wk, Hk); g.fill();
+        g.fillStyle = '#3a3c42'; g.fillRect(X + 4, Y + 3, Wk - 8, 3);
+        g.fillStyle = '#e7e8ea'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        if (lab2) { g.font = `${sz || 22}px Arial`; g.fillText(lab2, X + Wk / 2, Y + Hk * 0.3); g.fillText(lab, X + Wk / 2, Y + Hk * 0.7); }
+        else if (lab) { g.font = `${sz || (lab.length > 1 ? 18 : 26)}px Arial`; g.fillText(lab, X + Wk / 2, Y + Hk / 2); }
+      };
+      // fila dei tasti funzione
+      key(0, 0, 1, 1, 'Esc', null, 18);
+      for (let i = 0; i < 12; i++) key(2 + i + Math.floor(i / 4) * 0.5, 0, 1, 1, 'F' + (i + 1), null, 19);
+      key(15.5, 0, 1, 1, 'Prt Sc', null, 15); key(16.5, 0, 1, 1, 'Scroll', null, 15); key(17.5, 0, 1, 1, 'Pause', null, 15);
+      // fila dei numeri
+      const rn = [['`', '~'], ['1', '!'], ['2', '@'], ['3', '#'], ['4', '$'], ['5', '%'], ['6', '^'], ['7', '&'], ['8', '*'], ['9', '('], ['0', ')'], ['-', '_'], ['=', '+']];
+      rn.forEach((k, i) => key(i, 1.5, 1, 1, k[0], k[1], 20)); key(13, 1.5, 2, 1, 'Backspace', null, 17);
+      const r1 = 'QWERTYUIOP', r2 = 'ASDFGHJKL', r3 = 'ZXCVBNM';
+      key(0, 2.5, 1.5, 1, 'Tab', null, 17); [...r1].forEach((c, i) => key(1.5 + i, 2.5, 1, 1, c)); key(11.5, 2.5, 1, 1, '[', '{', 20); key(12.5, 2.5, 1, 1, ']', '}', 20); key(13.5, 2.5, 1.5, 1, '\\', '|', 20);
+      key(0, 3.5, 1.75, 1, 'Caps Lock', null, 15); [...r2].forEach((c, i) => key(1.75 + i, 3.5, 1, 1, c)); key(10.75, 3.5, 1, 1, ';', ':', 20); key(11.75, 3.5, 1, 1, '\'', '"', 20); key(12.75, 3.5, 2.25, 1, 'Enter', null, 18);
+      key(0, 4.5, 2.25, 1, 'Shift', null, 18); [...r3].forEach((c, i) => key(2.25 + i, 4.5, 1, 1, c)); key(9.25, 4.5, 1, 1, ',', '<', 20); key(10.25, 4.5, 1, 1, '.', '>', 20); key(11.25, 4.5, 1, 1, '/', '?', 20); key(12.25, 4.5, 2.75, 1, 'Shift', null, 18);
+      key(0, 5.5, 1.25, 1, 'Ctrl', null, 17); key(1.25, 5.5, 1.25, 1, '', null); key(2.5, 5.5, 1.25, 1, 'Alt', null, 17); key(3.75, 5.5, 6.25, 1, ''); key(10, 5.5, 1.25, 1, 'Alt', null, 17); key(11.25, 5.5, 1.25, 1, '', null); key(12.5, 5.5, 1.25, 1, '≡', null, 22); key(13.75, 5.5, 1.25, 1, 'Ctrl', null, 17);
+      // blocco di navigazione e frecce
+      ['Insert', 'Home', 'Pg Up'].forEach((t, i) => key(15.5 + i, 1.5, 1, 1, t, null, 15)); ['Delete', 'End', 'Pg Dn'].forEach((t, i) => key(15.5 + i, 2.5, 1, 1, t, null, 15));
+      key(16.5, 4.5, 1, 1, '▲', null, 18); key(15.5, 5.5, 1, 1, '◀', null, 18); key(16.5, 5.5, 1, 1, '▼', null, 18); key(17.5, 5.5, 1, 1, '▶', null, 18);
+      // tastierino numerico
+      key(19, 0, 1, 1, null); [['Num', 19], ['/', 20], ['*', 21], ['−', 22]].forEach(([t, x]) => key(x, 1.5, 1, 1, t, null, t.length > 1 ? 15 : 22));
+      [['7', 'Home'], ['8', '↑'], ['9', 'PgUp']].forEach((k, i) => key(19 + i, 2.5, 1, 1, k[0], k[1], 17)); key(22, 2.5, 1, 2, '+', null, 22);
+      [['4', '◀'], ['5', ''], ['6', '▶']].forEach((k, i) => key(19 + i, 3.5, 1, 1, k[0], k[1] || null, 17));
+      [['1', 'End'], ['2', '↓'], ['3', 'PgDn']].forEach((k, i) => key(19 + i, 4.5, 1, 1, k[0], k[1], 17)); key(22, 4.5, 1, 2, 'Enter', null, 15);
+      key(19, 5.5, 2, 1, '0', 'Ins', 17); key(21, 5.5, 1, 1, '.', 'Del', 17);
+      // led di stato
+      g.fillStyle = '#2a4a2a'; for (const x of [20.1, 21.1, 22.1]) { g.fillRect(ox + x * u, oy + 0.35 * u, 20, 6); }
+      speck(g, w, h, 2500, 0.05, false);
+    });
+    tex.anisotropy = 16;
+    const side = mat({ color: 0x0f1012, roughness: 0.5 }), top = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55, metalness: 0.05 });
+    _kbM = [side, side, top, side, side, side];
+    return _kbM;
+  }
 
   function build() {
     if (built) return; built = true;
@@ -8104,7 +8209,7 @@ const R3 = (() => {
     lampHit = shade;
 
     // ---------- postazione PC ----------
-    const XP = 1750, WP = 1700;
+    const XP = 1750, WP = 1900;
     box(XP, yD - 30, -380, WP, 30, 760, mats.lam, null, 4);
     box(XP - WP / 2 + 30, 0, -380, 40, yD - 30, 720, mats.grey); box(XP + WP / 2 - 30, 0, -380, 40, yD - 30, 720, mats.grey);
     box(XP, 0, -745, WP - 80, yD - 30, 20, mats.grey);
@@ -8116,8 +8221,8 @@ const R3 = (() => {
       box(0, yC - hS / 2 - 25, -55, wS + 40, hS + 50, 40, mats.black, g, 8);
       const scrM = mesh(new THREE.PlaneGeometry(M(wS), M(hS)), new THREE.MeshStandardMaterial({ color: 0x050607, roughness: 0.15, metalness: 0.2 }), [0, yC, -34], null, g); scrM.castShadow = false;
       // tastiera e mouse
-      const kb = box(0, 0, 230, 460, 22, 160, mat({ map: ctex(460, 160, (q, w, h) => { q.fillStyle = '#1c1e20'; q.fillRect(0, 0, w, h); for (let r = 0; r < 5; r++) for (let c = 0; c < 18; c++) { q.fillStyle = '#34383c'; q.fillRect(12 + c * 24.6, 14 + r * 28, 20, 22); } }), roughness: 0.5 }), g, 4);
-      box(330, 0, 240, 62, 30, 105, mats.dark, g, 14);
+      box(0, 0, 230, 470, 18, 150, kbMat(), g, 4);
+      box(290, 0, 240, 62, 30, 105, mats.dark, g, 14);
       // schermo: pagina vera del gioco in CSS3D
       const el = document.getElementById(id); el.style.transform = '';
       const wrap = document.createElement('div'); wrap.className = 'scrw'; hidden.appendChild(wrap); wrap.appendChild(el);
@@ -8135,11 +8240,11 @@ const R3 = (() => {
       SCR.push({ id, cr, cs, c: new THREE.Vector3(T[id].x, T[id].y, T[id].z).multiplyScalar(0.001), bez: bez.map(q => q.multiplyScalar(0.001)), clip: '' });
     };
     mkScreens();
-    mon('r3m1', XP - 330, -420, -14);
-    mon('r3m2', XP + 360, -400, -32);
+    mon('r3m1', XP - 440, -420, 0);
+    mon('r3m2', XP + 260, -420, 0);
     // telefono di stazione (a destra del secondo monitor): clic = apre il telefono sul monitor 2
     {
-      const pg = group(XP + 720, yD, -190, -38), dk = mat({ color: 0x3a3d41, roughness: 0.45, metalness: 0.1 });
+      const pg = group(XP + 780, yD, -190, -38), dk = mat({ color: 0x3a3d41, roughness: 0.45, metalness: 0.1 });
       const prof2 = new THREE.Shape([[110, 0], [110, 26], [-100, 78], [-110, 72], [-110, 0]].map(([z, y]) => new THREE.Vector2(M(z), M(y))));
       const base = new THREE.Mesh(new THREE.ExtrudeGeometry(prof2, { depth: M(250), bevelEnabled: true, bevelThickness: M(3), bevelSize: M(3), bevelSegments: 2 }), dk);
       base.rotation.y = -Math.PI / 2; base.position.set(M(125), 0, 0); base.castShadow = base.receiveShadow = true; pg.add(base); phoneHit.push(base);
@@ -8155,15 +8260,58 @@ const R3 = (() => {
       class Coil extends THREE.Curve { getPoint(t) { const a = new THREE.Vector3(M(-100), M(55), M(110)), b = new THREE.Vector3(M(-60), M(8), M(260)), p = a.lerp(b, t), w = t * Math.PI * 2 * 14; return p.add(new THREE.Vector3(Math.cos(w) * M(7), Math.sin(w) * M(7), 0)); } }
       const cord = new THREE.Mesh(new THREE.TubeGeometry(new Coil(), 400, M(1.6), 6, false), mats.black); pg.add(cord);
       phoneLed = new THREE.Mesh(new THREE.SphereGeometry(M(5), 12, 8), new THREE.MeshStandardMaterial({ color: 0x441111, emissive: 0x000000, emissiveIntensity: 3 })); phoneLed.position.set(M(100), M(71), M(-62)); pg.add(phoneLed);
-      T.phone = { x: XP + 720, y: yD + 60, z: -190, w: 420, h: 300, rx: 50, ry: -38 };
+      T.phone = { x: XP + 780, y: yD + 60, z: -190, w: 420, h: 300, rx: 50, ry: -38 };
     }
 
     // ---------- arredi e pareti ----------
     // porta
     box(X0 + 22, 0, 1300, 40, 2100, 900, mats.wood);
     mesh(new THREE.SphereGeometry(M(28), 16, 12), mat({ color: 0xc9b26a, metalness: 1, roughness: 0.3 }), [X0 + 50, 1050, 1640]);
-    // condizionatore
-    box(1900, 2400, Z0 + 80, 900, 290, 160, mat({ color: 0xf2f2ee, roughness: 0.35 }), null, 20);
+    // condizionatore a parete (split bianco): texture con pannello frontale, logo e feritoia; led rosso = spento, verde = acceso
+    {
+      const AW = 900, AH = 290, AD = 160, AX = 1900, AY = 2400, AZ = Z0 + 80;
+      const white = mat({ color: 0xf3f3f0, roughness: 0.38 });
+      const front = mat({ map: ctex(1800, 580, (g, w, h) => {
+        const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#f6f6f4'); bg.addColorStop(0.55, '#f1f1ee'); bg.addColorStop(1, '#e4e4e0'); g.fillStyle = bg; g.fillRect(0, 0, w, h);
+        // fessura superiore (presa d'aria) e giunto del pannello
+        g.fillStyle = '#d9d9d5'; g.fillRect(40, 54, w - 80, 5); g.fillStyle = '#ffffff'; g.fillRect(40, 60, w - 80, 3);
+        g.fillStyle = '#cfcfcb'; for (let x = 60; x < w - 60; x += 12) g.fillRect(x, 20, 7, 24);
+        // luce di bordo sul pannello e ombra del bordo inferiore
+        g.strokeStyle = 'rgba(0,0,0,0.07)'; g.lineWidth = 3; g.beginPath(); g.moveTo(26, 90); g.lineTo(26, 430); g.moveTo(w - 26, 90); g.lineTo(w - 26, 430); g.stroke();
+        // feritoia inferiore con aletta
+        g.fillStyle = '#2a2c2f'; g.beginPath(); g.roundRect ? g.roundRect(70, 470, w - 140, 62, 14) : g.rect(70, 470, w - 140, 62); g.fill();
+        const fl = g.createLinearGradient(0, 478, 0, 520); fl.addColorStop(0, '#fafaf8'); fl.addColorStop(1, '#d4d4d0'); g.fillStyle = fl; g.fillRect(84, 490, w - 168, 26);
+        g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(84, 516, w - 168, 6);
+        // logo e dicitura
+        g.fillStyle = '#4a4d52'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 40px Arial'; g.fillText('SAMSUNG', w / 2, 270);
+        g.font = '16px Arial'; g.fillStyle = '#5b5f65'; g.textAlign = 'right'; g.fillText('DIGITAL INVERTER', w - 74, 124);
+        speck(g, w, h, 5000, 0.03, true);
+      }), roughness: 0.4 });
+      // corpo (rialzato rispetto al fronte): scatola a fasce
+      const body = box(AX, AY, AZ, AW, AH, AD, white, null, 22);
+      const fr = plane(AX, AY + AH / 2, AZ + AD / 2 + 0.6, AW - 14, AH - 10, front, 0); fr.castShadow = false;
+      acHit.push(body, fr);
+      // led di stato (piccolo, in basso a destra del fronte)
+      acLed = new THREE.Mesh(new THREE.SphereGeometry(M(4.5), 12, 8), new THREE.MeshStandardMaterial({ color: 0x300000, emissive: 0xff1010, emissiveIntensity: 2.2, roughness: 0.4 }));
+      acLed.position.set(M(AX + AW / 2 - 70), M(AY + 58), M(AZ + AD / 2 + 1.5)); scene.add(acLed); acHit.push(acLed);
+    }
+    // tende avvolgibili (3, una per riquadro): si abbassano e alzano col mouse (clic = tutta su/giù, trascinamento = a mano)
+    {
+      const fabric = new THREE.MeshStandardMaterial({ map: ctex(256, 256, (g, w, h) => { g.fillStyle = '#ebe8de'; g.fillRect(0, 0, w, h);
+        g.strokeStyle = 'rgba(120,115,100,0.22)'; g.lineWidth = 1; for (let i = 0; i < w; i += 3) { g.beginPath(); g.moveTo(i + 0.5, 0); g.lineTo(i + 0.5, h); g.stroke(); } for (let j = 0; j < h; j += 3) { g.beginPath(); g.moveTo(0, j + 0.5); g.lineTo(w, j + 0.5); g.stroke(); }
+        speck(g, w, h, 3000, 0.06, true); }, [5, 5]), roughness: 0.95, side: THREE.DoubleSide });
+      mats.blindFab = fabric;
+      const cas = mat({ color: 0xeeece4, roughness: 0.45 }), rail = mat({ color: 0xd9d6cc, roughness: 0.4, metalness: 0.2 });
+      const BX = X1 - 22, YT = WY1 + 20, FULL = YT - (WY0 + 24), PW2 = 770;
+      for (let k = 0; k < 3; k++) {
+        const zk = WZ0 + 400 + 800 * k;
+        box(X1 - 55, YT - 10, zk, 70, 80, PW2 + 40, cas, null, 14);          // cassonetto
+        const f = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), fabric); f.rotation.y = -Math.PI / 2; f.castShadow = true; f.receiveShadow = false; scene.add(f);
+        const r = box(BX + 8, 0, zk, 16, 22, PW2, rail, null, 6); r.userData.bl = k; f.userData.bl = k;
+        blindObj.push({ f, r, zk, YT, FULL, PW2, BX }); blindHit.push(f, r);
+      }
+      applyBlinds(true);
+    }
     // quadri: tabella segnali, divieto, bacheca, orologio
     const picture = (x, y, w, h, draw, fr) => { if (fr) box(x, y - h / 2 - fr, Z0 + 8, w + 2 * fr, h + 2 * fr, 16, mat({ color: 0x7a7d80, roughness: 0.4, metalness: 0.4 })); const p = plane(x, y, Z0 + 18, w, h, mat({ map: ctex(Math.round(w), Math.round(h), draw), roughness: 0.6 })); p.castShadow = false; return p; };
     picture(-300, 2050, 760, 900, (g, w, h) => { g.fillStyle = '#f4f4ef'; g.fillRect(0, 0, w, h); g.fillStyle = '#333'; g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.fillText('SEGNALI', w / 2, 70);
@@ -9839,6 +9987,10 @@ const R3 = (() => {
       const fan = noise(4, false), fLp = AC.createBiquadFilter(); fLp.type = 'lowpass'; fLp.frequency.value = 520; const fG = AC.createGain(); fG.gain.value = 0;
       const hum = AC.createOscillator(); hum.frequency.value = 100; const hG = AC.createGain(); hG.gain.value = 0;
       fan.connect(fLp); fLp.connect(fG); fG.connect(AC.destination); hum.connect(hG); hG.connect(AC.destination); fan.start(); hum.start();
+      // condizionatore: soffio basso e continuo delle ventole (rumore bruno + fruscio d'aria) con lieve ondeggiamento
+      const acN = noise(6, true), acBp = AC.createBiquadFilter(); acBp.type = 'bandpass'; acBp.frequency.value = 190; acBp.Q.value = 0.55; const acG = AC.createGain(); acG.gain.value = 0;
+      const acW = noise(5, false), acHp = AC.createBiquadFilter(); acHp.type = 'highpass'; acHp.frequency.value = 500; const acLp = AC.createBiquadFilter(); acLp.type = 'lowpass'; acLp.frequency.value = 1500; const acG2 = AC.createGain(); acG2.gain.value = 0;
+      acN.connect(acBp); acBp.connect(acG); acG.connect(AC.destination); acW.connect(acHp); acHp.connect(acLp); acLp.connect(acG2); acG2.connect(AC.destination); acN.start(); acW.start();
       // rotolamento dei treni
       const roll = noise(5, true), rLp = AC.createBiquadFilter(); rLp.type = 'lowpass'; rLp.frequency.value = 400; const rG = AC.createGain(); rG.gain.value = 0;
       roll.connect(rLp); rLp.connect(rG); rG.connect(AC.destination); roll.start();
@@ -9855,7 +10007,7 @@ const R3 = (() => {
       const windN = noise(6, true), wBp = AC.createBiquadFilter(); wBp.type = 'bandpass'; wBp.frequency.value = 260; wBp.Q.value = 0.7; const windG = AC.createGain(); windG.gain.value = 0; windN.connect(wBp); wBp.connect(windG); windG.connect(AC.destination); windN.start();
       const thBus = AC.createGain(); thBus.gain.value = 0.9; const thLp = AC.createBiquadFilter(); thLp.type = 'lowpass'; thLp.frequency.value = 800; thBus.connect(thLp); thLp.connect(AC.destination);
       const brBus = AC.createGain(); brBus.gain.value = 0.4; const brLp = AC.createBiquadFilter(); brLp.type = 'lowpass'; brLp.frequency.value = 3400; brBus.connect(brLp); brLp.connect(AC.destination);
-      snd = { fG, hG, rG, rLp, hsG, clkBuf, buf: {}, trBus, brBus, trLp, rainG, rainG2, windG, wBp, thBus };
+      snd = { acG, acG2, fG, hG, rG, rLp, hsG, clkBuf, buf: {}, trBus, brBus, trLp, rainG, rainG2, windG, wBp, thBus };
       Object.assign(snd.buf, synthTrainSounds());
       // registrazione: ronzio degli impianti delle MDVC
       for (const k in (typeof TRAIN_SND !== 'undefined' ? TRAIN_SND : {})) { const b64 = TRAIN_SND[k].split(',')[1], bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
@@ -9948,6 +10100,8 @@ const R3 = (() => {
     if (!snd) return;
     const tt = AC.currentTime, set = (p, v) => p.setTargetAtTime(v, tt, 0.15);
     set(snd.fG.gain, on ? 0.022 : 0); set(snd.hG.gain, on ? 0.004 : 0);
+    { const dx = camera.position.x - 1.9, dz = camera.position.z + 1.22, dy = camera.position.y - 2.5, k = 0.4 + 0.6 * Math.max(0, 1 - Math.hypot(dx, dy, dz) / 6);
+      set(snd.acG.gain, on && acOn ? 0.07 * k : 0); set(snd.acG2.gain, on && acOn ? 0.011 * k * (0.85 + 0.15 * Math.sin(now / 1700)) : 0); }
     { const w = S.wx || { rain: 0, wind: 0, fog: 0 };
       set(snd.rainG.gain, on ? w.rain * 0.05 : 0); set(snd.rainG2.gain, on ? w.rain * 0.14 : 0);
       set(snd.windG.gain, on ? w.wind * (0.05 + 0.03 * Math.sin(now / 1900) * Math.sin(now / 770)) : 0); snd.wBp.frequency.setTargetAtTime(230 + 170 * w.wind * (0.5 + 0.5 * Math.sin(now / 2300)), tt, 0.3);
@@ -10393,6 +10547,34 @@ const R3 = (() => {
   const sunF = el => { const k = Math.max(0, Math.min(1, (el / DEG + 6) / 16)); return k * k * (3 - 2 * k); };
   const C3 = (a, b, k) => new THREE.Color(a).lerp(new THREE.Color(b), k);
   let lastSun = null, lastLampOn = null;
+
+  // ---------- tende: posizione, luce che entra, animazione ----------
+  function applyBlinds(init) {
+    let cov = 0;
+    blindObj.forEach((o, k) => {
+      const lv = bLv[k], h = Math.max(0.5, o.FULL * lv);          // mm di tessuto scoperto
+      o.f.visible = h > 1; o.f.scale.set(M(o.PW2), M(h), 1); o.f.position.set(M(o.BX), M(o.YT - h / 2), M(o.zk));
+      o.r.position.set(M(o.BX + 8), M(o.YT - h - 11), M(o.zk)); o.f.material.map.repeat.set(5, 5);
+      cov += lv / 3;
+    });
+    blindCover = cov;
+    if (!init) { renderer.shadowMap.needsUpdate = true; markDirty(); }
+  }
+  let blindT = 0;
+  function blindFrame(now) {
+    const dt = Math.min(0.1, (now - (blindT || now)) / 1000); blindT = now;
+    let ch = false;
+    for (let k = 0; k < 3; k++) {
+      if (blindDrag === k) { if (bLv[k] !== bTg[k]) { bLv[k] = bTg[k]; ch = true; } continue; }
+      const d = bTg[k] - bLv[k]; if (Math.abs(d) < 0.002) { if (d) { bLv[k] = bTg[k]; ch = true; } continue; }
+      bLv[k] += Math.sign(d) * Math.min(Math.abs(d), dt * 0.9); ch = true;
+    }
+    if (ch) { applyBlinds(); if (Math.abs(blindCover - lastCoverL) > 0.004) { lastCoverL = blindCover; light(); } }
+  }
+  function setBlind(k, v) { bTg[k] = Math.max(0, Math.min(1, v)); }
+  function acSet(on) { acOn = on; saveLS(); acFrame(); markDirty(); }
+  function acFrame() { if (!acLed) return; const m = acLed.material; m.emissive.setHex(acOn ? 0x00ff2a : 0xff0000); m.color.setHex(acOn ? 0x002a0a : 0x300000); m.emissiveIntensity = acOn ? 1.15 : 1.0; }
+
   function light() {
     if (!built) return;
     if (lastLampOn !== lampOn) { lastLampOn = lampOn; renderer.shadowMap.needsUpdate = true; }
@@ -10444,13 +10626,13 @@ const R3 = (() => {
       for (const l of lampN) l.visible = on2;
       if (on2 && nO <= 0) { for (const l of lampN) l.intensity = 0; }
       else if (on2) { const c = poolPts.map(q => ({ q, k: (M(q[0]) - cp.x) ** 2 + (M(q[1] === undefined ? 0 : q[1]) * 0) + (M(q[1]) - cp.z) ** 2 })); c.sort((a, b) => a.k - b.k);
-        lampN.forEach((l, i) => { const q = c[i] && c[i].q; if (q) { l.position.set(M(q[0]), M(q[3]) - 0.1, M(q[1])); l.intensity = nO * ST_I; } }); } }
+        lampN.forEach((l, i) => { const q = c[i] && c[i].q; if (q) { l.position.set(M(q[0]), M(q[3]) - 0.1, M(q[1])); l.intensity = nO * ST_I * (1 - 0.85 * blindCover); } }); } }
     for (const m of ceilMats) { const o = on(m.userData.grp); m.emissiveIntensity = o ? 1.6 : 0; m.color.setHex(o ? 0xffffff : 0x9a9a94); }
-    hemiBase = hemi.intensity = 0.003 + d * (0.18 * (1 - 0.3 * oc) + 0.10 * oc); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
+    hemiBase = hemi.intensity = (0.003 + d * (0.18 * (1 - 0.3 * oc) + 0.10 * oc)) * (1 - 0.7 * blindCover); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
     { const want = (quality === 'alta' || quality === 'ultra') && sp.el > 0.07 && sunK > 0.25;
       if (want !== trainCast) { trainCast = want; for (const [, e] of trains3) e.grp.traverse(o => { if (o.isMesh) o.castShadow = want; }); renderer.shadowMap.needsUpdate = true; }
     }
-    envBase = scene.environmentIntensity = 0.003 + d * (0.14 + 0.05 * oc); sunBase = sun.intensity;
+    envBase = scene.environmentIntensity = (0.003 + d * (0.14 + 0.05 * oc)) * (1 - 0.7 * blindCover); sunBase = sun.intensity;
     // asfalto, marciapiedi e massicciata bagnati con la pioggia
     wetK += ((wx.rain > 0.15 ? 1 : 0) - wetK) * 0.06;
     for (const m of wetMats) { if (!m.userData.c0) { m.userData.c0 = m.color.clone(); m.userData.r0 = m.roughness; } m.color.copy(m.userData.c0).multiplyScalar(1 - 0.32 * wetK); m.roughness = m.userData.r0 * (1 - 0.5 * wetK); }
@@ -10466,6 +10648,8 @@ const R3 = (() => {
     if (mats.globe) { mats.globe.emissiveIntensity = 0.15 + nOut * 2.2; mats.islandLamp.emissiveIntensity = 0.2 + nOut * 2.4; mats.p4Lamp.emissiveIntensity = 0.15 + nOut * 2.4; }
     if (scene.fog) scene.fog.color.copy(skyMat.uniforms.bot.value);
     const og = 0.08 + 0.92 * d; mats.grass.color.setScalar(og); if (mats.leafs) { for (const m of mats.leafs) { m.userData.c0 = m.userData.c0 || m.color.clone(); m.color.copy(m.userData.c0).multiplyScalar(og); } mats.treeLine.color.setScalar(0.04 + 0.96 * d); } mats.leaf.color.setRGB(0.24 * og, 0.35 * og, 0.2 * og); mats.trunk.color.setRGB(0.29 * og, 0.23 * og, 0.16 * og);
+    if (mats.blindFab) { const gl = d * (0.25 + 0.5 * sunK) + 0.02; mats.blindFab.emissive.setRGB(0.92, 0.9, 0.84); mats.blindFab.emissiveIntensity = gl * 0.45; }
+    acFrame();
     const night = 1 - Math.min(1, cf + d);
     for (const l of monLights) l.intensity = 0.01 + night * 0.025;
     qlMesh.material.emissiveIntensity = 0.9 + night * 0.6;
@@ -10591,11 +10775,13 @@ const R3 = (() => {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hits = ray.intersectObjects([...pulsGroup.children.filter(o => o.isMesh && !o.isInstancedMesh), qlMesh, ...switchMesh, ...phoneHit, ...lampHit.children.filter(o => o.isMesh)], false);
+    const hits = ray.intersectObjects([...pulsGroup.children.filter(o => o.isMesh && !o.isInstancedMesh), qlMesh, ...switchMesh, ...phoneHit, ...lampHit.children.filter(o => o.isMesh), ...blindHit.filter(o => o.visible), ...acHit], false);
     if (!hits.length) return null;
     const h0 = hits[0];
     if (h0.object.userData.sw) return { t: 'sw', k: h0.object.userData.sw };
     if (phoneHit.includes(h0.object)) return { t: 'phone' };
+    if (h0.object.userData.bl !== undefined) return { t: 'bl', k: h0.object.userData.bl };
+    if (acHit.includes(h0.object)) return { t: 'ac' };
     if (lampHit.children.includes(h0.object)) return { t: 'lamp' };
     if (h0.object === qlMesh) { const u = h0.uv; return { t: 'ql', u: u.x, v: 1 - u.y }; }
     const lp = pulsGroup.worldToLocal(h0.point.clone());
@@ -10609,12 +10795,20 @@ const R3 = (() => {
     return false;
   }
   let drag = null, moved = 0;
+  // altezza in pixel della tenda tutta abbassata (per trasformare lo spostamento del mouse in spostamento della tenda)
+  function blindPx(k) { const o = blindObj[k], a = new THREE.Vector3(M(o.BX), M(o.YT), M(o.zk)).project(camera), b = new THREE.Vector3(M(o.BX), M(o.YT - o.FULL), M(o.zk)).project(camera); return Math.max(70, Math.abs(a.y - b.y) / 2 * view.clientHeight); }
   view.addEventListener('pointerdown', e => {
     if (!running || e.target.closest('.hud3,.scr,.r3fs,.scrglass')) return;
-    drag = { x: e.clientX, y: e.clientY, b: e.button }; moved = 0; view.setPointerCapture(e.pointerId); if (tw) { cancelAnimationFrame(tw); tw = null; }
+    drag = { x: e.clientX, y: e.clientY, b: e.button, sy: e.clientY }; moved = 0; view.setPointerCapture(e.pointerId); if (tw) { cancelAnimationFrame(tw); tw = null; }
+    if (e.button === 0) { const pk = pick(e); if (pk && pk.t === 'bl') { drag.bl = pk.k; drag.lv0 = bTg[pk.k]; drag.px = blindPx(pk.k); blindDrag = pk.k; } }
   });
   let hovT = 0;
   view.addEventListener('pointermove', e => {
+    if (drag && drag.b === 0 && drag.bl !== undefined) {
+      moved += Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y); drag.x = e.clientX; drag.y = e.clientY;
+      if (moved > 4) { setBlind(drag.bl, drag.lv0 + (e.clientY - drag.sy) / drag.px); view.style.cursor = 'ns-resize'; }
+      return;
+    }
     if (drag && drag.b === 0) {
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y; moved += Math.abs(dx) + Math.abs(dy);
       if (moved > 4) { C.yaw -= dx * 0.18; C.pitch = Math.max(-80, Math.min(70, C.pitch + dy * 0.18)); applyCam(); }
@@ -10624,12 +10818,15 @@ const R3 = (() => {
     const p = pick(e); view.style.cursor = p && (p.t !== 'cell' || p.d) && p.t !== 'ql' ? 'pointer' : '';
   });
   view.addEventListener('pointerup', e => {
-    if (!drag) return; const d = drag; drag = null; if (moved > 4) return;
+    if (!drag) return; const d = drag; drag = null;
+    if (d.bl !== undefined) { blindDrag = -1; if (moved <= 4) { setBlind(d.bl, bTg[d.bl] > 0.5 ? 0 : 1); click('sw'); } saveLS(); view.style.cursor = ''; return; }
+    if (moved > 4) return;
     const p = pick(e); if (!p) return;
     if (d.b === 0) {
       if (p.t === 'sw') { if (p.k === 'A') ceilA = !ceilA; else ceilB = !ceilB; saveLS(); click('sw'); light(); }
       else if (p.t === 'phone') { if (answerPhone()) msg('Risposto al telefono'); renderPhone(); openFS('r3m2'); }
       else if (p.t === 'lamp') { lampOn = !lampOn; saveLS(); click('sw'); light(); }
+      else if (p.t === 'ac') { acSet(!acOn); click('sw'); msg(acOn ? 'Condizionatore acceso' : 'Condizionatore spento'); }
       else if (p.t === 'ql') qlClick(p.u, p.v);
       else if (p.t === 'cell' && p.d) { p.d.dispatchEvent(new MouseEvent('click', { bubbles: true })); pulsT = 0; }
     } else if (d.b === 2 && p.t === 'cell' && p.d) { p.d.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); pulsT = 0; }
@@ -10715,6 +10912,7 @@ const R3 = (() => {
   // pioggia, lampi e tuoni (temporale), gocce sul vetro
   function bolt(now) { flash = 1; flash2 = now + 90 + Math.random() * 130; thunder(0.3 + Math.random() * 3.6, 0.55 + Math.random() * 0.6); }
   function weatherFrame(now) {
+    blindFrame(now);
     const dt = Math.min(0.1, (now - (wxT || now)) / 1000); wxT = now;
     const wx = S.wx; if (!rainMesh || !wx) return;
     const rain = wx.rain;
@@ -10779,7 +10977,7 @@ const R3 = (() => {
     try { localStorage.setItem('cs-latisana-view', '3d'); } catch (e) { }
   }
   function leave() {
-    closeFS(); running = false; if (snd) { const tt = AC.currentTime; for (const g of [snd.fG, snd.hG, snd.rG, snd.hsG]) g.gain.setTargetAtTime(0, tt, 0.1); for (const [, e] of trains3) for (const key of ['sRoll', 'sHum', 'brk']) if (e[key]) { try { e[key].g.gain.setTargetAtTime(0, tt, 0.1); } catch (_) { } } }
+    closeFS(); running = false; if (snd) { const tt = AC.currentTime; for (const g of [snd.fG, snd.hG, snd.rG, snd.hsG, snd.acG, snd.acG2]) g.gain.setTargetAtTime(0, tt, 0.1); for (const [, e] of trains3) for (const key of ['sRoll', 'sHum', 'brk']) if (e[key]) { try { e[key].g.gain.setTargetAtTime(0, tt, 0.1); } catch (_) { } } }
     while (movedN.length) { const [n, p, s] = movedN.pop(); p.insertBefore(n, s && s.parentNode === p ? s : null); }
     document.body.classList.remove('v3d'); qlTheme(false); lastBanco = ''; lastPL = ''; $('b3d').textContent = 'Vista 3D';
     try { localStorage.setItem('cs-latisana-view', '2d'); } catch (e) { }
@@ -10792,7 +10990,7 @@ const R3 = (() => {
     U.forEach((u, i) => { const g = vehicle(u); g.position.set(M(TRK3[trk]), 0, M(z - u.L * 500)); grp.add(g); if (i === 0) lightsAt(g, u.L * 1000, true, true); if (i === U.length - 1) lightsAt(g, u.L * 1000, false, false); z -= u.L * 1000 + 300; });
     markDirty && markDirty(); return U.length;
   }
-  return { _demo: demo, get quality() { return quality; }, get _dbg() { return { scene, renderer, composer, rainMesh, dropsMesh, wetK, flash, get camera() { return camera; }, get snd() { return snd; }, get trains3() { return trains3; } }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
+  return { _demo: demo, get quality() { return quality; }, get _dbg() { return { scene, renderer, composer, rainMesh, dropsMesh, wetK, flash, get camera() { return camera; }, get snd() { return snd; }, get trains3() { return trains3; }, setBlind, bTg, bLv, acSet, get acOn() { return acOn; }, get cover() { return blindCover; } }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
     _cellXY(sel) { const d = $('tab').querySelector(sel) || $('pls').querySelector(sel); const c = layout.cells.find(c => domCell(c) === d); const v = new THREE.Vector3(px2x(c.x + c.w / 2), px2y(c.y + c.h / 2), 0).applyMatrix4(pulsGroup.matrixWorld).project(camera); const r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 })();
 try { if (localStorage.getItem('cs-latisana-view') === '3d') R3.enter(); } catch (e) { }
