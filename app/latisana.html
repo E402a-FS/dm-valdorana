@@ -458,7 +458,7 @@ body.native-menu header{display:none}
     <div class="stat"><b id="sPresc">0</b><span>prescrizioni</span></div>
   </div>
 </header>
-<div id="room3d"><div class="hud3"><span class="fps" style="display:none" title="Fotogrammi al secondo">— fps</span><span>WASD o frecce per camminare (Maiusc = più veloce) · trascina per guardarti intorno · rotella = zoom · doppio clic sul quadro o sulla pulsantiera · Esc torna al banco · tasti 1–5 · F = torcia · interruttori accanto alla finestra · clic su un monitor = schermo intero · clic sul telefono per rispondere · clic sulla lampada · Alt+Invio = schermo intero</span></div></div>
+<div id="room3d"><div class="hud3"><span class="fps" style="display:none" title="Fotogrammi al secondo">— fps</span><span>WASD o frecce per camminare (Maiusc = più veloce) · trascina per guardarti intorno · rotella = zoom · doppio clic sul quadro o sulla pulsantiera · Esc torna al banco · tasti 1–7 (6 quadro elettrico, 7 PC) · F = torcia · interruttori accanto alla porta · clic sul quadro per aprire lo sportello e agire sugli stotz · clic sul PC per YouTube · clic su un monitor = schermo intero · clic sul telefono per rispondere · clic sulla lampada · Alt+Invio = schermo intero</span></div></div>
 <main>
 <section>
   <div class="panel qlpanel" id="pQL"><div class="ph"><span>Quadro luminoso</span><button class="dt" title="Sgancia in una finestra">⧉</button></div>
@@ -553,7 +553,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.7.0';
+window.SIM_BUILD = '2.8.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -7888,7 +7888,9 @@ const R3 = (() => {
   const tick = [];               // funzioni chiamate a ogni fotogramma
   const LS = (() => { try { return JSON.parse(localStorage.getItem('cs-latisana-luci')) || {}; } catch (e) { return {}; } })();
   let ceilA = LS.ceilA !== undefined ? LS.ceilA : LS.ceil !== false, ceilB = LS.ceilB !== undefined ? LS.ceilB : LS.ceil !== false, lampOn = LS.lamp !== false, acOn = !!LS.ac; const bLv = Array.isArray(LS.bl) && LS.bl.length === 3 ? LS.bl.map(v => Math.max(0, Math.min(1, +v || 0))) : [0, 0, 0], bTg = bLv.slice(); let blindCover = 0, blindDrag = -1, acLed = null, acHit = [], blindHit = [], blindObj = [], lastCoverL = -1; const ceilOnF = () => (ceilA ? 0.5 : 0) + (ceilB ? 0.5 : 0); quality = LS.q || 'media';
-  const saveLS = () => { try { localStorage.setItem('cs-latisana-luci', JSON.stringify({ ceilA, ceilB, lamp: lampOn, q: quality, ac: acOn, bl: bTg.map(v => +v.toFixed(2)) })); } catch (e) { } };
+  const STZ = Object.assign({ p1: true, p23: true, p4: true, fab: true, seg: true, sic: true }, LS.st || {}, { sic: true });
+  let qeDoor = null, qeOpen = false, qeK = 0, qeHit = [], qeLev = [], qeInd = [], pcHit = [], pcScrMat = null, pcScrTex = null, pcScrCv = null, pcLed = null, pcLed2 = null, pcOn = LS.pc !== false, ytOn = false, ytTitle = '', ytVol = +LS.yv || 25, nOutCur = 0, lampReg = [], poolOn = [];
+  const saveLS = () => { try { localStorage.setItem('cs-latisana-luci', JSON.stringify({ ceilA, ceilB, lamp: lampOn, q: quality, ac: acOn, bl: bTg.map(v => +v.toFixed(2)), st: STZ, pc: pcOn, yv: ytVol })); } catch (e) { } };
 
   // ---------- texture procedurali ----------
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -8103,7 +8105,7 @@ const R3 = (() => {
       dropsMesh = plane(XF + 4, (WY0 + WY1) / 2, zc, wl, hl, new THREE.MeshStandardMaterial({ color: 0xdfe7ee, alphaMap: dropsTex, transparent: true, opacity: 0, roughness: 0.08, metalness: 0, depthWrite: false }), -90);
       dropsMesh.castShadow = dropsMesh.receiveShadow = false; dropsMesh.visible = false; dropsMesh.renderOrder = 3;
     }
-    T.win = { x: X1, y: (WY0 + WY1) / 2, z: zc, w: wl * 1.25, h: hl * 1.25, ry: -90 }; T.sw = { x: X1, y: 1150, z: WZ0 - 160, w: 500, h: 400, ry: -90 };
+    T.win = { x: X1, y: (WY0 + WY1) / 2, z: zc, w: wl * 1.25, h: hl * 1.25, ry: -90 }; T.sw = { x: X0, y: 1250, z: 640, w: 500, h: 400, ry: 90 }; T.qe = { x: X0, y: 1550, z: -350, w: 520, h: 660, rx: 0, ry: 90 }; T.pc2 = { x: 1210, y: 1090, z: Z1 - 407, w: 640, h: 560, rx: 0, ry: 180 };
     // esterno: cielo (cupola con sfumatura e stelle), prato, alberi
     skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
@@ -8332,55 +8334,9 @@ const R3 = (() => {
       const [px, py, pz] = pos(frame ? 21 : 3);
       const p = plane(px, py, pz, w, h, mat({ map: ctex(Math.round(w * 1.2), Math.round(h * 1.2), draw), roughness: 0.55 }), ry); p.castShadow = false; return p;
     };
-    // locomotiva elettrica (dipinto)
-    wallPic('left', -350, 1750, 1000, 640, (g, w, h) => {
-      const sk = g.createLinearGradient(0, 0, 0, h); sk.addColorStop(0, '#7fb2dc'); sk.addColorStop(0.65, '#dce9f1'); g.fillStyle = sk; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#8aa07a'; g.beginPath(); g.moveTo(0, h * 0.62); for (let x = 0; x <= w; x += 40) g.lineTo(x, h * 0.58 + Math.sin(x / 90) * 18); g.lineTo(w, h); g.lineTo(0, h); g.fill();
-      g.fillStyle = '#7d7468'; g.fillRect(0, h * 0.8, w, h * 0.2); g.fillStyle = '#4a4038'; for (let x = 0; x < w; x += 26) g.fillRect(x, h * 0.83, 16, 10);
-      g.fillStyle = '#9aa0a6'; g.fillRect(0, h * 0.815, w, 5); g.fillRect(0, h * 0.865, w, 5);
-      // traliccio TE
-      g.strokeStyle = '#555'; g.lineWidth = 3; for (const x of [90, w - 110]) { g.beginPath(); g.moveTo(x, h * 0.81); g.lineTo(x, h * 0.18); g.lineTo(x + 70, h * 0.18); g.stroke(); }
-      g.beginPath(); g.moveTo(0, h * 0.22); g.lineTo(w, h * 0.22); g.stroke();
-      // locomotiva
-      const x0 = w * 0.16, x1 = w * 0.84, yb = h * 0.76, yt = h * 0.42;
-      g.fillStyle = '#b8262a'; g.beginPath(); g.moveTo(x0 + 40, yt); g.lineTo(x1 - 40, yt); g.lineTo(x1, yt + 50); g.lineTo(x1, yb); g.lineTo(x0, yb); g.lineTo(x0, yt + 50); g.closePath(); g.fill();
-      g.fillStyle = '#d9d9d4'; g.fillRect(x0, yb - 55, x1 - x0, 22);
-      g.fillStyle = '#2b3946'; g.fillRect(x0 + 18, yt + 22, 46, 34); g.fillRect(x1 - 64, yt + 22, 46, 34);
-      g.fillStyle = '#6d2224'; for (let x = x0 + 110; x < x1 - 120; x += 46) g.fillRect(x, yt + 26, 32, 48);
-      g.fillStyle = '#222'; for (const cx of [x0 + 110, x1 - 110]) { g.fillRect(cx - 80, yb, 160, 22); for (const dx of [-45, 45]) { g.beginPath(); g.arc(cx + dx, yb + 26, 22, 0, 7); g.fill(); } }
-      g.strokeStyle = '#333'; g.lineWidth = 4; g.beginPath(); g.moveTo(w * 0.42, yt); g.lineTo(w * 0.47, yt - 70); g.lineTo(w * 0.53, yt - 70); g.moveTo(w * 0.47, yt - 70); g.lineTo(w * 0.42, h * 0.22); g.stroke();
-      speck(g, w, h, 4000, 0.06, true);
-    }, 0x6b4a2a, 30);
-    // schema della linea
-    wallPic('front', -150, 1800, 1500, 520, (g, w, h) => {
-      g.fillStyle = '#f7f6f0'; g.fillRect(0, 0, w, h); g.fillStyle = '#123a6b'; g.fillRect(0, 0, w, 90);
-      g.fillStyle = '#fff'; g.font = 'bold 50px Arial'; g.textAlign = 'center'; g.fillText('LINEA VENEZIA MESTRE – TRIESTE CENTRALE', w / 2, 63);
-      const st = ['Venezia Mestre', 'Quarto d\'Altino', 'S. Donà di Piave', 'Ceggia', 'Portogruaro-Caorle', 'Latisana-L.-B.', 'S. Giorgio di Nogaro', 'Cervignano-A.-G.', 'Monfalcone', 'Trieste C.le'];
-      const y = h * 0.52; g.strokeStyle = '#123a6b'; g.lineWidth = 12; g.beginPath(); g.moveTo(70, y); g.lineTo(w - 70, y); g.stroke();
-      st.forEach((n, i) => { const x = 90 + i * (w - 180) / (st.length - 1), me = n.startsWith('Latisana'); g.fillStyle = me ? '#c8102e' : '#fff'; g.strokeStyle = '#123a6b'; g.lineWidth = 6; g.beginPath(); g.arc(x, y, me ? 24 : 16, 0, 7); g.fill(); g.stroke();
-        g.save(); g.translate(x, y + (i % 2 ? 50 : -40)); g.fillStyle = me ? '#c8102e' : '#222'; g.font = (me ? 'bold ' : '') + '28px Arial'; g.fillText(n, 0, i % 2 ? 20 : 0); g.restore(); });
-      g.fillStyle = '#555'; g.font = '24px Arial'; g.fillText('Doppio binario banalizzato · Blocco conta assi · Dirigenza Centrale Ve. Mestre', w / 2, h - 30);
-    }, 0x8a8f94, 14);
-    // stampa d'epoca di una locomotiva a vapore
-    wallPic('front', 1650, 1750, 760, 520, (g, w, h) => {
-      g.fillStyle = '#e9dcc0'; g.fillRect(0, 0, w, h); g.fillStyle = '#5a4630';
-      g.fillRect(w * 0.1, h * 0.78, w * 0.8, 6);
-      g.fillRect(w * 0.22, h * 0.45, w * 0.4, h * 0.22); g.fillRect(w * 0.58, h * 0.3, w * 0.18, h * 0.37); g.fillRect(w * 0.27, h * 0.3, 34, h * 0.15); g.beginPath(); g.arc(w * 0.38, h * 0.45, 22, Math.PI, 0); g.fill();
-      for (const x of [0.3, 0.42, 0.54]) { g.beginPath(); g.arc(w * x, h * 0.72, 34, 0, 7); g.lineWidth = 6; g.strokeStyle = '#5a4630'; g.stroke(); }
-      g.beginPath(); g.arc(w * 0.68, h * 0.73, 22, 0, 7); g.stroke(); g.fillStyle = '#b9a98a'; g.beginPath(); g.ellipse(w * 0.2, h * 0.2, 70, 34, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(w * 0.12, h * 0.12, 50, 26, 0, 0, 7); g.fill();
-      g.fillStyle = '#5a4630'; g.font = 'italic 26px Georgia'; g.textAlign = 'center'; g.fillText('Locomotiva a vapore — 1910', w / 2, h - 22); speck(g, w, h, 5000, 0.08, true);
-    }, 0x3b2a1a, 26);
-    // calendario e cassetta di pronto soccorso
-    wallPic('left', -1080, 1550, 380, 520, (g, w, h) => {
-      g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.fillStyle = '#c8102e'; g.fillRect(0, 0, w, 150); g.fillStyle = '#fff'; g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.fillText('CALENDARIO', w / 2, 70); g.font = '30px Arial'; g.fillText('turni DM', w / 2, 120);
-      g.fillStyle = '#333'; g.font = '22px Arial'; for (let i = 0; i < 35; i++) { const r = Math.floor(i / 7), c = i % 7; if (i < 30) g.fillText(String(i + 1), 40 + c * 62, 200 + r * 78); }
-    });
+    // cassetta di pronto soccorso
     box(-1550, 1350, Z1 - 60, 360, 300, 110, mat({ color: 0xf2f2ee, roughness: 0.4 }), null, 8);
     wallPic('front', -1550, 1500, 300, 240, (g, w, h) => { g.fillStyle = '#f2f2ee'; g.fillRect(0, 0, w, h); g.fillStyle = '#0a8a3a'; g.fillRect(w / 2 - 30, 40, 60, h - 80); g.fillRect(w / 2 - 95, h / 2 - 30, 190, 60); }).position.z = M(Z1 - 116);
-    // estintore con cartello
-    mesh(new THREE.CylinderGeometry(M(80), M(80), M(520), 24), mat({ color: 0xc81e1e, roughness: 0.35, metalness: 0.2 }), [X0 + 130, 300, 500]);
-    mesh(new THREE.CylinderGeometry(M(30), M(50), M(90), 16), mats.black, [X0 + 130, 600, 500]);
-    wallPic('left', 500, 1250, 220, 220, (g, w, h) => { g.fillStyle = '#d6121a'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.fillRect(w * 0.4, h * 0.2, w * 0.2, h * 0.5); g.font = 'bold 30px Arial'; g.textAlign = 'center'; g.fillText('ESTINTORE', w / 2, h - 20); });
     // armadio con raccoglitori
     box(2450, 0, Z1 - 210, 900, 1900, 400, mat({ color: 0x8a9096, roughness: 0.45, metalness: 0.5 }));
     plane(2450, 1050, Z1 - 412, 860, 1700, mat({ map: ctex(430, 850, (g, w, h) => { g.fillStyle = '#3a3f44'; g.fillRect(0, 0, w, h); const cols = ['#1f4fa8', '#c8102e', '#e0b000', '#2e7d32', '#6d4c41', '#455a64', '#8e24aa'];
@@ -8388,7 +8344,7 @@ const R3 = (() => {
       g.fillStyle = '#ffffff18'; g.fillRect(0, 0, w / 2 - 2, h); g.strokeStyle = '#222'; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, h - 6); g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.stroke(); }), roughness: 0.15, metalness: 0.3 }), 180);
     // interruttore della luce
     {
-      const sg = group(X1, 1150, WZ0 - 160, -90);
+      const sg = group(X0, 1250, 640, 90);
       const plate = new THREE.Mesh(new RoundedBoxGeometry(M(96), M(118), M(8), 4, M(7)), mat({ color: 0xe6e2da, roughness: 0.5, metalness: 0.1 })); plate.position.z = M(4); plate.castShadow = true; sg.add(plate);
       const fr = new THREE.Mesh(new THREE.BoxGeometry(M(56), M(56), M(4)), mat({ color: 0xf6f6f2, roughness: 0.35 })); fr.position.z = M(9); sg.add(fr);
       const inner = new THREE.Mesh(new THREE.BoxGeometry(M(50), M(50), M(3)), mat({ color: 0x1c1c1c, roughness: 0.6 })); inner.position.z = M(10); sg.add(inner);
@@ -8434,7 +8390,131 @@ const R3 = (() => {
     chair(-1650, -650, 70);
     // sedia del DM, accostata al banco
     chair(-1150, 650, 25);
+    chair(1250, Z1 - 850, 180);
+    buildExtras();
 
+
+    // ======================= 2.8.0: piantana estintore, quadro elettrico, scrivania con YouTube, bacheca chiavi, attaccapanni =======================
+    function buildExtras() {
+      const white = mat({ color: 0xe9e9e4, roughness: 0.45, metalness: 0.1 }), blk = mat({ color: 0x141517, roughness: 0.45, metalness: 0.35 }), steel = mat({ color: 0x9aa0a5, roughness: 0.35, metalness: 0.7 });
+      const cyl = (r, h, m, p, par, rot) => { const o = mesh(new THREE.CylinderGeometry(M(r), M(r), M(h), 20), m, p, rot, par); return o; };
+      // ---------- piantana con estintore (cartello sul palo) ----------
+      {
+        const xp = X0 + 250, zp = 250;
+        box(xp, 0, zp, 340, 26, 44, blk, null, 8); box(xp, 0, zp, 44, 26, 340, blk, null, 8);
+        cyl(17, 1880, blk, [xp, 26 + 940, zp]);
+        const bt = ctex(512, 256, (g, w, h) => {
+          g.fillStyle = '#c2151b'; g.fillRect(0, 0, w, h); const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, 'rgba(255,255,255,.18)'); gr.addColorStop(0.3, 'rgba(255,255,255,0)'); gr.addColorStop(0.8, 'rgba(0,0,0,.25)'); gr.addColorStop(1, 'rgba(0,0,0,.4)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+          const cx = w * 0.25; g.fillStyle = '#f4f1e8'; g.fillRect(cx - 62, 34, 124, 190); g.fillStyle = '#c2151b'; g.fillRect(cx - 62, 34, 124, 34); g.fillStyle = '#111'; g.font = 'bold 22px Arial'; g.textAlign = 'center'; g.fillText('POLVERE', cx, 100); g.font = '15px Arial'; g.fillText('6 kg  34A 233BC', cx, 126);
+          g.fillStyle = '#c2151b'; g.fillRect(cx - 36, 140, 72, 62); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(cx - 14, 190); g.lineTo(cx, 150); g.lineTo(cx + 14, 190); g.closePath(); g.fill(); });
+        const bm = mat({ map: bt, roughness: 0.35, metalness: 0.3 });
+        const bx = xp + 100, by = 150;
+        const bot = mesh(new THREE.CylinderGeometry(M(80), M(80), M(440), 28), bm, [bx, by + 220, zp]);
+        mesh(new THREE.SphereGeometry(M(80), 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat({ color: 0xc2151b, roughness: 0.35, metalness: 0.3 }), [bx, by + 440, zp]);
+        cyl(80, 12, blk, [bx, by + 4, zp]);
+        box(bx - 26, by + 470, zp - 26, 52, 60, 52, mat({ color: 0xb8a24a, roughness: 0.3, metalness: 0.8 }), null, 6);
+        box(bx - 70, by + 524, zp - 14, 150, 14, 28, blk, null, 4); box(bx - 20, by + 500, zp - 14, 120, 12, 28, blk, null, 4).rotation.z = -0.2;
+        const hose = new THREE.CatmullRomCurve3([[bx + 20, by + 470, zp + 24], [bx + 60, by + 420, zp + 70], [bx + 70, by + 300, zp + 74], [bx + 40, by + 190, zp + 66], [bx + 12, by + 150, zp + 40]].map(p => new THREE.Vector3(M(p[0]), M(p[1]), M(p[2]))));
+        const hm = new THREE.Mesh(new THREE.TubeGeometry(hose, 24, M(9), 8), blk); hm.castShadow = true; scene.add(hm);
+        for (const y of [by + 120, by + 300]) { cyl(84, 18, blk, [bx, y, zp]); box(xp + 14, y - 9, zp - 10, 22, 18, 20, blk); }
+        // cartello sul palo: bifacciale, rivolto alla stanza
+        const st = ctex(256, 256, (g, w, h) => { g.fillStyle = '#f4f4f0'; g.fillRect(0, 0, w, h); g.fillStyle = '#c2151b'; g.fillRect(12, 12, w - 24, 168);
+          g.fillStyle = '#fff'; g.fillRect(105, 70, 38, 82); g.fillRect(96, 60, 54, 14); g.fillRect(140, 70, 28, 10); g.beginPath(); g.moveTo(168, 80); g.lineTo(190, 120); g.lineTo(168, 120); g.fill(); g.fillRect(100, 150, 50, 12);
+          g.fillStyle = '#c2151b'; g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.fillText('ESTINTORE', w / 2, 226); g.strokeStyle = '#c2151b'; g.lineWidth = 5; g.strokeRect(3, 3, w - 6, h - 6); });
+        const sm = mat({ map: st, roughness: 0.4, side: THREE.DoubleSide });
+        const sgn = plane(xp, 1690, zp, 300, 300, sm, 90); sgn.castShadow = false; sgn.position.x = M(xp + 22);
+        const sg2 = plane(xp, 1690, zp, 300, 300, sm, 90); sg2.castShadow = false; sg2.position.x = M(xp - 22);
+        box(xp - 20, 1535, zp - 20, 40, 14, 40, blk, null, 4);
+      }
+      // ---------- quadro elettrico sulla parete sinistra ----------
+      {
+        const g = group(X0, 1550, -350, 90);
+        const wh = mat({ color: 0xdcdcd6, roughness: 0.5, metalness: 0.1 }), dk = mat({ color: 0x2c2f33, roughness: 0.6, metalness: 0.3 });
+        box(0, -310, 5, 460, 620, 10, wh, g, 3); box(-224, -310, 70, 12, 620, 130, wh, g, 3); box(224, -310, 70, 12, 620, 130, wh, g, 3); box(0, 300, 70, 460, 12, 130, wh, g, 3); box(0, -312, 70, 460, 12, 130, wh, g, 3);
+        box(0, -292, 12, 436, 584, 6, dk, g);
+        const rails = [200, 40, -120];
+        for (const y of rails) box(0, y - 56, 22, 410, 10, 8, steel, g);
+        const modM = mat({ color: 0xf0f0ec, roughness: 0.35, metalness: 0.05 }), levM = mat({ color: 0x0f1012, roughness: 0.4 });
+        // riga 1: contatore, differenziali
+        box(-120, 200 - 56, 24, 150, 100, 50, mat({ color: 0xe8e8e3, roughness: 0.4 }), g, 3);
+        const lcd = ctex(256, 96, (c, w, h) => { c.fillStyle = '#9fc59a'; c.fillRect(0, 0, w, h); c.fillStyle = '#1d2b1b'; c.font = 'bold 54px monospace'; c.textAlign = 'center'; c.fillText('0471.3', w / 2, 66); c.font = '16px monospace'; c.fillText('kWh', w - 30, 88); });
+        plane(-120, 200 - 10, 76, 110, 40, new THREE.MeshStandardMaterial({ map: lcd, emissiveMap: lcd, emissive: 0xffffff, emissiveIntensity: 0.25, roughness: 0.3 }), 0, 0, g);
+        for (let i = 0; i < 4; i++) { const x = -10 + i * 38; box(x, 200 - 56, 24, 36, 100, 50, modM, g, 2); box(x - 7, 200 - 16, 70, 14, 30, 14, levM, g, 2); if (i === 0) box(x - 11, 200 - 50, 70, 22, 12, 6, mat({ color: 0xd8b020, roughness: 0.4 }), g); }
+        // riga 2: i sei stotz delle luci di stazione
+        const names = ['BANCHINA\n1', 'ISOLA\n2-3', 'BANCHINA\n4', 'FABBRICATO\nVIAGGIATORI', 'CARTELLI\nINSEGNE', 'SICUREZZA\nSOTTOPASSO'];
+        const lab = ctex(1200, 130, (c, w, h) => { c.fillStyle = '#f6f6f0'; c.fillRect(0, 0, w, h); c.strokeStyle = '#999'; c.lineWidth = 2; c.fillStyle = '#111'; c.textAlign = 'center'; c.font = 'bold 27px Arial';
+          names.forEach((n, i) => { const [a, b] = n.split('\n'); c.fillText(a, i * 200 + 100, 50); c.fillText(b, i * 200 + 100, 88); if (i) { c.beginPath(); c.moveTo(i * 200, 8); c.lineTo(i * 200, h - 8); c.stroke(); } }); });
+        plane(0, 40 - 98, 24 + 28, 360, 39, mat({ map: lab, roughness: 0.6 }), 0, 0, g);
+        qeLev = []; qeInd = []; qeHit = [];
+        const ids = ['p1', 'p23', 'p4', 'fab', 'seg', 'sic'];
+        for (let i = 0; i < 6; i++) {
+          const x = -150 + i * 60;
+          box(x, 40 - 56, 24, 54, 100, 52, modM, g, 3);
+          const ind = new THREE.MeshStandardMaterial({ color: 0x118833, emissive: 0x22ee55, emissiveIntensity: 0.6, roughness: 0.4 }); qeInd.push(ind);
+          box(x - 12, 40 - 52, 77, 24, 10, 3, ind, g);
+          const lv = new THREE.Mesh(new RoundedBoxGeometry(M(18), M(38), M(16), 2, M(2)), levM); lv.castShadow = true; lv.position.set(M(x), M(40 + 6), M(86)); g.add(lv); qeLev.push(lv);
+          const hit = new THREE.Mesh(new THREE.BoxGeometry(M(56), M(96), M(40)), new THREE.MeshBasicMaterial({ visible: false })); hit.position.set(M(x), M(40 - 6), M(78)); hit.userData.qe = i; g.add(hit); qeHit.push(hit);
+        }
+        // riga 3: interruttori magnetotermici
+        for (let i = 0; i < 9; i++) { const x = -168 + i * 42; box(x, -120 - 56, 24, 38, 100, 50, modM, g, 2); box(x - 7, -120 - 22 - (i % 3 === 2 ? 14 : 0), 70, 14, 30, 14, levM, g, 2); }
+        // sportello a vetro, incernierato a sinistra
+        const dg = new THREE.Group(); dg.position.set(M(-232), 0, M(140)); g.add(dg); qeDoor = dg;
+        box(232, 292, 0, 464, 20, 14, wh, dg, 2); box(232, -312, 0, 464, 20, 14, wh, dg, 2); box(10, -312, 0, 20, 624, 14, wh, dg, 2); box(454, -312, 0, 20, 624, 14, wh, dg, 2);
+        const gl = new THREE.Mesh(new THREE.PlaneGeometry(M(440), M(604)), new THREE.MeshStandardMaterial({ color: 0x9fc4d6, transparent: true, opacity: 0.2, roughness: 0.08, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false }));
+        gl.position.set(M(232), 0, 0); gl.userData.qe = 'door'; dg.add(gl); qeHit.push(gl);
+        const hd = box(436, -40, 6, 16, 80, 16, blk, dg, 3); hd.userData.qe = 'door'; qeHit.push(hd);
+      }
+      // ---------- scrivania con PC e YouTube (parete frontale, a sinistra dello scaffale) ----------
+      {
+        const cx = 1250, zf = Z1, wood = mat({ color: 0xb59469, roughness: 0.6 }), wh2 = mat({ color: 0xe2e2dd, roughness: 0.5 });
+        box(cx, 710, zf - 300, 900, 30, 600, wood, null, 3); box(cx - 435, 0, zf - 300, 30, 710, 560, wh2); box(cx + 435, 0, zf - 300, 30, 710, 560, wh2); box(cx, 330, zf - 30, 840, 340, 16, wh2);
+        // torre del PC sul pavimento
+        const tw = group(cx + 280, 0, zf - 260, 180);
+        box(0, 0, 0, 200, 420, 430, mats.black, tw, 6); const pled = new THREE.MeshStandardMaterial({ color: 0x00aa22, emissive: 0x00ff2a, emissiveIntensity: 1, roughness: 0.4 }); pcLed2 = pled; box(50, 380, 216, 14, 6, 3, pled, tw);
+        box(-40, 330, 216, 80, 8, 3, mats.dark, tw); box(-40, 300, 216, 80, 8, 3, mats.dark, tw); cyl(12, 3, steel, [20, 372, 216], tw, [90, 0, 0]);
+        // monitor, rivolto verso la stanza (-z)
+        const g = group(cx - 40, 740, zf - 380, 180), wS = 560, hS = 330, yC = 140 + hS / 2;
+        box(0, 0, -50, 230, 10, 180, mats.black, g, 4); box(0, 10, -75, 56, 140, 26, mats.black, g, 4);
+        box(0, yC - hS / 2 - 20, -45, wS + 34, hS + 40, 34, mats.black, g, 8);
+        pcScrCv = document.createElement('canvas'); pcScrCv.width = 640; pcScrCv.height = 384; pcScrTex = new THREE.CanvasTexture(pcScrCv); pcScrTex.colorSpace = THREE.SRGBColorSpace; pcScrTex.anisotropy = 8;
+        pcScrMat = new THREE.MeshStandardMaterial({ map: pcScrTex, emissiveMap: pcScrTex, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.2, metalness: 0.1 });
+        const scr = mesh(new THREE.PlaneGeometry(M(wS), M(hS)), pcScrMat, [0, yC, -27], null, g); scr.castShadow = false; scr.userData.pc = 'scr'; pcHit = [scr];
+        pcLed = new THREE.MeshStandardMaterial({ color: 0x00aa22, emissive: 0x00ff2a, emissiveIntensity: 1.1, roughness: 0.4 });
+        const pb = box(wS / 2 - 14, yC - hS / 2 - 14, -26, 26, 14, 8, mat({ color: 0x25272a, roughness: 0.4 }), g, 2); pb.userData.pc = 'pwr'; pcHit.push(pb);
+        box(wS / 2 - 46, yC - hS / 2 - 11, -26, 7, 7, 4, pcLed, g);
+        const kb = box(-10, 0, 215, 420, 16, 140, kbMat(), g, 4), ms = box(250, 0, 225, 56, 26, 96, mats.dark, g, 12);
+        pcDraw(0);
+      }
+      // ---------- bacheca portachiavi con adesivo ----------
+      {
+        const g = group(1250, 1350, Z1, 180), alu = mat({ color: 0xb9bec2, roughness: 0.3, metalness: 0.85 });
+        box(0, 0, 5, 380, 480, 10, mat({ color: 0xf0f0ec, roughness: 0.6 }), g);
+        box(0, 0, 45, 380, 24, 90, alu, g, 2); box(0, 456, 45, 380, 24, 90, alu, g, 2); box(-178, 0, 45, 24, 480, 90, alu, g, 2); box(178, 0, 45, 24, 480, 90, alu, g, 2);
+        const kt = ctex(340, 440, (c, w, h) => { c.fillStyle = '#f2f2ee'; c.fillRect(0, 0, w, h); c.fillStyle = '#e0e0da'; c.fillRect(0, 0, w, 6);
+          const cols = ['#d62828', '#1f5fbf', '#e6b800', '#2e9e44', '#222', '#e86a00'];
+          for (let r = 0; r < 9; r++) for (let q = 0; q < 5; q++) { const n = r * 5 + q + 1, x = 30 + q * 70, y = 26 + r * 47; c.fillStyle = '#444'; c.beginPath(); c.arc(x, y, 3.5, 0, 7); c.fill();
+            c.fillStyle = '#222'; c.font = 'bold 11px Arial'; c.textAlign = 'center'; c.fillText(String(n).padStart(2, '0'), x, y + 17);
+            if (rnd() < 0.72) { c.fillStyle = cols[Math.floor(rnd() * cols.length)]; c.fillRect(x - 11, y + 4, 22, 11); c.strokeStyle = '#999'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 6); c.stroke(); c.fillStyle = '#9aa0a5'; c.fillRect(x - 3, y + 14, 6, 9); } } });
+        plane(0, 240, 12, 332, 432, mat({ map: kt, roughness: 0.6 }), 0, 0, g);
+        plane(0, 240, 82, 332, 432, new THREE.MeshStandardMaterial({ color: 0xc8dce8, transparent: true, opacity: 0.12, roughness: 0.05, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false }), 0, 0, g).castShadow = false;
+        box(160, 200, 90, 10, 80, 12, mat({ color: 0x333, roughness: 0.4, metalness: 0.5 }), g, 2);
+        wallPic('front', 1250, 1960, 560, 100, (c, w, h) => { c.fillStyle = '#fbfbf6'; c.fillRect(0, 0, w, h); c.strokeStyle = '#1e4fa3'; c.lineWidth = 6; c.strokeRect(5, 5, w - 10, h - 10); c.fillStyle = '#1e4fa3'; c.font = `bold ${Math.round(h * 0.42)}px Arial`; c.textAlign = 'center'; c.fillText('Chiavi di servizio stazione', w / 2, h * 0.66, w - 30); });
+      }
+      // ---------- attaccapanni a piantana ----------
+      {
+        const xr = 560, zr = Z1 - 260, dkg = mat({ color: 0x1b1c1e, roughness: 0.4, metalness: 0.4 }), gry = mat({ color: 0x8a8f94, roughness: 0.35, metalness: 0.7 });
+        cyl(190, 24, dkg, [xr, 12, zr]); cyl(18, 1760, gry, [xr, 24 + 880, zr]);
+        for (const [y, off] of [[1700, 0], [1500, 45]]) for (let k = 0; k < 4; k++) { const a = off * DEG + k * Math.PI / 2, g = group(xr, y, zr, -a / DEG + 0); g.rotation.y = a;
+          const arm = mesh(new THREE.CylinderGeometry(M(8), M(8), M(150), 10), dkg, [0, 0, 0], null, g); arm.rotation.z = -(Math.PI / 2 - 0.45); arm.position.set(M(70), M(28), 0);
+          mesh(new THREE.SphereGeometry(M(18), 12, 10), dkg, [135, 65, 0], null, g); }
+        cyl(18, 90, dkg, [xr, 1795, zr]);
+        const rg = new THREE.Mesh(new THREE.TorusGeometry(M(150), M(6), 8, 32), gry); rg.rotation.x = Math.PI / 2; rg.position.set(M(xr), M(820), M(zr)); rg.castShadow = true; scene.add(rg);
+        for (let k = 0; k < 3; k++) { const a = k * 2.09, b = box(xr + Math.cos(a) * 75, 816, zr + Math.sin(a) * 75, 150, 8, 8, gry); b.rotation.y = -a; }
+        // giubbotto appeso a un braccio
+        const jg = group(xr + 280, 1765, zr, 0), jm = mat({ color: 0x1f3550, roughness: 0.85 });
+        box(0, -520, 0, 300, 500, 110, jm, jg, 30); box(-175, -470, 0, 80, 440, 90, jm, jg, 30); box(175, -470, 0, 80, 440, 90, jm, jg, 30); box(0, -40, 0, 190, 40, 130, mat({ color: 0xd8d4c8, roughness: 0.8 }), jg, 14);
+      }
+    }
 
     // ---------- celle della pulsantiera ----------
     buildPanel();
@@ -8456,6 +8536,7 @@ const R3 = (() => {
     const T3 = IS1 + 1650, T4 = T3 + 4000; Object.assign(TRK3, { T1, T2, T3, T4 }); const  P4a = T4 + 1650, P4b = P4a + 4500, FEN = P4b + 300, FAC = X1 - 1500;
     const rep = (t, a, b) => { const c = t.clone(); c.wrapS = c.wrapT = THREE.RepeatWrapping; c.repeat.set(a, b); c.needsUpdate = true; return c; };
     const lit = (m, k = 1) => { m.emissive = new THREE.Color(0xffe2b8); m.emissiveMap = m.map || null; m.emissiveIntensity = 0; m.userData.litK = k; outLit.push(m); return m; };
+    const litG = (g, m, k) => { const r = lit(m, k); r.userData.grp = g; return r; };
     // ---- texture ----
     const tBallast = ctex(512, 512, (g, w, h) => { g.fillStyle = '#5f5a52'; g.fillRect(0, 0, w, h);
       for (let i = 0; i < 9000; i++) { const v = 60 + rnd() * 110, x = rnd() * w, y = rnd() * h, r = 2 + rnd() * 5; g.fillStyle = `rgb(${v + 12},${v + 6},${v - 4})`; g.beginPath(); g.ellipse(x, y, r, r * (0.6 + rnd() * 0.4), rnd() * 3, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(x - r * 0.3, y - r * 0.3, r * 0.45, r * 0.3, 0, 0, 7); g.fill(); }
@@ -8532,12 +8613,12 @@ const R3 = (() => {
       for (const [x, ry] of [[E1 + 3, 90], [IS0 - 3, -90], [IS1 + 3, 90], [P4a - 3, -90]]) { const p = plane(x, -300, z, 1400, 350, i % 2 ? mV2 : mV1, ry, 0, stn); p.castShadow = false; }
     }
     // ---- fabbricato viaggiatori (facciata ai lati dell'ufficio) ----
-    const mFac = lit(mat({ map: rep(tFacade, 1, 1), roughness: 0.85 }), 0.1);
+    const mFac = litG('fab', mat({ map: rep(tFacade, 1, 1), roughness: 0.85 }), 0.1);
     for (const [z0, z1] of [[-140000, Z0], [Z1, 160000]]) { const l = z1 - z0, m = mFac.clone(); m.map = rep(tFacade, l / 9000, 1); m.emissiveMap = m.map; outLit.push(m); const p = plane(FAC, 3300 / 2, (z0 + z1) / 2, l, 3300, m, 90, 0, stn); p.castShadow = false;
       const tu = ctex(1024, 512, (g, w, h) => { g.fillStyle = '#efe9db'; g.fillRect(0, 0, w, h); speck(g, w, h, 20000, 0.05, true);
         for (let k = 0; k < 4; k++) { const x = 70 + k * 250; g.fillStyle = '#d9cfba'; g.fillRect(x - 12, 140 - 12, 124, 214); g.fillStyle = '#b8743f'; g.fillRect(x, 140, 100, 190); g.fillStyle = 'rgba(0,0,0,.18)'; for (let y = 146; y < 330; y += 9) g.fillRect(x, y, 100, 2); g.fillStyle = '#d9cfba'; g.fillRect(x - 18, 330, 136, 12); }
         g.fillStyle = '#c9bfa8'; g.fillRect(0, 20, w, 28); g.fillStyle = '#8f8a80'; g.fillRect(0, 0, w, 18); for (let y = 380; y < h; y += 30) { g.fillStyle = 'rgba(80,60,40,.06)'; g.fillRect(0, y, w, 12); } grime(g, w, h, 128, 0.25, 3); });
-      const um = lit(mat({ map: rep(tu, l / 9000, 1), roughness: 0.9 }), 0.08); outLit.push(um);
+      const um = litG('fab', mat({ map: rep(tu, l / 9000, 1), roughness: 0.9 }), 0.08); outLit.push(um);
       const up = plane(FAC - 2000, 3500 + 3000, (z0 + z1) / 2, l, 6000, um, 90, 0, stn); up.castShadow = false;
       box(FAC - 2000 + 150, 9400, (z0 + z1) / 2, 500, 250, l, mat({ color: 0x6b5d50, roughness: 0.8 }), stn); }
     { const nb = ctex(1400, 160, (g, w, h) => { g.fillStyle = '#2a7fd1'; g.fillRect(0, 0, w, h); g.strokeStyle = '#fff'; g.lineWidth = 6; g.strokeRect(6, 6, w - 12, h - 12); g.fillStyle = '#fff'; g.font = 'bold 76px Arial'; g.textAlign = 'center'; g.fillText('LATISANA   LIGNANO   BIBIONE', w / 2, 108); });
@@ -8548,14 +8629,14 @@ const R3 = (() => {
     // ---- pensilina del marciapiede 1 (sopra l'ufficio) ----
     const pz0 = -70000, pz1 = 90000, pl = pz1 - pz0, pzc = (pz0 + pz1) / 2;
     box((FAC + X1 + 2900) / 2, 3300, pzc, X1 + 2900 - FAC, 200, pl, mat({ color: 0x4a4f53, roughness: 0.6, metalness: 0.3 }), stn);
-    const und = plane((FAC + X1 + 2900) / 2, 3298, pzc, X1 + 2900 - FAC, pl, lit(mat({ map: rep(tUnder, 3, pl / 1500), roughness: 0.8 }), 0.12), 0, -90, stn); und.castShadow = false;
+    const und = plane((FAC + X1 + 2900) / 2, 3298, pzc, X1 + 2900 - FAC, pl, litG('p1', mat({ map: rep(tUnder, 3, pl / 1500), roughness: 0.8 }), 0.12), 0, -90, stn); und.castShadow = false;
     box(X1 + 2900, 3150, pzc, 90, 420, pl, mat({ color: 0x3d4246, roughness: 0.5, metalness: 0.4 }), stn);
     const glob = new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0xffe2a8, emissiveIntensity: 0.15, roughness: 0.3 }); mats.globe = glob;
     { const pos = []; for (let z = pz0 + 3750; z < pz1; z += 7500) if (z < Z0 - 400 || z > Z1 + 400) pos.push(z);
       for (const z of pos) poolPts.push([X1 + 2050, z, 6500, 2700]);
       const col = new THREE.InstancedMesh(new THREE.CylinderGeometry(M(90), M(100), M(3300), 16), mSteelD, pos.length), gl = new THREE.InstancedMesh(new THREE.SphereGeometry(M(170), 18, 12), glob, pos.length), o = new THREE.Object3D();
       pos.forEach((z, i) => { o.position.set(M(X1 + 2350), M(1650), M(z)); o.updateMatrix(); col.setMatrixAt(i, o.matrix); o.position.set(M(X1 + 2050), M(2700), M(z)); o.updateMatrix(); gl.setMatrixAt(i, o.matrix); });
-      stn.add(col); stn.add(gl);
+      stn.add(col); stn.add(gl); lampReg.push({ grp: 'p1', mesh: gl, zs: pos, p0: poolPts.length - pos.length });
     }
     // tabellone, numero di binario, segnale P.B. e orologio vicino all'ufficio
     const blueSign = (txt, w, h, fs) => ctex(Math.round(w), Math.round(h), (g, W2, H2) => { g.fillStyle = '#1e4fa3'; g.fillRect(0, 0, W2, H2); g.strokeStyle = '#fff'; g.lineWidth = 6; g.strokeRect(8, 8, W2 - 16, H2 - 16); g.fillStyle = '#fff'; g.font = `bold ${fs}px Arial`; g.textAlign = 'center'; g.fillText(txt, W2 / 2, H2 / 2 + fs * 0.35); });
@@ -8596,7 +8677,7 @@ const R3 = (() => {
     for (const s of [-1, 1]) {
       const g = new THREE.Group(); g.position.set(M(XC + s * HW / 2), M(4000), M(izc)); g.rotation.z = s * 5 * DEG; stn.add(g);
       const r = new THREE.Mesh(new THREE.BoxGeometry(M(HW + 100), M(120), M(il)), mat({ color: 0x5f7a6b, roughness: 0.5, metalness: 0.3 })); r.castShadow = false; g.add(r);
-      const u = new THREE.Mesh(new THREE.PlaneGeometry(M(HW + 100), M(il)), lit(mat({ map: rep(tUnder, 2, il / 1200), roughness: 0.8 }), 0.12)); u.rotation.x = Math.PI / 2; u.position.y = M(-62); g.add(u);
+      const u = new THREE.Mesh(new THREE.PlaneGeometry(M(HW + 100), M(il)), litG('p23', mat({ map: rep(tUnder, 2, il / 1200), roughness: 0.8 }), 0.12)); u.rotation.x = Math.PI / 2; u.position.y = M(-62); g.add(u);
       box(XC + s * (HW + 30), 3550, izc, 80, 380, il, mGreen, stn);
     }
     box(XC, 3950, izc, 260, 250, il, mGreen, stn);
@@ -8605,7 +8686,7 @@ const R3 = (() => {
       const col = new THREE.InstancedMesh(new THREE.BoxGeometry(M(220), M(3900), M(220)), mGreen, pos.length), br = new THREE.InstancedMesh(new THREE.BoxGeometry(M(2400), M(140), M(160)), mGreen, pos.length), lm = new THREE.InstancedMesh(new THREE.BoxGeometry(M(160), M(70), M(1400)), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4e0, emissiveIntensity: 0.2 }), pos.length), o = new THREE.Object3D();
       mats.islandLamp = lm.material;
       pos.forEach((z, i) => { o.rotation.set(0, 0, 0); o.position.set(M(XC), M(1950), M(z)); o.updateMatrix(); col.setMatrixAt(i, o.matrix); o.position.set(M(XC), M(3700), M(z)); o.updateMatrix(); br.setMatrixAt(i, o.matrix); o.position.set(M(XC), M(3780), M(z + 4500)); o.updateMatrix(); lm.setMatrixAt(i, o.matrix); });
-      stn.add(col); stn.add(br); stn.add(lm); }
+      stn.add(col); stn.add(br); stn.add(lm); lampReg.push({ grp: 'p23', mesh: lm, zs: pos.map(z => z + 4500), p0: poolPts.length - pos.length }); }
     // insegne LATISANA e numeri di binario sulla pensilina, tabelloni
     const nameT = ctex(1200, 260, (g, w, h) => { g.fillStyle = '#1e4fa3'; g.fillRect(0, 0, w, h); g.strokeStyle = '#fff'; g.lineWidth = 8; g.strokeRect(12, 12, w - 24, h - 24); g.fillStyle = '#fff'; g.font = 'italic bold 150px Arial'; g.textAlign = 'center'; g.fillText('LATISANA', w / 2, h / 2 + 52); });
     for (const z of [-12000, 30000]) for (const s of [-1, 1]) { const p = plane(XC + s * 135, 4350, z, 3600, 780, lit(mat({ map: nameT, roughness: 0.5 }), 1), s < 0 ? -90 : 90, 0, stn); p.castShadow = false; box(XC, 3950, z, 250, 800, 3700, mGreen, stn); }
@@ -8617,6 +8698,7 @@ const R3 = (() => {
     posters(XC, -22000, -90);
     // ---- sottopasso: scale, parapetti e cartello ----
     const mTile = lit(mat({ map: ctex(256, 256, (g, w, h) => { g.fillStyle = '#d7d9d5'; g.fillRect(0, 0, w, h); g.strokeStyle = '#b5b8b4'; g.lineWidth = 3; for (let i = 0; i <= w; i += 32) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, h); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(w, i); g.stroke(); } }), roughness: 0.5 }), 0.8);
+    for (let q = outLit.length - 1; q >= 0; q--) if (outLit[q] === mTile) outLit.splice(q, 1); mats.tile = mTile;
     const NS = 15, RS = 170, TS = 300;
     for (let i = 0; i < NS; i++) { const top = -RS * (i + 1); box(XC, -2800, SZ0 + i * TS + TS / 2, SW, top + 2800, TS, mConc, stn).castShadow = false; box(XC, top - 2, SZ0 + i * TS + 20, SW, 4, 40, mYellow, stn).castShadow = false; }
     box(XC, -2800, (SZ0 + NS * TS + SZ1) / 2, SW, 2800 - RS * NS, SZ1 - SZ0 - NS * TS, mConc, stn).castShadow = false;
@@ -8632,7 +8714,7 @@ const R3 = (() => {
       const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(M(60), M(90), M(6000), 12), mGalv, pos.length), head = new THREE.InstancedMesh(new THREE.BoxGeometry(M(700), M(120), M(300)), new THREE.MeshStandardMaterial({ color: 0xfff8e8, emissive: 0xffe9c0, emissiveIntensity: 0.15 }), pos.length), o = new THREE.Object3D();
       mats.p4Lamp = head.material;
       pos.forEach((z, i) => { o.position.set(M(P4b - 600), M(3000), M(z)); o.updateMatrix(); pole.setMatrixAt(i, o.matrix); o.position.set(M(P4b - 900), M(6000), M(z)); o.updateMatrix(); head.setMatrixAt(i, o.matrix); });
-      stn.add(pole); stn.add(head); }
+      stn.add(pole); stn.add(head); lampReg.push({ grp: 'p4', mesh: head, zs: pos, p0: poolPts.length - pos.length }); }
     // chiazze di luce dei lampioni sulle banchine (di notte): una sola istanza per tutte, senza luci reali
     { const pc = document.createElement('canvas'); pc.width = pc.height = 128; const pg = pc.getContext('2d'), gr2 = pg.createRadialGradient(64, 64, 0, 64, 64, 64);
       gr2.addColorStop(0, 'rgba(255,214,150,1)'); gr2.addColorStop(0.35, 'rgba(255,200,130,0.45)'); gr2.addColorStop(1, 'rgba(255,190,120,0)'); pg.fillStyle = gr2; pg.fillRect(0, 0, 128, 128);
@@ -8644,6 +8726,7 @@ const R3 = (() => {
       im.frustumCulled = false; im.visible = false; im.renderOrder = 2; stn.add(im); }
     // luci vere dei lampioni: poche, assegnate ai punti luce più vicini all'osservatore (le altre restano solo come chiazze sul suolo)
     for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffdca0, 0, 20, 2); l.castShadow = false; stn.add(l); lampN.push(l); }
+    initLamps();
     for (const z of [-8000, 14000, 36000]) { bench(P4a + 2000, z, -90); bin(P4a + 2600, z + 4000); }
     const fenceT = ctex(512, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#7f95a6'; for (let x = 4; x < w; x += 22) g.fillRect(x, 10, 9, h - 10); g.fillRect(0, 20, w, 12); g.fillRect(0, h - 40, w, 12); });
     const fm = mat({ map: rep(fenceT, LEN / 3000, 1), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.4 });
@@ -10561,7 +10644,147 @@ const R3 = (() => {
     if (!init) { renderer.shadowMap.needsUpdate = true; markDirty(); }
   }
   let blindT = 0;
+  // ======================= 2.8.0: quadro elettrico, luci di stazione, PC con YouTube =======================
+  const hm = s => { s = ((s % 86400) + 86400) % 86400; return String(Math.floor(s / 3600)).padStart(2, '0') + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0'); };
+  const STZ_ID = ['p1', 'p23', 'p4', 'fab', 'seg', 'sic'];
+  function stzNext() {
+    let a = Infinity;
+    try { for (const t of S.TT) { if (t.done || t.can || !CATS[t.cat].pax || !t.stops) continue; const x = t.arr + (t.late || 0) * 60; if (x < S.simT - 3 * 3600) continue; if (x < a) a = x; } } catch (e) { }
+    return a;
+  }
+  // regola: luci di stazione spegnibili solo di notte e se nelle prossime 2 ore non arriva un viaggiatori con fermata
+  function stzOffOk() {
+    if (nOutCur < 0.5) return { ok: false, why: 'Le luci di stazione si spengono solo nel turno di notte.' };
+    const a = stzNext(), dt = a - S.simT;
+    if (dt < 2 * 3600) return { ok: false, why: dt < 0 ? 'Non spegnere: c\'è un viaggiatori con fermata ancora in zona.' : `Non spegnere: prossimo viaggiatori con fermata alle ${hm(a)} (meno di 2 ore).` };
+    return { ok: true };
+  }
+  function stzToggle(i) {
+    const g = STZ_ID[i];
+    if (g === 'sic') { msg('Sicurezza banchine e sottopasso: lo stotz non è spegnibile (restano accese le luci vicino ai sottopassi).'); return; }
+    if (STZ[g]) { const r = stzOffOk(); if (!r.ok) { msg(r.why, 'warn'); return; } STZ[g] = false; msg('Stotz disinserito: ' + ['Banchina 1', 'Isola 2-3', 'Banchina 4', 'Fabbricato viaggiatori', 'Cartelli e insegne'][i]); }
+    else { STZ[g] = true; msg('Stotz inserito'); }
+    applyLamps(); saveLS(); click('sw'); light(); markDirty();
+  }
+  function stzCheck() {
+    const off = ['p1', 'p23', 'p4', 'fab', 'seg'].filter(g => !STZ[g]); if (!off.length) return;
+    const a = stzNext();
+    if (nOutCur < 0.25 || a - S.simT < 25 * 60) {
+      for (const g of off) STZ[g] = true; applyLamps(); saveLS();
+      const why = nOutCur < 0.25 ? 'È giorno: luci di stazione riaccese automaticamente.' : `In arrivo un viaggiatori con fermata (${hm(a)}): luci di stazione riaccese automaticamente.`;
+      msg(why, 'warn'); try { log(why, 'warn'); } catch (e) { }
+      light(); markDirty();
+    }
+  }
+  function initLamps() {
+    const zKeep = z => z >= -4000 && z <= 20500;
+    poolOn = poolPts.map(() => true);
+    for (const r of lampReg) {
+      const n = r.zs.length, m0 = r.mesh, par = m0.parent, lit = m0.material, kmat = lit.clone(), omat = lit.clone();
+      omat.emissive = new THREE.Color(0x000000); omat.emissiveIntensity = 0; omat.color = lit.color.clone().multiplyScalar(0.5);
+      mats['k_' + r.grp] = kmat; r.keep = r.zs.map(zKeep);
+      r.mk = new THREE.InstancedMesh(m0.geometry, kmat, n); r.mo = new THREE.InstancedMesh(m0.geometry, omat, n);
+      r.mat0 = []; const tmp = new THREE.Matrix4(); for (let i = 0; i < n; i++) { m0.getMatrixAt(i, tmp); r.mat0.push(tmp.clone()); }
+      for (const x of [r.mk, r.mo]) { x.castShadow = false; x.frustumCulled = false; par.add(x); }
+      m0.frustumCulled = false;
+    }
+    applyLamps();
+  }
+  function applyLamps() {
+    const Z = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (const r of lampReg) {
+      const on = STZ[r.grp] !== false;
+      for (let i = 0; i < r.zs.length; i++) {
+        const k = r.keep[i];
+        r.mesh.setMatrixAt(i, !k && on ? r.mat0[i] : Z); r.mk.setMatrixAt(i, k ? r.mat0[i] : Z); r.mo.setMatrixAt(i, !k && !on ? r.mat0[i] : Z);
+        poolOn[r.p0 + i] = k || on;
+      }
+      for (const m of [r.mesh, r.mk, r.mo]) m.instanceMatrix.needsUpdate = true;
+    }
+    if (mats.poolMesh) {
+      const o = new THREE.Object3D();
+      poolPts.forEach(([x, z, d], i) => { o.position.set(M(x), 0.012, M(z)); const s = poolOn[i] ? M(d) : 0; o.scale.set(s, 1, s); o.updateMatrix(); mats.poolMesh.setMatrixAt(i, o.matrix); });
+      mats.poolMesh.instanceMatrix.needsUpdate = true;
+    }
+    markDirty();
+  }
+  // ---------- schermo del PC ----------
+  let pcLast = 0;
+  function pcDraw(t) {
+    if (!pcScrCv) return;
+    const g = pcScrCv.getContext('2d'), w = 640, h = 384;
+    if (!pcOn) { g.fillStyle = '#040405'; g.fillRect(0, 0, w, h); }
+    else {
+      g.fillStyle = '#0f0f0f'; g.fillRect(0, 0, w, h); g.fillStyle = '#212121'; g.fillRect(0, 0, w, 44);
+      g.fillStyle = '#f00'; g.beginPath(); g.roundRect ? g.roundRect(14, 11, 38, 26, 7) : g.rect(14, 11, 38, 26); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.moveTo(27, 16); g.lineTo(27, 32); g.lineTo(41, 24); g.closePath(); g.fill();
+      g.font = 'bold 22px Arial'; g.textAlign = 'left'; g.fillText('YouTube', 60, 31);
+      g.fillStyle = '#121212'; g.fillRect(250, 9, 280, 26); g.strokeStyle = '#303030'; g.strokeRect(250.5, 9.5, 280, 26); g.fillStyle = '#888'; g.font = '13px Arial'; g.fillText('Cerca', 260, 27);
+      if (ytOn) {
+        const gr = g.createLinearGradient(0, 60, 0, 300); gr.addColorStop(0, '#2a1f3d'); gr.addColorStop(1, '#0d0a14'); g.fillStyle = gr; g.fillRect(60, 62, 520, 240);
+        for (let i = 0; i < 28; i++) { const a = 0.35 + 0.65 * Math.abs(Math.sin(t * 2.6 + i * 0.9) * Math.cos(t * 1.7 + i * 0.37)), bh = 12 + a * 110; g.fillStyle = `hsl(${280 + i * 3},70%,${50 + a * 15}%)`; g.fillRect(90 + i * 17, 270 - bh, 11, bh); }
+        g.fillStyle = '#fff'; g.font = 'bold 20px Arial'; g.fillText((ytTitle || 'In riproduzione').slice(0, 44), 60, 332); g.fillStyle = '#aaa'; g.font = '14px Arial'; g.fillText('In riproduzione · volume ' + ytVol + '%', 60, 354);
+        g.fillStyle = '#444'; g.fillRect(60, 302, 520, 4); g.fillStyle = '#f00'; g.fillRect(60, 302, 520 * ((t / 240) % 1), 4);
+      } else {
+        for (let r = 0; r < 2; r++) for (let q = 0; q < 3; q++) { g.fillStyle = '#222'; g.fillRect(40 + q * 195, 70 + r * 130, 180, 100); g.fillStyle = '#2f2f2f'; g.fillRect(40 + q * 195, 176 + r * 130, 120, 8); }
+        g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(150, 150, 340, 60); g.fillStyle = '#fff'; g.font = 'bold 22px Arial'; g.textAlign = 'center'; g.fillText('Clic per aprire YouTube', 320, 188); g.textAlign = 'left';
+      }
+    }
+    pcScrTex.needsUpdate = true; pcScrMat.emissiveIntensity = pcOn ? 0.85 : 0;
+    if (pcLed) { pcLed.color.setHex(pcOn ? 0x00aa22 : 0x996600); pcLed.emissive.setHex(pcOn ? 0x00ff2a : 0xff9900); pcLed.emissiveIntensity = pcOn ? 1.1 : 0.5; }
+    markDirty();
+  }
+  function pcSet(on) { pcOn = on; pcDraw(performance.now() / 1000); saveLS(); click('sw'); }
+  // ---------- overlay YouTube (resta nel DOM, anche chiuso, così la musica continua) ----------
+  let ytOpen = false, ytBox = null, ytFrame = null, ytRec = []; try { ytRec = JSON.parse(localStorage.getItem('cs-latisana-yt')) || []; } catch (e) { }
+  function ytBuild() {
+    if (ytBox) return;
+    const st = document.createElement('style');
+    st.textContent = '.r3yt{position:absolute;inset:0;z-index:12;background:#0b0b0d;display:flex;flex-direction:column;color:#e8e8e8;font:13px system-ui,Arial}.r3yt.off{transform:translateX(-300%);pointer-events:none}.r3yt .yb{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#18181b;border-bottom:1px solid #2a2a2e}.r3yt input[type=text]{flex:1;min-width:220px;background:#0f0f10;border:1px solid #3a3a3f;color:#eee;padding:6px 8px;border-radius:4px}.r3yt a{color:#7fb5ff}.r3yt .yr{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px;background:#121214;font-size:12px}.r3yt .yr button{background:#222;color:#ddd;border:1px solid #3a3a3f;border-radius:12px;padding:2px 10px;cursor:pointer}.r3yt iframe{flex:1;border:0;width:100%;background:#000}.r3yt .ym{padding:4px 10px;font-size:12px;color:#f0b35a;min-height:18px}';
+    document.head.appendChild(st);
+    ytBox = document.createElement('div'); ytBox.className = 'r3yt off';
+    ytBox.innerHTML = '<div class="yb"><button class="hb" data-y="x">◀ Torna alla sala (Esc)</button><input type="text" placeholder="Incolla il link di un video, una playlist o una diretta YouTube (oppure l\'ID)"><button class="hb" data-y="play">▶ Riproduci</button><button class="hb" data-y="stop">■ Ferma</button><label>Volume <input type="range" min="0" max="100" value="' + ytVol + '" style="vertical-align:middle;width:110px"></label><button class="hb" data-y="mon">⏻ Spegni monitor</button><a href="https://www.youtube.com/" target="_blank" rel="noopener">Cerca su YouTube ↗</a></div><div class="ym"></div><div class="yr"></div><iframe allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+    view.appendChild(ytBox); ytFrame = ytBox.querySelector('iframe');
+    const inp = ytBox.querySelector('input[type=text]');
+    ytBox.addEventListener('click', e => { const b = e.target.closest('[data-y]'); if (b) { const a = b.dataset.y; if (a === 'x') ytClose(); else if (a === 'play') ytPlay(inp.value); else if (a === 'stop') ytStop(); else if (a === 'mon') { ytClose(); pcSet(false); } } const c = e.target.closest('[data-r]'); if (c) { inp.value = c.dataset.r; ytPlay(c.dataset.r); } });
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') ytPlay(inp.value); else if (e.key === 'Escape') ytClose(); });
+    ytBox.querySelector('input[type=range]').addEventListener('input', e => { ytVol = +e.target.value; ytVolApply(); saveLS(); });
+    ytRecDraw();
+  }
+  function ytRecDraw() { if (!ytBox) return; const yr = ytBox.querySelector('.yr'); yr.innerHTML = '<span style="opacity:.7">Preferiti:</span> <button data-r="https://www.youtube.com/watch?v=jfKfPfyJRdk">Lofi Girl (diretta)</button>' + ytRec.map(s => `<button data-r="${s.replace(/"/g, '&quot;')}">${s.replace(/https?:\/\/(www\.)?/, '').slice(0, 34).replace(/</g, '&lt;')}</button>`).join(''); }
+  const ytMsg = m => { if (ytBox) ytBox.querySelector('.ym').textContent = m || ''; };
+  function ytParse(s) {
+    s = (s || '').trim(); if (!s) return null; let m; const list = (s.match(/[?&]list=([\w-]+)/) || [])[1];
+    if ((m = s.match(/(?:v=|youtu\.be\/|\/live\/|\/shorts\/|\/embed\/)([\w-]{11})/))) return { id: m[1], list };
+    if (list) return { list };
+    if (/^[\w-]{11}$/.test(s)) return { id: s };
+    return null;
+  }
+  function ytVolApply() { try { const w = ytFrame.contentWindow; w.postMessage(JSON.stringify({ event: 'listening', id: 1 }), '*'); w.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [ytVol] }), '*'); } catch (e) { } }
+  function ytPlay(s) {
+    const p = ytParse(s); if (!p) { ytMsg('Link non riconosciuto: incolla l\'indirizzo del video (o l\'ID di 11 caratteri). La ricerca per parole non è disponibile qui: usa «Cerca su YouTube», copia il link e incollalo.'); return; }
+    ytMsg('');
+    const base = 'https://www.youtube-nocookie.com/embed/', url = p.id ? `${base}${p.id}?autoplay=1&enablejsapi=1&rel=0&playsinline=1${p.list ? '&list=' + p.list : ''}` : `${base}videoseries?list=${p.list}&autoplay=1&enablejsapi=1&rel=0`;
+    ytFrame.onload = () => { ytVolApply(); setTimeout(ytVolApply, 1200); setTimeout(ytVolApply, 3500); };
+    ytFrame.src = url; ytOn = true; ytTitle = p.id ? 'youtube.com/watch?v=' + p.id : 'Playlist YouTube';
+    const key = s.trim(); if (key && key !== 'https://www.youtube.com/watch?v=jfKfPfyJRdk') { ytRec = [key, ...ytRec.filter(x => x !== key)].slice(0, 6); try { localStorage.setItem('cs-latisana-yt', JSON.stringify(ytRec)); } catch (e) { } ytRecDraw(); }
+    pcDraw(performance.now() / 1000);
+  }
+  function ytStop() { if (ytFrame) ytFrame.src = 'about:blank'; ytOn = false; pcDraw(performance.now() / 1000); }
+  function ytOpenUI() { ytBuild(); ytBox.classList.remove('off'); ytOpen = true; keys.clear(); }
+  function ytClose() { if (ytBox) ytBox.classList.add('off'); ytOpen = false; }
+  // animazioni del quadro (sportello, leve) e del PC; il controllo automatico degli stotz gira una volta al secondo
+  let qeT = 0, stzT = 0;
+  function qeFrame(now) {
+    const dt = Math.min(0.1, (now - (qeT || now)) / 1000); qeT = now; let ch = false;
+    const tg = qeOpen ? 1 : 0; if (qeK !== tg) { qeK += Math.sign(tg - qeK) * Math.min(Math.abs(tg - qeK), dt * 2.2); ch = true; const e = qeK * qeK * (3 - 2 * qeK); if (qeDoor) qeDoor.rotation.y = -e * 105 * DEG; }
+    for (let i = 0; i < qeLev.length; i++) { const on = STZ[STZ_ID[i]] !== false, ty = M(40 + (on ? 6 : -26)), l = qeLev[i]; if (Math.abs(l.position.y - ty) > 1e-4) { l.position.y += (ty - l.position.y) * Math.min(1, dt * 18); ch = true; } qeInd[i].color.setHex(on ? 0x118833 : 0x992211); qeInd[i].emissive.setHex(on ? 0x22ee55 : 0xff3a20); }
+    if (pcOn && ytOn && now - pcLast > 200) { pcLast = now; pcDraw(now / 1000); }
+    if (now - stzT > 1000) { stzT = now; stzCheck(); }
+    if (ch) markDirty();
+  }
   function blindFrame(now) {
+    qeFrame(now);
     const dt = Math.min(0.1, (now - (blindT || now)) / 1000); blindT = now;
     let ch = false;
     for (let k = 0; k < 3; k++) {
@@ -10625,7 +10848,7 @@ const R3 = (() => {
       const on2 = quality === 'alta' || quality === 'ultra', nO = Math.max(0, 1 - d * 1.6), cp = camera.position;
       for (const l of lampN) l.visible = on2;
       if (on2 && nO <= 0) { for (const l of lampN) l.intensity = 0; }
-      else if (on2) { const c = poolPts.map(q => ({ q, k: (M(q[0]) - cp.x) ** 2 + (M(q[1] === undefined ? 0 : q[1]) * 0) + (M(q[1]) - cp.z) ** 2 })); c.sort((a, b) => a.k - b.k);
+      else if (on2) { const c = poolPts.map((q, qi) => ({ q, on: poolOn[qi] !== false, k: (M(q[0]) - cp.x) ** 2 + (M(q[1]) - cp.z) ** 2 })).filter(x => x.on); c.sort((a, b) => a.k - b.k);
         lampN.forEach((l, i) => { const q = c[i] && c[i].q; if (q) { l.position.set(M(q[0]), M(q[3]) - 0.1, M(q[1])); l.intensity = nO * ST_I * (1 - 0.85 * blindCover); } }); } }
     for (const m of ceilMats) { const o = on(m.userData.grp); m.emissiveIntensity = o ? 1.6 : 0; m.color.setHex(o ? 0xffffff : 0x9a9a94); }
     hemiBase = hemi.intensity = (0.003 + d * (0.18 * (1 - 0.3 * oc) + 0.10 * oc)) * (1 - 0.7 * blindCover); hemi.color.copy(C3(0x2a3550, 0xdfe8f5, d)); hemi.groundColor.copy(C3(0x0c0b0a, 0x6d665c, d));
@@ -10641,11 +10864,13 @@ const R3 = (() => {
     for (const p of switchMesh) p.parent.rotation.x = on(p.userData.sw) ? -0.12 : 0.12;
     const nOut = Math.max(0, 1 - d * 1.6);
     lightMats.head.emissiveIntensity = 1 + nOut * 4; lightMats.tail.emissiveIntensity = 1 + nOut * 3;
-    for (const m of outLit) m.emissiveIntensity = nOut * 0.32 * (m.userData.litK || 1);
+    nOutCur = nOut;
+    for (const m of outLit) m.emissiveIntensity = STZ[m.userData.grp || 'seg'] === false ? 0 : nOut * 0.32 * (m.userData.litK || 1);
+    if (mats.tile) mats.tile.emissiveIntensity = 0.1 + nOut * 0.3;
     for (const m of winLit) m.emissiveIntensity = nOut * 0.75;
     if (mats.pool) { mats.pool.opacity = nOut * 0.36; mats.poolMesh.visible = nOut > 0.03; }
     for (const m of trainLit) m.emissiveIntensity = nOut * 0.9;
-    if (mats.globe) { mats.globe.emissiveIntensity = 0.15 + nOut * 2.2; mats.islandLamp.emissiveIntensity = 0.2 + nOut * 2.4; mats.p4Lamp.emissiveIntensity = 0.15 + nOut * 2.4; }
+    if (mats.globe) { mats.globe.emissiveIntensity = 0.15 + nOut * 2.2; mats.islandLamp.emissiveIntensity = 0.2 + nOut * 2.4; mats.p4Lamp.emissiveIntensity = 0.15 + nOut * 2.4; if (mats.k_p1) { mats.k_p1.emissiveIntensity = 0.15 + nOut * 2.2; mats.k_p23.emissiveIntensity = 0.2 + nOut * 2.4; mats.k_p4.emissiveIntensity = 0.15 + nOut * 2.4; } }
     if (scene.fog) scene.fog.color.copy(skyMat.uniforms.bot.value);
     const og = 0.08 + 0.92 * d; mats.grass.color.setScalar(og); if (mats.leafs) { for (const m of mats.leafs) { m.userData.c0 = m.userData.c0 || m.color.clone(); m.color.copy(m.userData.c0).multiplyScalar(og); } mats.treeLine.color.setScalar(0.04 + 0.96 * d); } mats.leaf.color.setRGB(0.24 * og, 0.35 * og, 0.2 * og); mats.trunk.color.setRGB(0.29 * og, 0.23 * og, 0.16 * og);
     if (mats.blindFab) { const gl = d * (0.25 + 0.5 * sunK) + 0.02; mats.blindFab.emissive.setRGB(0.92, 0.9, 0.84); mats.blindFab.emissiveIntensity = gl * 0.45; }
@@ -10775,13 +11000,15 @@ const R3 = (() => {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hits = ray.intersectObjects([...pulsGroup.children.filter(o => o.isMesh && !o.isInstancedMesh), qlMesh, ...switchMesh, ...phoneHit, ...lampHit.children.filter(o => o.isMesh), ...blindHit.filter(o => o.visible), ...acHit], false);
+    const hits = ray.intersectObjects([...pulsGroup.children.filter(o => o.isMesh && !o.isInstancedMesh), qlMesh, ...switchMesh, ...phoneHit, ...lampHit.children.filter(o => o.isMesh), ...blindHit.filter(o => o.visible), ...acHit, ...qeHit, ...pcHit], false);
     if (!hits.length) return null;
     const h0 = hits[0];
     if (h0.object.userData.sw) return { t: 'sw', k: h0.object.userData.sw };
     if (phoneHit.includes(h0.object)) return { t: 'phone' };
     if (h0.object.userData.bl !== undefined) return { t: 'bl', k: h0.object.userData.bl };
     if (acHit.includes(h0.object)) return { t: 'ac' };
+    if (h0.object.userData.qe !== undefined) return h0.object.userData.qe === 'door' ? { t: 'qdoor' } : { t: 'stz', i: h0.object.userData.qe };
+    if (h0.object.userData.pc) return { t: h0.object.userData.pc === 'scr' ? 'pcs' : 'pcp' };
     if (lampHit.children.includes(h0.object)) return { t: 'lamp' };
     if (h0.object === qlMesh) { const u = h0.uv; return { t: 'ql', u: u.x, v: 1 - u.y }; }
     const lp = pulsGroup.worldToLocal(h0.point.clone());
@@ -10798,7 +11025,7 @@ const R3 = (() => {
   // altezza in pixel della tenda tutta abbassata (per trasformare lo spostamento del mouse in spostamento della tenda)
   function blindPx(k) { const o = blindObj[k], a = new THREE.Vector3(M(o.BX), M(o.YT), M(o.zk)).project(camera), b = new THREE.Vector3(M(o.BX), M(o.YT - o.FULL), M(o.zk)).project(camera); return Math.max(70, Math.abs(a.y - b.y) / 2 * view.clientHeight); }
   view.addEventListener('pointerdown', e => {
-    if (!running || e.target.closest('.hud3,.scr,.r3fs,.scrglass')) return;
+    if (!running || e.target.closest('.hud3,.scr,.r3fs,.r3yt,.scrglass')) return;
     drag = { x: e.clientX, y: e.clientY, b: e.button, sy: e.clientY }; moved = 0; view.setPointerCapture(e.pointerId); if (tw) { cancelAnimationFrame(tw); tw = null; }
     if (e.button === 0) { const pk = pick(e); if (pk && pk.t === 'bl') { drag.bl = pk.k; drag.lv0 = bTg[pk.k]; drag.px = blindPx(pk.k); blindDrag = pk.k; } }
   });
@@ -10814,7 +11041,7 @@ const R3 = (() => {
       if (moved > 4) { C.yaw -= dx * 0.18; C.pitch = Math.max(-80, Math.min(70, C.pitch + dy * 0.18)); applyCam(); }
       drag.x = e.clientX; drag.y = e.clientY; return;
     }
-    if (!running || fsId || e.target.closest('.hud3,.scr,.r3fs,.scrglass') || performance.now() - hovT < 60) return; hovT = performance.now();
+    if (!running || fsId || e.target.closest('.hud3,.scr,.r3fs,.r3yt,.scrglass') || performance.now() - hovT < 60) return; hovT = performance.now();
     const p = pick(e); view.style.cursor = p && (p.t !== 'cell' || p.d) && p.t !== 'ql' ? 'pointer' : '';
   });
   view.addEventListener('pointerup', e => {
@@ -10827,6 +11054,10 @@ const R3 = (() => {
       else if (p.t === 'phone') { if (answerPhone()) msg('Risposto al telefono'); renderPhone(); openFS('r3m2'); }
       else if (p.t === 'lamp') { lampOn = !lampOn; saveLS(); click('sw'); light(); }
       else if (p.t === 'ac') { acSet(!acOn); click('sw'); msg(acOn ? 'Condizionatore acceso' : 'Condizionatore spento'); }
+      else if (p.t === 'qdoor') { qeOpen = !qeOpen; click('sw'); msg(qeOpen ? 'Sportello del quadro aperto' : 'Sportello chiuso'); }
+      else if (p.t === 'stz') stzToggle(p.i);
+      else if (p.t === 'pcs') { if (!pcOn) pcSet(true); else ytOpenUI(); }
+      else if (p.t === 'pcp') pcSet(!pcOn);
       else if (p.t === 'ql') qlClick(p.u, p.v);
       else if (p.t === 'cell' && p.d) { p.d.dispatchEvent(new MouseEvent('click', { bubbles: true })); pulsT = 0; }
     } else if (d.b === 2 && p.t === 'cell' && p.d) { p.d.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); pulsT = 0; }
@@ -10834,7 +11065,7 @@ const R3 = (() => {
   view.addEventListener('contextmenu', e => { if (!e.target.closest('.scr')) e.preventDefault(); });
   view.addEventListener('dblclick', e => { if (!running || e.target.closest('.scr,.hud3,.r3fs,.scrglass')) return; const p = pick(e); if (!p) return; if (p.t === 'ql') focus('ql'); else if (p.t === 'cell' && !p.d) focus('puls'); });
   view.addEventListener('wheel', e => {
-    if (!running || fsId) return;
+    if (!running || fsId || ytOpen) return;
     for (let n = e.target; n && n !== view; n = n.parentElement) {
       if (n.classList && n.classList.contains('scr')) break;
       if (n.scrollHeight > n.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(n).overflowY)) {
@@ -10849,9 +11080,10 @@ const R3 = (() => {
   document.querySelector('.hud3').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b) focus(b.dataset.v); });
   addEventListener('keydown', e => {
     if (!running || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    if (ytOpen) { if (e.key === 'Escape') { e.preventDefault(); ytClose(); } return; }
     if (fsId) { if (e.key === 'Escape') { e.preventDefault(); closeFS(); } return; }
     if (e.key === 'f' || e.key === 'F') { if (!/INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName || '')) { torchOn = !torchOn; light(); markDirty(); return; } }
-    const m = { Escape: 'seat', Backspace: 'back', '1': 'ql', '2': 'puls', '3': 'r3m1', '4': 'r3m2', '5': 'win', '0': 'pano' }[e.key]; if (m) { e.preventDefault(); focus(m); }
+    const m = { Escape: 'seat', Backspace: 'back', '1': 'ql', '2': 'puls', '3': 'r3m1', '4': 'r3m2', '5': 'win', '6': 'qe', '7': 'pc2', '0': 'pano' }[e.key]; if (m) { e.preventDefault(); focus(m); }
   });
   // ---------- camminare: WASD / frecce, con collisioni ----------
   const keys = new Set(); let walkLast = 0;
@@ -10862,7 +11094,8 @@ const R3 = (() => {
     [-1150 - 360, -1150 + 360, 650 - 360, 650 + 360],       // sedia
     [-1650 - 360, -1650 + 360, -650 - 360, -650 + 360],
     [2450 - 470, 2450 + 470, Z1 - 420, Z1],                 // armadio
-    [X0, X0 + 260, 400, 600],                               // estintore
+    [X0 + 60, X0 + 520, 100, 400],                          // estintore su piantana
+    [800, 1700, Z1 - 620, Z1], [1250 - 360, 1250 + 360, Z1 - 1210, Z1 - 490], [560 - 220, 560 + 220, Z1 - 520, Z1],   // scrivania del PC, sedia, attaccapanni
   ];
   function blocked(x, z) {
     if (x < X0 + BODY || x > X1 - BODY || z < Z0 + BODY || z > Z1 - BODY) return true;
@@ -10977,7 +11210,7 @@ const R3 = (() => {
     try { localStorage.setItem('cs-latisana-view', '3d'); } catch (e) { }
   }
   function leave() {
-    closeFS(); running = false; if (snd) { const tt = AC.currentTime; for (const g of [snd.fG, snd.hG, snd.rG, snd.hsG, snd.acG, snd.acG2]) g.gain.setTargetAtTime(0, tt, 0.1); for (const [, e] of trains3) for (const key of ['sRoll', 'sHum', 'brk']) if (e[key]) { try { e[key].g.gain.setTargetAtTime(0, tt, 0.1); } catch (_) { } } }
+    closeFS(); ytClose(); ytStop(); running = false; if (snd) { const tt = AC.currentTime; for (const g of [snd.fG, snd.hG, snd.rG, snd.hsG, snd.acG, snd.acG2]) g.gain.setTargetAtTime(0, tt, 0.1); for (const [, e] of trains3) for (const key of ['sRoll', 'sHum', 'brk']) if (e[key]) { try { e[key].g.gain.setTargetAtTime(0, tt, 0.1); } catch (_) { } } }
     while (movedN.length) { const [n, p, s] = movedN.pop(); p.insertBefore(n, s && s.parentNode === p ? s : null); }
     document.body.classList.remove('v3d'); qlTheme(false); lastBanco = ''; lastPL = ''; $('b3d').textContent = 'Vista 3D';
     try { localStorage.setItem('cs-latisana-view', '2d'); } catch (e) { }
@@ -10990,7 +11223,7 @@ const R3 = (() => {
     U.forEach((u, i) => { const g = vehicle(u); g.position.set(M(TRK3[trk]), 0, M(z - u.L * 500)); grp.add(g); if (i === 0) lightsAt(g, u.L * 1000, true, true); if (i === U.length - 1) lightsAt(g, u.L * 1000, false, false); z -= u.L * 1000 + 300; });
     markDirty && markDirty(); return U.length;
   }
-  return { _demo: demo, get quality() { return quality; }, get _dbg() { return { scene, renderer, composer, rainMesh, dropsMesh, wetK, flash, get camera() { return camera; }, get snd() { return snd; }, get trains3() { return trains3; }, setBlind, bTg, bLv, acSet, get acOn() { return acOn; }, get cover() { return blindCover; } }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
+  return { _demo: demo, get quality() { return quality; }, get _dbg() { return { qeSet: v => { qeOpen = v; }, STZ, stzToggle, stzOffOk, stzNext, pcSet, focus, get nOutCur() { return nOutCur; }, scene, renderer, composer, rainMesh, dropsMesh, wetK, flash, get camera() { return camera; }, get snd() { return snd; }, get trains3() { return trains3; }, setBlind, bTg, bLv, acSet, get acOn() { return acOn; }, get cover() { return blindCover; } }; }, enter, leave, focus, set(c) { Object.assign(C, c); applyCam(); }, get cam() { return C; }, get ready() { return built && running; },
     _cellXY(sel) { const d = $('tab').querySelector(sel) || $('pls').querySelector(sel); const c = layout.cells.find(c => domCell(c) === d); const v = new THREE.Vector3(px2x(c.x + c.w / 2), px2y(c.y + c.h / 2), 0).applyMatrix4(pulsGroup.matrixWorld).project(camera); const r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 })();
 try { if (localStorage.getItem('cs-latisana-view') === '3d') R3.enter(); } catch (e) { }
