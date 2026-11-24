@@ -407,6 +407,8 @@ header{position:relative;z-index:40}
 .ntb{background:#1b1f22;border:1px solid #3a4046;border-radius:6px;padding:14px 18px;display:flex;flex-direction:column;gap:8px;color:#e6ece8}
 body.native-menu header{display:none}
 
+.tes{display:inline-block;background:#d9a400;color:#111;font-size:10px;font-weight:700;padding:0 4px;border-radius:3px;vertical-align:middle}.exc{color:#ffcf66;font-size:11px;margin-top:2px;line-height:1.25}
+
 </style>
 </head>
 <body>
@@ -496,6 +498,7 @@ body.native-menu header{display:none}
     <div class="chat" id="chat"></div>
     <form class="tel" id="telForm" autocomplete="off"><select id="telTr"></select><button type="button" class="hb sm" id="telCall" title="Chiama l'AdC del treno selezionato">☎ Chiama</button><button type="button" class="hb sm" id="telPre" title="Chiedi al DC di fermare il treno selezionato per dare la precedenza">Precedenza</button><button type="button" class="hb sm" id="telGiu" title="Chiedi il giunto treno al treno selezionato (solo treni diretti a Latisana)">Giunto</button><input id="telTxt" placeholder="messaggio…"><button class="hb sm">Invia</button></form>
     <div class="telhold" id="telSend"><span>Invio treni</span><select id="telSendSide"><option value="ALL">tutte le direzioni</option><option value="PG">da Portogruaro</option><option value="SG">da S. Giorgio</option></select><span>causa</span><select id="telSendC"><option value="app">apparato centrale</option><option value="dev">deviatoi</option><option value="ali">alimentazione impianti</option><option value="blo">blocco automatico</option><option value="ban">binari di stazione</option></select><button type="button" class="hb sm" id="telSendStop" title="Chiama DC e stazioni limitrofe: non inviare treni verso Latisana per guasto">Non inviare treni</button><input id="telSendN" placeholder="n. traccia: 2315 2317…" style="width:150px"><button type="button" class="hb sm" id="telSendList" title="Chiama DC e stazioni limitrofe: inviare solo i treni con i numeri traccia indicati">Invia solo questi</button><button type="button" class="hb sm" id="telSendOff" title="Comunica la ripresa della normale circolazione">Riprendi invii</button></div>
+    <div class="telhold" id="telTes"><span>TES (divieto di incrocio)</span><select id="telTesN" style="max-width:260px"></select><select id="telTesSide"><option value="PG">con Portogruaro</option><option value="SG">con S. Giorgio</option></select><button type="button" class="hb sm" id="telTesS" title="Sospendi la circolazione sul binario attiguo con la stazione limitrofa (prima dell'inoltro)">Sospendi binario attiguo</button><input id="telTesT" placeholder="transito HH:MM" style="width:100px"><button type="button" class="hb sm" id="telTesR" title="Riattiva la circolazione dopo il transito del TES indicando l'orario di transito">Riattiva circolazione</button></div>
     <div class="telhold" id="telHold" style="display:none"><span>Partenza non prima delle</span><input id="telHoldT" type="time"><span>causa</span><select id="telHoldC"><option value="G">guasto</option><option value="T">intervento tecnici in corso</option><option value="C" selected>esigenze di circolazione</option></select><button type="button" class="hb sm" id="telHoldBtn">Comunica all'AdC</button></div>
   </div>
   <div class="card panel" id="pReq"><h2 class="ph"><span>Richieste, ordini DC e anormalità</span><button class="dt" title="Sgancia in una finestra">⧉</button></h2><div class="reqs" id="reqs"></div></div>
@@ -553,7 +556,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.8.0';
+window.SIM_BUILD = '2.9.0';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -5295,6 +5298,14 @@ function genDay(d) {
   }
   for (let i = 0; i < (dow <= 4 ? 4 : 2); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('MAT', dir, base + (5 + Math.floor(r() * 17)) * 3600 + Math.floor(r() * 60) * 60, 'Trenitalia', 96000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
   for (let i = 0; i < (dow <= 4 ? 8 : 4); i++) { const dir = r() < 0.5 ? 'L' : 'R'; add('LIS', dir, base + Math.floor(r() * 24) * 3600 + Math.floor(r() * 60) * 60, r() < 0.3 ? 'Trenitalia' : IF_MERCI[Math.floor(r() * IF_MERCI.length)], 69000 + Math.floor(r() * 400) * 2 + (dir === 'L' ? 1 : 0)); }
+  // trasporti eccezionali (TE) e a eccedenza di sagoma (TES): pochi, soprattutto di notte, con condizioni di inoltro
+  { const re = rng(d * 3571 + 77), q0 = re(), nExc = dow <= 4 ? (q0 < 0.45 ? 0 : q0 < 0.85 ? 1 : 2) : (q0 < 0.7 ? 0 : 1);
+    for (let i = 0; i < nExc; i++) {
+      const dir = re() < 0.5 ? 'L' : 'R', night = re() < 0.7, h = night ? (re() < 0.5 ? 22 + Math.floor(re() * 2) : Math.floor(re() * 5)) : 6 + Math.floor(re() * 15), t0 = base + h * 3600 + Math.floor(re() * 60) * 60;
+      const kind = re() < 0.45 ? 'TE' : 'TES', vm = [60, 70, 80][Math.floor(re() * 3)], o = dir === 'R' ? pick(ORIG_E, re) : pick(ORIG_W, re), de = dir === 'R' ? pick(ORIG_W, re) : pick(ORIG_E, re);
+      const t = mkTT({ num: 47000 + Math.floor(re() * 900) * 2 + (dir === 'L' ? 1 : 0), cat: 'MRC', dir, arr: t0, stops: false, stopMin: 0, dwell: 0, stopType: 'transito', len: 150 + Math.floor(re() * 28) * 10, vmax: vm, orig: o, dest: de, impresa: pick(IF_MERCI, re) });
+      t.exc = mkExc(kind, dir, d, re); t.note = `${kind} ${t.exc.ref}`; list.push(t);
+    } }
   // invio materiale serale (lun-gio): alle 21:50 arriva da S. Giorgio, stazionamento in bin. IV fino alle 05:30, poi riparte per Portogruaro con un'altra traccia
   if (dow <= 3) {
     const n1 = 96610 + dow * 2, n2 = 96702 + dow * 2;
@@ -5947,7 +5958,7 @@ function updateDC() {
   }
   // treni fermi nelle stazioni vicine perché il blocco non è orientato verso Latisana
   for (const side of ['SG', 'PG']) {
-    const w = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready + 60 && !t.dcSpawnHold && !noSendBlocks(t));
+    const w = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready + 60 && !t.dcSpawnHold && !noSendBlocks(t) && !suspBlocks(t) && !tesWait(t));
     const ok = SIDES[side].lines.some(L => S.line[L].orient === 'in' && !S.line[L].interr);
     if (w && !ok && !S.coReq && !(S.coAsk) && !(S.coRetry && S.coRetry[side] > S.simT)) {
       const L = SIDES[side].lines.find(L => !S.line[L].interr && !S.line[L].chg && lineAllFree(L) && !Object.keys(S.active).some(id => ROUTES[id].line === L) && !S.ints.some(x => x.ente === L && x.limOk && x.state === 'granted'));
@@ -6214,6 +6225,7 @@ function commit(tr, rid) {
     tr.await = r.next; tr.track = r.trk; tr.t.track = r.trk; tr.lineIn = null;
     if (r.trk === 'M') { tr.await = null; tr.toZM = true; return; }
     if (tr.stops) { const tl = tr.path[tr.path.length - 1].len, mid = tr.L - tl / 2; tr.stopS = CATS[tr.cat].pax ? Math.min(tr.L - 12, mid + tr.len / 2) : tr.L - 12; }
+    { const bc = tr.t.exc && tr.t.exc.conds.find(c => c.k === 'bin'); if (bc && r.trk !== bc.bin && r.trk !== 'M') { S.irreg++; log(`Irregolarità: ${tr.t.exc.kind} ${tr.num} ricevuto sul bin. ${r.trk} invece del bin. ${bc.bin} obbligato (${tr.t.exc.ref})`, 'err'); onSound('err'); } }
     if (CATS[tr.cat].pax && tr.stops && !PLAT[r.trk]) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} ricevuto su binario privo di marciapiede`, 'err'); }
     if (tr.t.prm && tr.t.prmCall && !['I', 'IV'].includes(r.trk)) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} con persona a ridotta mobilità ricevuto sul bin. ${r.trk} (marciapiede senza ascensore): richiesto il bin. I o IV`, 'err'); onSound('err'); }
   } else {
@@ -6221,6 +6233,12 @@ function commit(tr, rid) {
     S.lineLast[r.line] = { uid: tr.t.uid, num: tr.num, cat: tr.cat, way: 'out', t: S.simT };
     if (evStop(tr.toSide)) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} licenziato verso ${SIDES[tr.toSide].name} durante la sospensione della circolazione`, 'err'); onSound('err'); tr.emHold = S.ev.id; }
     else if (evLimited(tr.toSide) && !tr.t.inoOk) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} licenziato verso ${SIDES[tr.toSide].name} senza l'autorizzazione all'inoltro`, 'err'); onSound('err'); }
+    { const sp = S.susp && S.susp[tr.toSide], x = tr.t.exc;
+      if (sp && tr.t.uid !== sp.uid && tr.t.dir !== sp.dir) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} licenziato verso ${SIDES[tr.toSide].name} sul binario attiguo sospeso per il TES`, 'err'); onSound('err'); }
+      if (x && x.nocross) {
+        if (!sp || sp.uid !== tr.t.uid) { S.irreg++; log(`Irregolarità: ${x.kind} ${tr.num} licenziato verso ${SIDES[tr.toSide].name} senza sospendere il binario attiguo (divieto di incrocio in linea)`, 'err'); onSound('err'); }
+        else { const o = S.trains.find(q => !q.gone && q !== tr && q.lineIn && SIDES[tr.toSide].lines.includes(q.lineIn) && !q.track && q.t.dir !== tr.t.dir); if (o) { S.irreg++; log(`Irregolarità: ${x.kind} ${tr.num} licenziato con il ${o.cat} ${o.num} ancora in linea sul binario attiguo (incrocio in linea)`, 'err'); onSound('err'); } }
+      } }
     if (tr.t.dcHold) { S.irreg++; log(`Irregolarità: ${tr.cat} ${tr.num} licenziato contro l'ordine del DC (attendere ${tr.t.dcHold})`, 'err'); onSound('err'); tr.t.dcHold = null; }
   }
 }
@@ -6246,7 +6264,7 @@ function moveTrain(tr, dt) {
   let lim = limitOf(tr), vA = tr.emMav ? Math.min(tr.vcap, VMAV) : tr.vcap, s = 0;
   const tail = tr.head - tr.len;
   for (const p of tr.path) {
-    const a = s, b = s + p.len, pv = p.vmax; s = b;
+    const a = s, b = s + p.len, pv = tr.t.exc ? Math.min(p.vmax, excLim(tr, p)) : p.vmax; s = b;
     if (b > tail && a < tr.head) vA = Math.min(vA, pv);
     else if (a >= tr.head) vA = Math.min(vA, Math.sqrt(pv * pv + 2 * tr.dec * (a - tr.head)));
     if (p.gate && a >= tr.head && pbiAspect(p.gate) === 'R') lim = Math.min(lim, a - 8);
@@ -6300,11 +6318,13 @@ function moveTrain(tr, dt) {
   }
   if (tr.depS != null && !tr.rec && tr.head >= tr.depS) {
     tr.rec = true; const t = tr.t; t.depT = S.simT;
+    if (t.exc && t.exc.nocross) log(`${t.exc.kind} ${t.num} transitato da Latisana alle ${fmtM(S.simT)}: si può riattivare il binario attiguo con ${SIDES[t.from].name} indicando questo orario`, 'warn');
     const dl = Math.max(0, Math.floor((S.simT - t.dep) / 60)); t.delay = dl; S.served++;
     if (CATS[tr.cat].pax) S.paxDelay += Math.max(0, dl - (t.late || 0));   // il ritardo ereditato dalle stazioni limitrofe non pesa sul DM
     log(`${tr.cat} ${tr.num} ${tr.stops ? 'partito' : 'licenziato'} ${tr.track === 'M' ? "dall'asta" : 'dal bin. ' + tr.track} sul ${cname(tr.outLine)} — ${dl ? 'ritardo +' + dl + "'" + (t.late ? ` (${t.late}' già in ingresso)` : '') : 'in orario'}`, dl > 2 && CATS[tr.cat].pax ? 'warn' : 'ok');
   }
   if (tr.exit && tr.head - tr.len >= tr.L) { tr.gone = true; tr.t.done = true; tr.t.doneT = S.simT; log(`${tr.cat} ${tr.num} giunto a ${SIDES[tr.toSide].name}`);
+    if (tr.t.exc && tr.t.exc.nocross) ring(`DM ${SIDES[tr.toSide].name}`, `${STN}, qui ${SIDES[tr.toSide].name}: il ${tr.t.exc.kind} ${tr.t.exc.ref} (treno ${tr.num}) è transitato da noi alle ${fmtM(S.simT)}. Potete riattivare la circolazione sul binario attiguo indicando questo orario nell'autorizzazione.`);
     if (!tr.t.can && S.ints.some(x => x.ente === tr.outLine && x.state === 'granted' && x.giuntoReq !== false && x.after && x.after.uid === tr.t.uid)) { tr.t.giuntoN = giuntoNum(); const ll = S.lineLast[tr.outLine]; if (ll && ll.uid === tr.t.uid) ll.giuntoN = tr.t.giuntoN; ring(`DM ${SIDES[tr.toSide].name}`, giuntoTxt(tr, tr.t.giuntoN, SIDES[tr.toSide].name.replace(/\.$/, ''), null, `DM ${SIDES[tr.toSide].name.replace(/\.$/, '')}`)); giuntoAck(tr, tr.t.giuntoN); } }
 }
 // i PLA restano chiusi finché un segnale che li protegge è disposto o il treno non li ha superati:
@@ -6360,7 +6380,9 @@ function updateLines(dt) {
   // invio dei treni dalle stazioni vicine (il DC regola la circolazione)
   for (const side of ['SG', 'PG']) {
     if (evStop(side)) continue;
-    const nx = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready && !t.dcSpawnHold && !noSendBlocks(t) && !(evLimited(side) && !t.inoOk));
+    tesNag();
+    for (const t of S.TT) if (t.from === side && !t.sent && t.exc && S.simT >= t.ready) { const w = tesWait(t); if (w) t.status = w; else if (/^attende (sospensione|liberazione)/.test(t.status)) t.status = 'programmato'; }
+    const nx = S.TT.find(t => t.from === side && !t.sent && !t.can && S.simT >= t.ready && !t.dcSpawnHold && !noSendBlocks(t) && !suspBlocks(t) && !tesWait(t) && !(evLimited(side) && !t.inoOk));
     if (!nx) continue;
     const L = SIDES[side].lines.find(L => {
       const st = S.line[L], l = LINES[L];
@@ -6665,6 +6687,96 @@ function updateNosend() {
   n.rem = S.simT + 2400;
   phone('DC', `Latisana, qui DC: sono trascorsi ${Math.round((S.simT - n.t0) / 60)} minuti dalla limitazione dell'invio dei treni (${nsTxt(n)}). Quando prevedete di riprendere la circolazione normale?`);
 }
+// ======================= TRASPORTI ECCEZIONALI (TE) E A ECCEDENZA DI SAGOMA (TES) =======================
+// condizioni di inoltro indicate nel quadro orario: limitazioni di velocità (in linea o a Latisana, eseguite dall'AdC),
+// divieto di incrocio in linea (sospensione del binario attiguo con le stazioni limitrofe), transito obbligato su un binario
+const KMS = { SG: [74.0, 78.9, 84.6, 90.5], PG: [72.4, 67.1, 61.5, 60.1] };   // km di inizio/fine delle sezioni di blocco dal lato Latisana
+const fkm = k => `${Math.floor(k)}+${String(Math.round((k % 1) * 1000)).padStart(3, '0')}`;
+function mkExc(kind, dir, d, re) {
+  const dd = new Date(Date.UTC(2026, 10, 23) + (d - (1 + Math.floor(re() * 6))) * 86400000), ref = `${String(1 + Math.floor(re() * 98)).padStart(2, '0')}/${String(100 + Math.floor(re() * 899))} del ${String(dd.getUTCDate()).padStart(2, '0')}/${String(dd.getUTCMonth() + 1).padStart(2, '0')}/${dd.getUTCFullYear()}`;
+  const conds = [];
+  if (re() < (kind === 'TE' ? 0.8 : 0.6)) {
+    const v = [50, 60, 70][Math.floor(re() * 3)];
+    if (re() < 0.6) { const side = re() < 0.5 ? 'SG' : 'PG', n = side === 'SG' ? 3 : 2, sec = 1 + Math.floor(re() * n), k = KMS[side]; conds.push({ k: 'vel', v, where: 'line', side, sec, k0: k[sec - 1], k1: k[sec] }); }
+    else conds.push({ k: 'vel', v, where: 'sta', bin: ['I', 'II', 'III', 'IV', 'ALL', 'ALL'][Math.floor(re() * 6)] });
+  }
+  if (kind === 'TES' && re() < 0.55) conds.push({ k: 'nocross' });
+  if (kind === 'TES' && re() < 0.35) conds.push({ k: 'bin', bin: ['I', 'II', 'III', 'IV'][Math.floor(re() * 4)] });
+  if (!conds.length) conds.push({ k: 'vel', v: [50, 60, 70][Math.floor(re() * 3)], where: 'sta', bin: 'ALL' });
+  return { kind, ref, conds, nocross: conds.some(c => c.k === 'nocross') };
+}
+function excConds(t) {
+  const x = t.exc; if (!x) return [];
+  const O = SIDES[t.from].name, D = SIDES[t.to].name;
+  return x.conds.map(c => c.k === 'vel'
+    ? (c.where === 'line' ? `Limitazione a ${c.v} km/h dal km ${fkm(c.k0)} al km ${fkm(c.k1)} (tratta ${SIDES[c.side].name}–Latisana), eseguita dall'AdC`
+      : `Limitazione a ${c.v} km/h in transito a Latisana ${c.bin === 'ALL' ? '(tutta la stazione)' : '(bin. ' + c.bin + ')'}, eseguita dall'AdC`)
+    : c.k === 'bin' ? `Transito obbligato sul bin. ${c.bin} di Latisana`
+    : `Divieto di incrocio in linea: sospendere la circolazione sul binario attiguo con ${O} (prima che il treno parta) e con ${D} (prima di inoltrarlo); riattivare dopo il transito indicando nell'autorizzazione l'orario di transito`);
+}
+function excLim(tr, p) {
+  const x = tr.t.exc; if (!x) return Infinity; let v = Infinity;
+  for (const c of x.conds) {
+    if (c.k !== 'vel') continue;
+    if (c.where === 'line') { const L = SECOF[p.cdb]; if (L && LINES[L].side === c.side && +p.cdb.slice(-1) === c.sec) v = Math.min(v, KMH(c.v)); }
+    else if (c.bin === 'ALL' ? (!SECOF[p.cdb] && p.cdb !== 'E2' && p.cdb !== 'E3') : p.cdb === TRACK_CDB[c.bin]) v = Math.min(v, KMH(c.v));
+  }
+  return v;
+}
+// il TES con divieto di incrocio resta fermo nella stazione limitrofa finché non è sospeso il binario attiguo
+function tesWait(t) {
+  if (!t.exc || !t.exc.nocross) return '';
+  const sp = S.susp && S.susp[t.from];
+  if (!sp || sp.uid !== t.uid) return 'attende sospensione binario attiguo';
+  if (S.trains.some(tr => !tr.gone && tr.exit && tr.toSide === t.from && tr.t.dir !== t.dir)) return 'attende liberazione del binario attiguo';
+  return '';
+}
+function suspBlocks(t) { const sp = S.susp && S.susp[t.from]; return !!(sp && !(t.exc && t.uid === sp.uid) && t.dir !== sp.dir); }
+function tesNag() {
+  for (const t of S.TT) {
+    if (!t.exc || !t.exc.nocross || t.sent || t.can || t.done || S.simT < t.ready - 300 || (t.tesNag || 0) > S.simT || !tesWait(t).includes('sospensione')) continue;
+    t.tesNag = S.simT + 900; const nb = SIDES[t.from].name;
+    ring(`DM ${nb}`, `${STN}, qui ${nb}: ho in partenza verso di voi il ${t.exc.kind} ${t.exc.ref} (treno ${t.num}) con divieto di incrocio in linea. Sospendete la circolazione sul binario attiguo tra noi e Latisana e comunicatemelo: solo dopo posso inoltrarlo.`);
+  }
+}
+const tesByNum = n => S.TT.find(t => String(t.num) === String(n) && t.exc && t.exc.nocross && !(t.done && S.simT - t.doneT > 3600));
+function suspSet(side, num) {
+  side = String(side || '').toUpperCase(); if (!SIDES[side]) return result(false, 'Indica la stazione limitrofa: SG o PG');
+  const t = tesByNum(num); if (!t) return result(false, `Nessun TES con divieto di incrocio col numero ${num || '?'}`);
+  if (side !== t.from && side !== t.to) return result(false, 'Stazione non interessata dal transito del TES');
+  S.susp = S.susp || {}; const nb = SIDES[side].name, cur = S.susp[side];
+  if (cur && cur.uid === t.uid) return result(false, `Circolazione sul binario attiguo con ${nb} già sospesa per il ${t.num}`);
+  if (cur) return result(false, `Sul binario attiguo con ${nb} è già sospesa la circolazione per un altro TES`);
+  S.susp[side] = { uid: t.uid, dir: t.dir, t0: S.simT };
+  phone('DM', `DC e DM ${nb}, qui ${STN}: per il ${t.exc.kind} ${t.exc.ref} (treno ${t.num}) con divieto di incrocio in linea sospendo la circolazione sul binario attiguo tra ${nb} e Latisana, in senso opposto al treno. Confermate.`);
+  queuePhone(25 + Math.random() * 20, 'DC', `${STN}, qui DC: preso nota della sospensione della circolazione sul binario attiguo con ${nb} per il ${t.exc.kind} ${t.exc.ref}.`);
+  queuePhone(40 + Math.random() * 30, `DM ${nb}`, `${STN}, qui ${nb}: ricevuto, circolazione sospesa sul binario attiguo${side === t.from ? `: procedo all'inoltro del treno ${t.num} verso di voi` : `: potete inoltrare il treno ${t.num} verso di noi`}. Comunicatemi il transito per la ripresa.`);
+  return result(true, `Circolazione sospesa sul binario attiguo con ${nb} (TES ${t.num})`, 'warn');
+}
+function suspOff(side, num, hhmm) {
+  side = String(side || '').toUpperCase(); if (!SIDES[side]) return result(false, 'Indica la stazione limitrofa: SG o PG');
+  const t = tesByNum(num), sp = S.susp && S.susp[side];
+  if (!t || !sp || sp.uid !== t.uid) return result(false, `Nessuna sospensione attiva con ${SIDES[side] ? SIDES[side].name : side} per il treno ${num || '?'}`);
+  const at = side === t.from ? t.depT : t.doneT;
+  if (!at) return result(false, side === t.from ? `Il ${t.num} non è ancora transitato da Latisana: non riattivare` : `Il ${t.num} non è ancora transitato a ${SIDES[side].name}: non riattivare`);
+  const m = /^(\d{1,2})[:.](\d{2})$/.exec(String(hhmm || '').trim());
+  if (!m) return result(false, 'Indica nell\'autorizzazione l\'orario di transito del treno (HH:MM)');
+  const given = (+m[1]) * 60 + (+m[2]), real = Math.floor(at / 60) % 1440, df = Math.min(Math.abs(given - real), 1440 - Math.abs(given - real));
+  if (df > 1) { S.irreg++; return result(false, `Orario di transito indicato (${hhmm}) non corrispondente: il ${t.num} è transitato alle ${fmtM(at)}`, 'err'); }
+  S.susp[side] = null; const nb = SIDES[side].name;
+  phone('DM', `DC e DM ${nb}, qui ${STN}: il ${t.exc.kind} ${t.exc.ref} (treno ${t.num}) è transitato alle ${fmtM(at)}: riattivo la circolazione sul binario attiguo tra ${nb} e Latisana.`);
+  queuePhone(20 + Math.random() * 20, 'DC', `${STN}, qui DC: preso nota del transito del ${t.num} alle ${fmtM(at)}, circolazione ripristinata sul binario attiguo con ${nb}.`);
+  queuePhone(30 + Math.random() * 30, `DM ${nb}`, `${STN}, qui ${nb}: ricevuto, ripresa la circolazione sul binario attiguo (transito del ${t.num} alle ${fmtM(at)}).`);
+  return result(true, `Circolazione riattivata sul binario attiguo con ${nb}`, 'ok');
+}
+function updateSusp() {
+  if (!S.susp) return;
+  for (const side in S.susp) {
+    const sp = S.susp[side]; if (!sp) continue; const t = S.TT.find(x => x.uid === sp.uid); if (!t) { S.susp[side] = null; continue; }
+    const at = side === t.from ? t.depT : t.doneT;
+    if (at && !sp.rem && S.simT >= at + 300) { sp.rem = true; phone(`DM ${SIDES[side].name}`, `${STN}, qui ${SIDES[side].name}: il ${t.num} è transitato alle ${fmtM(at)}. Quando riattivate la circolazione sul binario attiguo?`); }
+  }
+}
 // ======================= RICHIESTA DI PRECEDENZA AL DC =======================
 // il DM chiede di fermare un treno a Latisana per far passare un treno più veloce che lo segue;
 // il DC valuta rango, orari di transito, distacco fino alla stazione successiva e incroci a binario unico
@@ -6880,7 +6992,7 @@ function tick(dt) {
   updateExtM40a(dt);
   updateInts();
   updateDC();
-  updateRequests(); updateStaz(); updateNosend();
+  updateRequests(); updateStaz(); updateNosend(); updateSusp();
   updateEvents();
   if (Math.floor(S.simT / 15) !== Math.floor((S.simT - dt) / 15)) for (const tr of S.trains) { if (tr.stab) continue; const p = pointAt(tr.path, tr.head); tr.t.hist.push([Math.round(S.simT), +kmOfX(p[0]).toFixed(3)]); }
   if (Math.floor(S.simT) % 60 === 0 && Math.floor(S.simT - dt) % 60 !== 0) ensureDays(false);
@@ -7325,6 +7437,8 @@ function execCommand(raw) {
     case 'PRE': return a ? precAsk(a, b) : result(false, 'PRE <treno da fermare> [<treno da far precedere>] (richiesta al DC)');
     case 'STAZ': return stazAsk(a);
     case 'INVIO': { const u = (a || '').toUpperCase(); if (u === 'OFF') return sendHold('off'); if (!u || u === 'STOP') return sendHold('stop', 'ALL', '', 'app'); return sendHold('list', 'ALL', a, 'app'); }
+    case 'SOSP': return a && b ? suspSet(a, b) : result(false, 'SOSP <SG|PG> <n. treno TES> (sospendi il binario attiguo con la stazione limitrofa)');
+    case 'RIATT': return a && b ? suspOff(a, b, p[3]) : result(false, 'RIATT <SG|PG> <n. treno TES> <HH:MM transito>');
     case 'GIU': return a ? giuntoReq(a) : result(false, 'GIU <treno> (richiesta del giunto treno)');
     case 'INO': if (!a) return result(false, 'INO <treno> (chiedi inoltro) · INO SI | INO NO (risposta alla stazione limitrofa)'); if (a.toUpperCase() === 'SI') return inoltroAnswer(true); if (a.toUpperCase() === 'NO') return inoltroAnswer(false); return inoltroAsk(a);
     case 'VIA': return a && b !== undefined ? intConcedi(a, b, p[3]) : result(false, 'VIA <n. interruzione> <treno delimitante> <giunto>');
@@ -7405,6 +7519,8 @@ $('telGiu').addEventListener('click', () => { const v = $('telTr').value; if (!v
 $('telSendStop').addEventListener('click', () => show(sendHold('stop', $('telSendSide').value, '', $('telSendC').value)));
 $('telSendList').addEventListener('click', () => show(sendHold('list', $('telSendSide').value, $('telSendN').value, $('telSendC').value)));
 $('telSendOff').addEventListener('click', () => show(sendHold('off')));
+$('telTesS').addEventListener('click', () => show(suspSet($('telTesSide').value, $('telTesN').value)));
+$('telTesR').addEventListener('click', () => show(suspOff($('telTesSide').value, $('telTesN').value, $('telTesT').value)));
 $('telCall').addEventListener('click', () => { const v = $('telTr').value; if (!v) return; if (['DC', 'MT', 'CEI'].includes(v)) { msg('Scrivi il messaggio e premi Invia', 'warn'); return; } show(callTrain(v)); });
 const INTT = {}, VIAV = {};
 function renderPhone() {
@@ -7596,6 +7712,11 @@ function binCell(t) {
 }
 const TTOPEN = new Set();
 $('ttBody').addEventListener('click', e => { if (e.target.closest('button,select')) return; const r = e.target.closest('tr[data-tt]'); if (!r) return; const u = r.dataset.tt; TTOPEN.has(u) ? TTOPEN.delete(u) : TTOPEN.add(u); renderTT(); });
+function tesSel() {
+  const se = $('telTesN'); if (!se || se.ownerDocument.activeElement === se) return;
+  const l = S.TT.filter(t => t.exc && t.exc.nocross && !t.done && t.ready - S.simT < 6 * 3600).sort((a, b) => a.arr - b.arr), h = l.map(t => `<option value="${t.num}">${t.exc.kind} ${t.num} · ${t.exc.ref} · ${fmtM(t.arr)}</option>`).join('') || '<option value="">nessun TES con divieto di incrocio</option>';
+  if (se._h !== h) { const v = se.value; se._h = h; se.innerHTML = h; if (v) se.value = v; }
+}
 function renderTT() {
   const tb = $('ttBody');
   { const ae = tb.ownerDocument.activeElement; if (ae && ae.tagName === 'SELECT' && tb.contains(ae)) return; }
@@ -7607,11 +7728,12 @@ function renderTT() {
     if (t.dcHold) st += ` · <span style="color:#ffd54f">DC: attendere ${t.dcHold}</span>`;
     const showArr = !(CATS[t.cat].pax && !t.stops);
     const eff = (tp, te) => te ? `<div class="eff ${te - tp > 120 ? 'late' : ''}">${fmtM(te)}${te - tp > 59 ? ` (+${Math.floor((te - tp) / 60)}')` : ''}</div>` : '';
-    h += `<tr data-tt="${t.uid}" class="${t.done ? 'done' : live ? 'live' : wait ? 'wait' : ''} click"><td><span class="cat" style="background:${CATS[t.cat].col}">${t.cat}</span> ${t.num}${t.rid ? ' <span class="rid" title="Merci pericolose (RID)"></span>' : ''}${t.prmCall ? ' <span title="Persona a ridotta mobilità: bin. I o IV">♿</span>' : ''}<div class="if">${t.impresa}</div></td><td>${t.orig} → ${t.dest}</td><td>${showArr ? fmtM(t.arr) + eff(t.arr, t.arrT || (t.late ? eta0(t) : 0)) : '—'}</td><td>${fmtM(t.dep)}${eff(t.dep, t.depT || (t.late ? t.dep + t.late * 60 : 0))}</td><td>${binCell(t)}</td><td class="note">${svcLabel(t)}${t.note && (!t.precFor || t.stopType !== 'sosta programmata') ? `<div class="if">${t.note}</div>` : ''}</td><td>${st}</td></tr>`;
+    h += `<tr data-tt="${t.uid}" class="${t.done ? 'done' : live ? 'live' : wait ? 'wait' : ''} click"><td><span class="cat" style="background:${CATS[t.cat].col}">${t.cat}</span> ${t.num}${t.rid ? ' <span class="rid" title="Merci pericolose (RID)"></span>' : ''}${t.prmCall ? ' <span title="Persona a ridotta mobilità: bin. I o IV">♿</span>' : ''}${t.exc ? ` <span class="tes" title="${t.exc.kind === 'TE' ? 'Trasporto eccezionale' : 'Trasporto a eccedenza di sagoma'}">${t.exc.kind}</span>` : ''}<div class="if">${t.impresa}</div></td><td>${t.orig} → ${t.dest}</td><td>${showArr ? fmtM(t.arr) + eff(t.arr, t.arrT || (t.late ? eta0(t) : 0)) : '—'}</td><td>${fmtM(t.dep)}${eff(t.dep, t.depT || (t.late ? t.dep + t.late * 60 : 0))}</td><td>${binCell(t)}</td><td class="note">${svcLabel(t)}${t.note && (!t.precFor || t.stopType !== 'sosta programmata') ? `<div class="if">${t.note}</div>` : ''}${t.exc ? excConds(t).map(c => `<div class="exc">⚠ ${c}</div>`).join('') : ''}</td><td>${st}</td></tr>`;
   }
   h = h || '<tr><td colspan="7" style="color:#8b939c">Nessun treno nelle prossime ore</td></tr>'; if (tb._h !== h) { tb._h = h; tb.innerHTML = h; }
   for (const x of tb.querySelectorAll('tr.ttdet')) x.remove();   // le righe di dettaglio si rigenerano ad ogni giro (altrimenti si accumulano)
   for (const uid of TTOPEN) { const row = tb.querySelector(`tr[data-tt="${uid}"]`), t = S.TT.find(x => String(x.uid) === String(uid)); if (!row || !t) continue; const d = document.createElement('tr'); d.className = 'ttdet'; d.innerHTML = `<td colspan="7">${t.matName ? `Materiale <b>${t.matName}</b> · ` : ''}${t.rid ? '<span class="rid"></span> <b>merci pericolose (RID)</b> · ' : ''}Lunghezza <b>${t.len} m</b> · velocità massima <b>${t.vmax} km/h</b> · ${t.can ? 'treno cantiere' : t.dir === 'R' ? 'pari, da S. Giorgio' : 'dispari, da Portogruaro'} · ${CATS[t.cat].name}${t.note ? ' · ' + t.note : ''}</td>`; row.after(d); }
+  tesSel();
   const d = Math.floor(S.simT / 86400) % 7;
   $('ttDay').textContent = DOWL[d] + (d <= 4 ? ' · feriale' : d === 5 ? ' · sabato' : ' · festivo');
   let r = '';
@@ -7624,6 +7746,7 @@ function renderTT() {
     }
     if (x.state === 'active') r += `<div class="r hot"><span>Interruzione n. ${x.id} ${cname(x.ente)} in atto fino alle ${fmtM(x.to)}${x.can ? ` · treno cantiere ${x.can.mode === 'out' ? 'in uscita dall\'asta' : 'in arrivo per il ricovero'}` : ''}</span><button class="hb sm" data-c="RIP ${x.ente}">RIP</button></div>`;
   }
+  for (const sd in (S.susp || {})) { const sp = S.susp[sd]; if (!sp) continue; const t = S.TT.find(x => x.uid === sp.uid); if (t) r += `<div class="r hot"><span>Binario attiguo con ${SIDES[sd].name} sospeso per il ${t.exc.kind} ${t.num} (${t.exc.ref}) · ${(sd === t.from ? t.depT : t.doneT) ? '<b>transitato: riattivare indicando l\'orario</b>' : 'in attesa del transito'}</span></div>`; }
   if (S.nosend) { const n = S.nosend; r += `<div class="r hot"><span>Invio treni limitato (${n.side === 'ALL' ? 'tutte le direzioni' : SIDES[n.side].name}): ${n.mode === 'stop' ? 'nessun treno inviato' : 'solo i treni ' + n.nums.join(', ')} · ${n.why}</span><button class="hb sm" data-c="INVIO OFF">Riprendi</button></div>`; }
   { const st = stazTrain(); if (st) r += `<div class="r${b4Wanted() ? ' hot' : ''}"><span>Treno ${st.num} in stazionamento al bin. IV fino alle ${fmtM(st.t.dep)}${b4Wanted() ? ' — <b>la Manutenzione richiede il bin. IV</b>' : ''}${st.stazReq ? ' · richiesta al DC inoltrata' : ' · stazionamento altrove (accordo col DC):'}</span>${st.stazReq ? '' : '<button class="hb sm" data-c="STAZ I">Bin. I</button><button class="hb sm" data-c="STAZ PG">Portogruaro</button><button class="hb sm" data-c="STAZ SG">S. Giorgio</button>'}</div>`; }
   for (const t of S.TT) if (t.dcHold && !t.done) r += `<div class="r hot"><span>Ordine DC: trattenere ${t.cat} ${t.num} fino al ${t.dcHold}</span></div>`;
@@ -8482,7 +8605,7 @@ const R3 = (() => {
         pcLed = new THREE.MeshStandardMaterial({ color: 0x00aa22, emissive: 0x00ff2a, emissiveIntensity: 1.1, roughness: 0.4 });
         const pb = box(wS / 2 - 14, yC - hS / 2 - 14, -26, 26, 14, 8, mat({ color: 0x25272a, roughness: 0.4 }), g, 2); pb.userData.pc = 'pwr'; pcHit.push(pb);
         box(wS / 2 - 46, yC - hS / 2 - 11, -26, 7, 7, 4, pcLed, g);
-        const kb = box(-10, 0, 215, 420, 16, 140, kbMat(), g, 4), ms = box(250, 0, 225, 56, 26, 96, mats.dark, g, 12);
+        const kb = box(-10, 0, 120, 420, 16, 140, kbMat(), g, 4), ms = box(250, 0, 130, 56, 26, 96, mats.dark, g, 12);
         pcDraw(0);
       }
       // ---------- bacheca portachiavi con adesivo ----------
@@ -8510,9 +8633,6 @@ const R3 = (() => {
         cyl(18, 90, dkg, [xr, 1795, zr]);
         const rg = new THREE.Mesh(new THREE.TorusGeometry(M(150), M(6), 8, 32), gry); rg.rotation.x = Math.PI / 2; rg.position.set(M(xr), M(820), M(zr)); rg.castShadow = true; scene.add(rg);
         for (let k = 0; k < 3; k++) { const a = k * 2.09, b = box(xr + Math.cos(a) * 75, 816, zr + Math.sin(a) * 75, 150, 8, 8, gry); b.rotation.y = -a; }
-        // giubbotto appeso a un braccio
-        const jg = group(xr + 280, 1765, zr, 0), jm = mat({ color: 0x1f3550, roughness: 0.85 });
-        box(0, -520, 0, 300, 500, 110, jm, jg, 30); box(-175, -470, 0, 80, 440, 90, jm, jg, 30); box(175, -470, 0, 80, 440, 90, jm, jg, 30); box(0, -40, 0, 190, 40, 130, mat({ color: 0xd8d4c8, roughness: 0.8 }), jg, 14);
       }
     }
 
