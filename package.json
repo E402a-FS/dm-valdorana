@@ -1,7 +1,7 @@
 {
   "name": "dm-valdorana",
   "productName": "Circolazione Simulatore",
-  "version": "3.0.4",
+  "version": "2.11.2",
   "description": "Circolazione Simulatore — simulatore della postazione del Dirigente Movimento",
   "author": "Circolazione Simulatore",
   "license": "UNLICENSED",
@@ -47,7 +47,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "E402a-FS",
+        "owner": "TUO-UTENTE-GITHUB",
         "repo": "dm-valdorana"
       }
     ]
