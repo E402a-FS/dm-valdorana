@@ -526,6 +526,7 @@ body.native-menu header{display:none}
     <div class="ann">
       <label class="annrow"><span>Annunci automatici</span><button type="button" id="annOn" class="on">Attivi</button></label>
       <label class="annrow"><span>Volume annunci</span><input type="range" id="annVol" min="1" max="100" step="1" value="100"><b id="annVolV">100%</b></label>
+      <label class="annrow"><span>Volume Leopolder</span><input type="range" id="leopVol" min="1" max="100" step="1" value="100"><b id="leopVolV">100%</b></label>
       <label class="annrow"><span>Richiami casuali (S2, S9)</span><button type="button" id="annRnd" class="on">Attivi</button></label>
       <div class="annh">Annunci extra (voce di stazione)</div>
       <div class="annbtn">
@@ -607,7 +608,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.11.2';
+window.SIM_BUILD = '2.11.3';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -7664,7 +7665,9 @@ function bzPlay(k, loop, vol, maxSec) {
 function playEntry() { bzPlay('entry', false, 0.26); }
 let routeHold = 0;
 function routeBuzz() { }   // cicalino dell'itinerario eliminato
-function playLeop() { bzStop('leop'); bzPlay('leop', true, 0.24, 20); }
+let LEOP_VOL = 1; try { const v = parseFloat(localStorage.getItem('leopVol')); if (v >= 0.01 && v <= 1) LEOP_VOL = v; } catch (e) { }
+function playLeop() { bzStop('leop'); bzPlay('leop', true, 0.24 * Math.pow(LEOP_VOL, 1.4), 20); }
+function setLeopVol(v) { LEOP_VOL = v; try { localStorage.setItem('leopVol', v); } catch (e) { } const n = bzNode.leop; if (n) n.g.gain.value = 0.24 * Math.pow(v, 1.4); }
 onSound = k => { if (k === 'entry') { playEntry(); return; } if (k === 'route') return; if (k === 'leop') { playLeop(); return; } if (k === 'err') beep(200, .3, 'sawtooth'); if (k === 'ring') { beep(1300, .12); setTimeout(() => beep(1300, .12), 180); } if (k === 'emerg') { for (let r = 0; r < 3; r++) for (let i = 0; i < 6; i++) setTimeout(() => beep(i % 2 ? 1450 : 980, .16, 'sawtooth', .06), r * 1100 + i * 170); return; } if (k === 'phone') { for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), i * 60); for (let i = 0; i < 16; i++) setTimeout(() => beep(i % 2 ? 760 : 620, .055, 'square', .03), 1300 + i * 60); } };
 onLog = (m, cls, t) => {
   const el = $('log'); if (!el) return;
@@ -8812,6 +8815,8 @@ setInterval(annDrain, 400);
     const b = ev.target.closest('button[data-ann]'); if (!b) return;
     const x = b.dataset.ann, e = { k: 'extra', x }; annLogAdd(e); annSay(e);
   });
+  const lv = $('leopVol'), lvv = $('leopVolV'); lv.value = Math.round(LEOP_VOL * 100); lvv.textContent = lv.value + '%';
+  lv.oninput = () => { setLeopVol(+lv.value / 100); lvv.textContent = lv.value + '%'; };
   paint();
 })();
 
