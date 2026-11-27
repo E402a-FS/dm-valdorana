@@ -527,6 +527,7 @@ body.native-menu header{display:none}
       <label class="annrow"><span>Annunci automatici</span><button type="button" id="annOn" class="on">Attivi</button></label>
       <label class="annrow"><span>Volume annunci</span><input type="range" id="annVol" min="1" max="100" step="1" value="100"><b id="annVolV">100%</b></label>
       <label class="annrow"><span>Volume Leopolder</span><input type="range" id="leopVol" min="1" max="100" step="1" value="100"><b id="leopVolV">100%</b></label>
+      <label class="annrow"><span>Volume treno in ingresso</span><input type="range" id="entVol" min="1" max="100" step="1" value="100"><b id="entVolV">100%</b></label>
       <label class="annrow"><span>Richiami casuali (S2, S9)</span><button type="button" id="annRnd" class="on">Attivi</button></label>
       <div class="annh">Annunci extra (voce di stazione)</div>
       <div class="annbtn">
@@ -608,7 +609,7 @@ body.native-menu header{display:none}
 <div id="newTurn" class="ntm" style="display:none"><div class="ntb"><b>Nuovo turno</b><div class="mrow"><select id="ntDay"></select><select id="ntHour"></select></div><div class="mrow"><button class="hb" id="ntGo">Avvia</button><button class="hb" id="ntNo">Annulla</button></div></div></div>
 
 <script>
-window.SIM_BUILD = '2.11.3';
+window.SIM_BUILD = '2.11.4';
 (function () {
   function show(t) { var b = document.getElementById('errBanner'); if (!b) return; b.style.display = 'block'; b.textContent += (b.textContent ? '\n' : 'ERRORE (Latisana ' + window.SIM_BUILD + ') — fai uno screenshot e mandalo:\n') + t; }
   window.addEventListener('error', function (e) { show((e.message || e) + (e.filename ? ' @ ' + e.lineno + ':' + e.colno : '') + (e.error && e.error.stack ? '\n' + e.error.stack.split('\n').slice(0, 4).join('\n') : '')); });
@@ -7662,7 +7663,9 @@ function bzPlay(k, loop, vol, maxSec) {
     }).catch(() => { bzWant[k] = false; });
   } catch (e) { bzWant[k] = false; }
 }
-function playEntry() { bzPlay('entry', false, 0.26); }
+let ENT_VOL = 1; try { const v = parseFloat(localStorage.getItem('entVol')); if (v >= 0.01 && v <= 1) ENT_VOL = v; } catch (e) { }
+function playEntry() { bzPlay('entry', false, 0.26 * Math.pow(ENT_VOL, 1.4)); }
+function setEntVol(v) { ENT_VOL = v; try { localStorage.setItem('entVol', v); } catch (e) { } const n = bzNode.entry; if (n) n.g.gain.value = 0.26 * Math.pow(v, 1.4); }
 let routeHold = 0;
 function routeBuzz() { }   // cicalino dell'itinerario eliminato
 let LEOP_VOL = 1; try { const v = parseFloat(localStorage.getItem('leopVol')); if (v >= 0.01 && v <= 1) LEOP_VOL = v; } catch (e) { }
@@ -8817,6 +8820,8 @@ setInterval(annDrain, 400);
   });
   const lv = $('leopVol'), lvv = $('leopVolV'); lv.value = Math.round(LEOP_VOL * 100); lvv.textContent = lv.value + '%';
   lv.oninput = () => { setLeopVol(+lv.value / 100); lvv.textContent = lv.value + '%'; };
+  const ev = $('entVol'), evv = $('entVolV'); ev.value = Math.round(ENT_VOL * 100); evv.textContent = ev.value + '%';
+  ev.oninput = () => { setEntVol(+ev.value / 100); evv.textContent = ev.value + '%'; };
   paint();
 })();
 
